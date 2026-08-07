@@ -1,0 +1,28 @@
+# Visual Studio and MSBuild output
+.vs/
+bin/
+obj/
+dist/
+*.user
+*.suo
+*.VC.db
+*.VC.opendb
+*.pdb
+*.ilk
+
+# npm dependencies and logs (package-lock.json remains committed)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# WebView2 profile/cache data created during local runs
+*.WebView2/
+EBWebView/
+
+# Editor and operating-system noise
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+Desktop.ini

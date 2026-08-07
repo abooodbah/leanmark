@@ -1,0 +1,7 @@
+# Keep source checkouts deterministic across Windows and CI.
+* text=auto eol=lf
+*.sln text eol=crlf
+*.woff2 binary
+
+# These files are copied byte-for-byte from the pinned upstream MD4C release.
+third_party/md4c/** -whitespace

@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>17.0</VCProjectVersion>
+    <Keyword>Win32Proj</Keyword>
+    <ProjectGuid>{E35BEA9D-ED39-4BD5-AF32-B5D9A4DD57AF}</ProjectGuid>
+    <RootNamespace>LeanMark</RootNamespace>
+    <ProjectName>LeanMark</ProjectName>
+    <!-- "10.0" asks MSBuild to select an installed Windows 10/11 SDK. -->
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>Unicode</CharacterSet>
+  </PropertyGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+
+  <ImportGroup Label="ExtensionSettings" />
+  <ImportGroup Label="Shared" />
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props"
+            Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')"
+            Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props"
+            Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')"
+            Label="LocalAppDataPlatform" />
+  </ImportGroup>
+
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <OutDir>$(SolutionDir)bin\$(Platform)\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)obj\$(Platform)\$(Configuration)\$(ProjectName)\</IntDir>
+    <TargetName>LeanMark</TargetName>
+    <TargetExt>.exe</TargetExt>
+    <!-- The release stages this loader DLL beside LeanMark.exe. -->
+    <WebView2LoaderPreference>Dynamic</WebView2LoaderPreference>
+    <!--
+      NuGet's generic PackageReference asset resolver is managed-code oriented and
+      does not support vcxproj. Restore still provides PkgMicrosoft_Web_WebView2;
+      the package's native target is imported explicitly at the end of this file.
+    -->
+    <ResolveNuGetPackages>false</ResolveNuGetPackages>
+  </PropertyGroup>
+
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <!-- WebView2's NuGet props append its SDK headers after this local include list. -->
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\third_party\md4c;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <!-- MD4C intentionally uses the portable _snprintf spelling supported by MSVC. -->
+      <PreprocessorDefinitions>WIN32;_WINDOWS;UNICODE;_UNICODE;NOMINMAX;WIN32_LEAN_AND_MEAN;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>user32.lib;gdi32.lib;shell32.lib;ole32.lib;shlwapi.lib;comctl32.lib;dwmapi.lib;advapi32.lib;shcore.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level4</WarningLevel>
+      <SDLCheck>true</SDLCheck>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <ConformanceMode>true</ConformanceMode>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <!-- /MT keeps the native C/C++ runtime self-contained. -->
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <!-- WebView2's NuGet props append its SDK headers after this local include list. -->
+      <AdditionalIncludeDirectories>$(ProjectDir);$(ProjectDir)..\third_party\md4c;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <!-- MD4C intentionally uses the portable _snprintf spelling supported by MSVC. -->
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;UNICODE;_UNICODE;NOMINMAX;WIN32_LEAN_AND_MEAN;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <SubSystem>Windows</SubSystem>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalDependencies>user32.lib;gdi32.lib;shell32.lib;ole32.lib;shlwapi.lib;comctl32.lib;dwmapi.lib;advapi32.lib;shcore.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+
+  <ItemGroup>
+    <ClCompile Include="App.cpp" />
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="Markdown.cpp" />
+    <!-- MD4C is compiled directly into LeanMark; no parser DLL is required. -->
+    <ClCompile Include="..\third_party\md4c\entity.c" />
+    <ClCompile Include="..\third_party\md4c\md4c.c" />
+    <ClCompile Include="..\third_party\md4c\md4c-html.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="App.h" />
+    <ClInclude Include="Markdown.h" />
+    <ClInclude Include="..\third_party\md4c\entity.h" />
+    <ClInclude Include="..\third_party\md4c\md4c.h" />
+    <ClInclude Include="..\third_party\md4c\md4c-html.h" />
+    <ClInclude Include="resource.h" Condition="Exists('resource.h')" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="LeanMark.rc" Condition="Exists('LeanMark.rc')" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- The native Manifest item lets MSBuild merge and embed exactly one application manifest. -->
+    <Manifest Include="LeanMark.manifest" Condition="Exists('LeanMark.manifest')" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2"
+                      Version="1.0.4078.44"
+                      GeneratePathProperty="true"
+                      ExcludeAssets="all" />
+  </ItemGroup>
+
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+    <Import Project="$(PkgMicrosoft_Web_WebView2)\build\native\Microsoft.Web.WebView2.targets"
+            Condition="'$(PkgMicrosoft_Web_WebView2)' != '' and Exists('$(PkgMicrosoft_Web_WebView2)\build\native\Microsoft.Web.WebView2.targets')" />
+  </ImportGroup>
+</Project>
