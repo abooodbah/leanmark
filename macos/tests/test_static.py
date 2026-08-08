@@ -117,6 +117,8 @@ def main() -> int:
     root_project = root_cmake.find("project(")
     require(root_deployment >= 0 and root_deployment < root_project,
             "root macOS deployment target must be set before project()")
+    require("if(CMAKE_HOST_APPLE)" in root_cmake,
+            "root pre-project deployment guard must use the host macOS flag")
     mac_deployment = cmake.find('set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0"')
     mac_project = cmake.find("project(LeanMarkMac")
     require(mac_deployment >= 0 and mac_deployment < mac_project,
