@@ -68,7 +68,10 @@ NSSet<NSString *> *DocumentImageExtensions(void) {
 NSString *DecodedRelativePath(NSURL *URL, NSError **error) {
     NSURLComponents *components =
         [NSURLComponents componentsWithURL:URL resolvingAgainstBaseURL:NO];
-    NSString *encoded = components.percentEncodedPath ?: @"";
+    NSString *encoded = components.percentEncodedPath;
+    if (encoded == nil) {
+        encoded = @"";
+    }
     NSString *decoded = encoded.stringByRemovingPercentEncoding;
     const unichar nul = 0;
     NSString *nulString = [NSString stringWithCharacters:&nul length:1];

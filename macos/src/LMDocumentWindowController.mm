@@ -77,8 +77,7 @@ BOOL IsExpectedAppURL(NSURL *URL) {
 
     self = [super initWithWindow:window];
     if (self != nil) {
-        self.document = document;
-        [self configureWebView];
+        [self configureWebViewForDocument:document];
         [self applyWindowTheme:CurrentTheme()];
         [window center];
     }
@@ -89,13 +88,16 @@ BOOL IsExpectedAppURL(NSURL *URL) {
     return (LMDocument *)self.document;
 }
 
-- (void)configureWebView {
+- (void)configureWebViewForDocument:(LMDocument *)document {
     WKWebViewConfiguration *configuration = [[WKWebViewConfiguration alloc] init];
     configuration.websiteDataStore = WKWebsiteDataStore.nonPersistentDataStore;
     configuration.preferences.javaScriptCanOpenWindowsAutomatically = NO;
 
     NSURL *resourceRoot = NSBundle.mainBundle.resourceURL;
-    NSURL *documentRoot = self.leanMarkDocument.documentDirectoryURL ?: resourceRoot;
+    NSURL *documentRoot = document.documentDirectoryURL;
+    if (documentRoot == nil) {
+        documentRoot = resourceRoot;
+    }
     _applicationSchemeHandler = [[LMResourceSchemeHandler alloc]
         initWithMode:LMResourceSchemeModeApplication
               rootURL:resourceRoot];
@@ -146,7 +148,8 @@ BOOL IsExpectedAppURL(NSURL *URL) {
 
 - (void)windowDidLoad {
     [super windowDidLoad];
-    self.window.title = self.leanMarkDocument.displayName ?: @"LeanMark";
+    NSString *displayName = self.leanMarkDocument.displayName;
+    self.window.title = displayName != nil ? displayName : @"LeanMark";
 }
 
 - (void)documentContentDidChange {
@@ -154,7 +157,8 @@ BOOL IsExpectedAppURL(NSURL *URL) {
     if (documentRoot != nil) {
         _documentSchemeHandler.rootURL = documentRoot;
     }
-    self.window.title = self.leanMarkDocument.displayName ?: @"LeanMark";
+    NSString *displayName = self.leanMarkDocument.displayName;
+    self.window.title = displayName != nil ? displayName : @"LeanMark";
     [self sendCurrentDocument];
 }
 
@@ -412,9 +416,16 @@ BOOL IsExpectedAppURL(NSURL *URL) {
           return;
       }
       if (NSProcessInfo.processInfo.systemUptime >= deadline) {
-          NSString *detail = error.localizedDescription ?: [NSString stringWithFormat:
-              @"timed out (state=%@ bridge=%d content=%d remote=%d)",
-              values[@"state"] ?: @"missing", bridge, content, remote];
+          NSString *detail = error.localizedDescription;
+          if (detail == nil) {
+              NSString *state = values[@"state"];
+              if (state == nil) {
+                  state = @"missing";
+              }
+              detail = [NSString stringWithFormat:
+                  @"timed out (state=%@ bridge=%d content=%d remote=%d)",
+                  state, bridge, content, remote];
+          }
           completion(NO, detail);
           return;
       }

@@ -80,11 +80,14 @@ def main() -> int:
         "message.frameInfo.isMainFrame",
         "IsExpectedAppURL(frameURL)",
         "window.LeanMarkHost.receive(payload)",
+        "configureWebViewForDocument:document",
         "WKNavigationActionPolicyCancel",
         "WKNavigationResponsePolicyCancel",
         "WKPermissionDecisionDeny",
         "completionHandler(nil)",
     ], "WKWebView host")
+    require("self.document = document;" not in window,
+            "NSDocument must attach its window controller through addWindowController")
 
     document_source = (mac / "src" / "LMDocument.mm").read_text("utf-8")
     contains_all(document_source, [
@@ -101,6 +104,8 @@ def main() -> int:
         'set(LEANMARK_BUNDLE_IDENTIFIER "io.github.abooodbah.LeanMark"',
         'set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64"',
         "scripts/stage-runtime-assets.mjs",
+        "XCODE_ATTRIBUTE_MACOSX_DEPLOYMENT_TARGET",
+        "XCODE_ATTRIBUTE_PRODUCT_BUNDLE_IDENTIFIER",
         "XCODE_ATTRIBUTE_CODE_SIGNING_ALLOWED \"NO\"",
         "LeanMarkMacWebKitSmoke",
         "package_macos",
@@ -108,6 +113,14 @@ def main() -> int:
     ], "macOS CMake target")
     require(f"VERSION {manifest_version}" not in cmake,
             "macOS project version must be derived, not hardcoded")
+    root_deployment = root_cmake.find('set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0"')
+    root_project = root_cmake.find("project(")
+    require(root_deployment >= 0 and root_deployment < root_project,
+            "root macOS deployment target must be set before project()")
+    mac_deployment = cmake.find('set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0"')
+    mac_project = cmake.find("project(LeanMarkMac")
+    require(mac_deployment >= 0 and mac_deployment < mac_project,
+            "standalone macOS deployment target must be set before project()")
     contains_all(root_cmake, ["if(APPLE)", "add_subdirectory(macos)"],
                  "root macOS build integration")
 

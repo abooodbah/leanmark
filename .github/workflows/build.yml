@@ -139,6 +139,9 @@ jobs:
         shell: bash
         run: |
           cmake --build build/linux --parallel
+          original_userns_restriction=$(sysctl -n kernel.apparmor_restrict_unprivileged_userns)
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          trap 'sudo sysctl -w "kernel.apparmor_restrict_unprivileged_userns=${original_userns_restriction}" >/dev/null' EXIT
           dbus-run-session -- ctest --test-dir build/linux --output-on-failure
 
       - name: Validate AppStream metadata

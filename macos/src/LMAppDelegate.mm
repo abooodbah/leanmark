@@ -318,8 +318,11 @@ NSMenuItem *MenuItem(NSString *title, SEL action, NSString *keyEquivalent,
                                         NSError *error) {
       (void)wasOpen;
       if (error != nil || document == nil) {
-          [self finishSmokeTest:NO
-                         detail:error.localizedDescription ?: @"document did not open"];
+          NSString *detail = error.localizedDescription;
+          if (detail == nil) {
+              detail = @"document did not open";
+          }
+          [self finishSmokeTest:NO detail:detail];
           return;
       }
       LMDocumentWindowController *controller =
@@ -336,8 +339,12 @@ NSMenuItem *MenuItem(NSString *title, SEL action, NSString *keyEquivalent,
 
 - (void)finishSmokeTest:(BOOL)success detail:(NSString *)detail {
     FILE *stream = success ? stdout : stderr;
+    const char *detailUTF8 = detail.UTF8String;
+    if (detailUTF8 == nullptr) {
+        detailUTF8 = "unknown";
+    }
     std::fprintf(stream, "LeanMark macOS smoke: %s: %s\n",
-                 success ? "PASS" : "FAIL", detail.UTF8String ?: "unknown");
+                 success ? "PASS" : "FAIL", detailUTF8);
     std::fflush(stream);
     std::exit(success ? EXIT_SUCCESS : EXIT_FAILURE);
 }

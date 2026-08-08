@@ -17,7 +17,7 @@ NSString *NSStringFromUTF8(const std::string& value) {
     NSString *result = [[NSString alloc] initWithBytes:value.data()
                                                length:value.size()
                                              encoding:NSUTF8StringEncoding];
-    return result ?: @"";
+    return result != nil ? result : @"";
 }
 
 NSError *DocumentError(NSInteger code, NSString *description) {
@@ -117,8 +117,14 @@ NSError *DocumentError(NSInteger code, NSString *description) {
         return @{ @"type" : @"empty", @"theme" : theme };
     }
 
-    NSString *fileName = _sourceURL.lastPathComponent ?: @"";
-    NSString *path = _sourceURL.path ?: @"";
+    NSString *fileName = _sourceURL.lastPathComponent;
+    if (fileName == nil) {
+        fileName = @"";
+    }
+    NSString *path = _sourceURL.path;
+    if (path == nil) {
+        path = @"";
+    }
     if (!_rendered.ok) {
         NSString *message = NSStringFromUTF8(_rendered.error);
         if (message.length == 0) {
