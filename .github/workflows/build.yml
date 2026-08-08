@@ -1,4 +1,4 @@
-name: Build Windows x64
+name: Build all platforms
 
 on:
   push:
@@ -14,8 +14,9 @@ permissions:
 
 jobs:
   build:
+    name: Windows x64
     runs-on: windows-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     outputs:
       version: ${{ steps.package.outputs.version }}
 
@@ -32,11 +33,11 @@ jobs:
       - name: Add MSBuild to PATH
         uses: microsoft/setup-msbuild@v3
 
-      - name: Build and stage portable files
+      - name: Build and stage Windows files
         shell: pwsh
         run: ./scripts/build.ps1 -Configuration Release -Platform x64
 
-      - name: Run core verification
+      - name: Run Windows core verification
         shell: pwsh
         run: ./tests/Test-LeanMark.ps1 -DistPath ./dist
 
@@ -68,11 +69,11 @@ jobs:
           }
           ('version={0}' -f $version) | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
-      - name: Create portable and installable release package
+      - name: Create Windows release package
         shell: pwsh
         run: ./scripts/package-release.ps1 -Version '${{ steps.package.outputs.version }}' -Platform x64
 
-      - name: Upload LeanMark release package
+      - name: Upload Windows package
         uses: actions/upload-artifact@v7
         with:
           name: LeanMark-v${{ steps.package.outputs.version }}-windows-x64
@@ -82,9 +83,195 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  linux:
+    name: Linux x86-64
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install GTK, WebKitGTK, and package tools
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            appstream build-essential cmake dbus-x11 libgtk-4-dev \
+            libwebkitgtk-6.0-dev ninja-build pkg-config xvfb
+
+      - name: Install pinned reader assets
+        shell: bash
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Resolve release package version
+        id: package
+        shell: bash
+        env:
+          LEANMARK_REF_TYPE: ${{ github.ref_type }}
+          LEANMARK_REF_NAME: ${{ github.ref_name }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [[ "$LEANMARK_REF_TYPE" == "tag" ]]; then
+            [[ "$LEANMARK_REF_NAME" == "v$version" ]] || {
+              echo "Tag $LEANMARK_REF_NAME does not match package.json $version." >&2
+              exit 1
+            }
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Configure Linux Release build
+        shell: bash
+        run: |
+          cmake -S . -B build/linux -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX=/usr \
+            -DBUILD_TESTING=ON \
+            -DLEANMARK_ENABLE_GUI_TESTS=ON
+
+      - name: Build and run Linux tests
+        shell: bash
+        run: |
+          cmake --build build/linux --parallel
+          original_userns_restriction=$(sysctl -n kernel.apparmor_restrict_unprivileged_userns)
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          trap 'sudo sysctl -w "kernel.apparmor_restrict_unprivileged_userns=${original_userns_restriction}" >/dev/null' EXIT
+          dbus-run-session -- ctest --test-dir build/linux --output-on-failure
+
+      - name: Validate AppStream metadata
+        shell: bash
+        run: |
+          appstreamcli validate --no-net --pedantic \
+            build/linux/io.github.abooodbah.leanmark.metainfo.xml
+
+      - name: Create and verify Debian package
+        shell: bash
+        run: |
+          bash ./scripts/package-linux.sh \
+            --version "${{ steps.package.outputs.version }}" \
+            --build-dir "${RUNNER_TEMP}/leanmark-linux-package" \
+            --output-dir "${GITHUB_WORKSPACE}/release"
+
+      - name: Upload Linux package
+        uses: actions/upload-artifact@v7
+        with:
+          name: LeanMark-v${{ steps.package.outputs.version }}-linux-x86_64
+          path: |
+            release/*.deb
+            release/*.deb.sha256
+          if-no-files-found: error
+          retention-days: 30
+
+  macos:
+    name: macOS universal preview
+    runs-on: macos-15-intel
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install pinned reader assets
+        shell: bash
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Resolve release package version
+        id: package
+        shell: bash
+        env:
+          LEANMARK_REF_TYPE: ${{ github.ref_type }}
+          LEANMARK_REF_NAME: ${{ github.ref_name }}
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if [[ "$LEANMARK_REF_TYPE" == "tag" ]]; then
+            [[ "$LEANMARK_REF_NAME" == "v$version" ]] || {
+              echo "Tag $LEANMARK_REF_NAME does not match package.json $version." >&2
+              exit 1
+            }
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Configure universal macOS Release build
+        shell: bash
+        run: |
+          cmake -S . -B build/macos -G Xcode \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
+            -DBUILD_TESTING=ON
+
+      - name: Build and run macOS tests
+        shell: bash
+        run: |
+          cmake --build build/macos --config Release --target LeanMark
+          ctest --test-dir build/macos -C Release --output-on-failure
+
+      - name: Create ad-hoc-signed macOS preview
+        shell: bash
+        run: cmake --build build/macos --config Release --target package_macos
+
+      - name: Verify macOS checksum and trust metadata
+        shell: bash
+        env:
+          LEANMARK_VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          archive="LeanMark-v${LEANMARK_VERSION}-macos-universal-preview.zip"
+          metadata="release/${archive}.metadata.json"
+          (
+            cd release
+            shasum -a 256 -c "${archive}.sha256"
+          )
+          digest=$(shasum -a 256 "release/${archive}" | awk '{print $1}')
+          jq -e \
+            --arg version "${LEANMARK_VERSION}" \
+            --arg artifact "${archive}" \
+            --arg digest "${digest}" '
+            .schemaVersion == 1 and
+            .product == "LeanMark" and
+            .version == $version and
+            .platform == "macOS" and
+            .releaseChannel == "preview" and
+            .architectures == ["arm64", "x86_64"] and
+            .artifact.file == $artifact and
+            .artifact.sha256 == $digest and
+            .signing.mode == "ad-hoc" and
+            .signing.developerID == false and
+            .signing.hardenedRuntime == true and
+            .signing.trustedPublisher == false and
+            .notarization.status == "not-attempted" and
+            .notarization.ticketStapled == false and
+            .publicDistributionReady == false
+          ' "${metadata}"
+
+      - name: Upload macOS preview
+        uses: actions/upload-artifact@v7
+        with:
+          name: LeanMark-v${{ steps.package.outputs.version }}-macos-universal-preview
+          path: |
+            release/*.zip
+            release/*.zip.sha256
+            release/*.zip.metadata.json
+          if-no-files-found: error
+          retention-days: 30
+
   release:
+    name: Publish one verified release
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs: build
+    needs:
+      - build
+      - linux
+      - macos
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -94,11 +281,48 @@ jobs:
       - name: Check out release notes
         uses: actions/checkout@v7
 
-      - name: Download the verified package
+      - name: Download all verified packages
         uses: actions/download-artifact@v7
         with:
-          name: LeanMark-v${{ needs.build.outputs.version }}-windows-x64
+          pattern: LeanMark-v${{ needs.build.outputs.version }}-*
           path: release-assets
+          merge-multiple: true
+
+      - name: Verify complete artifact set and checksums
+        shell: bash
+        env:
+          LEANMARK_VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          expected=(
+            "LeanMark-v${LEANMARK_VERSION}-windows-x64.zip"
+            "LeanMark-v${LEANMARK_VERSION}-windows-x64.zip.sha256"
+            "LeanMark-v${LEANMARK_VERSION}-linux-x86_64.deb"
+            "LeanMark-v${LEANMARK_VERSION}-linux-x86_64.deb.sha256"
+            "LeanMark-v${LEANMARK_VERSION}-macos-universal-preview.zip"
+            "LeanMark-v${LEANMARK_VERSION}-macos-universal-preview.zip.sha256"
+            "LeanMark-v${LEANMARK_VERSION}-macos-universal-preview.zip.metadata.json"
+          )
+          for file in "${expected[@]}"; do
+            test -f "release-assets/$file"
+          done
+          (
+            cd release-assets
+            sha256sum -c *.sha256
+          )
+          mac_archive="LeanMark-v${LEANMARK_VERSION}-macos-universal-preview.zip"
+          mac_metadata="release-assets/${mac_archive}.metadata.json"
+          mac_digest=$(sha256sum "release-assets/${mac_archive}" | awk '{print $1}')
+          jq -e \
+            --arg version "${LEANMARK_VERSION}" \
+            --arg artifact "${mac_archive}" \
+            --arg digest "${mac_digest}" '
+            .version == $version and
+            .releaseChannel == "preview" and
+            .architectures == ["arm64", "x86_64"] and
+            .artifact.file == $artifact and
+            .artifact.sha256 == $digest and
+            .publicDistributionReady == false
+          ' "${mac_metadata}"
 
       - name: Publish the GitHub Release
         shell: bash
@@ -109,9 +333,43 @@ jobs:
           notes="docs/releases/${LEANMARK_TAG}.md"
           test -f "$notes"
           gh release create "$LEANMARK_TAG" \
-            release-assets/*.zip \
-            release-assets/*.zip.sha256 \
+            release-assets/* \
             --verify-tag \
             --latest \
             --title "LeanMark $LEANMARK_TAG" \
             --notes-file "$notes"
+
+  pages:
+    name: Deploy release website
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Check out released source
+        uses: actions/checkout@v7
+
+      - name: Verify launch site
+        shell: pwsh
+        run: ./tests/Test-Site.ps1 -SitePath ./site
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload static site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -14,27 +14,30 @@ body:
     attributes:
       label: LeanMark version
       description: Enter the release version or commit you tested.
-      placeholder: "For example: 0.1.0 or commit abc1234"
+      placeholder: "For example: 0.2.0 or commit abc1234"
     validations:
       required: true
 
   - type: dropdown
-    id: windows-version
+    id: operating-system
     attributes:
-      label: Windows version
+      label: Operating system
       options:
         - Windows 11
         - Windows 10
-        - Other Windows setup
+        - Ubuntu 24.04 or compatible Debian-based distribution
+        - macOS on Apple silicon
+        - macOS on Intel
+        - Other setup
     validations:
       required: true
 
   - type: input
-    id: webview2-version
+    id: web-runtime-version
     attributes:
-      label: WebView2 Runtime version
-      description: Include this if known. It can help diagnose rendering problems.
-      placeholder: "For example: 138.0.x"
+      label: System web runtime version
+      description: Include the WebView2, WebKitGTK, or macOS version if known.
+      placeholder: "For example: WebView2 138.0.x or WebKitGTK 2.44.x"
 
   - type: textarea
     id: steps

@@ -122,6 +122,7 @@
     <ClCompile Include="App.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Markdown.cpp" />
+    <ClCompile Include="core\MarkdownCore.cpp" />
     <!-- MD4C is compiled directly into LeanMark; no parser DLL is required. -->
     <ClCompile Include="..\third_party\md4c\entity.c" />
     <ClCompile Include="..\third_party\md4c\md4c.c" />
@@ -130,6 +131,7 @@
   <ItemGroup>
     <ClInclude Include="App.h" />
     <ClInclude Include="Markdown.h" />
+    <ClInclude Include="core\MarkdownCore.h" />
     <ClInclude Include="..\third_party\md4c\entity.h" />
     <ClInclude Include="..\third_party\md4c\md4c.h" />
     <ClInclude Include="..\third_party\md4c\md4c-html.h" />

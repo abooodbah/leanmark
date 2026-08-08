@@ -1,15 +1,6 @@
 name: Deploy GitHub Pages
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - "site/**"
-      - "package.json"
-      - "tests/Test-Site.ps1"
-      - "tests/TestSupport.psm1"
-      - ".github/workflows/pages.yml"
   workflow_dispatch:
 
 permissions:

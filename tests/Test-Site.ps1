@@ -62,7 +62,6 @@ $css = Read-TextFile (Join-Path $resolvedSite 'styles.css')
 $package = Get-Content -LiteralPath (Join-Path $repoRoot 'package.json') -Raw |
     ConvertFrom-Json
 $version = [string]$package.version
-$downloadName = 'LeanMark-v{0}-windows-x64.zip' -f $version
 
 Assert-Match $html '<html\s+lang="en">' 'The page language must remain explicit.'
 Assert-Equal ([regex]::Matches($html, '(?is)<h1(?:\s|>)').Count) 1 'The landing page must have exactly one H1.'
@@ -71,7 +70,14 @@ Assert-Match $html '<main\s+id="main-content">' 'The skip link target must remai
 Assert-Match $html '<meta\s+name="viewport"' 'The responsive viewport meta element is missing.'
 Assert-Match $html '<link\s+rel="canonical"\s+href="https://abooodbah\.github\.io/leanmark/"' 'The canonical Pages URL is missing or inconsistent.'
 Assert-Match $html '<meta\s+property="og:image"\s+content="https://abooodbah\.github\.io/leanmark/assets/social-preview\.png"' 'The public social preview URL is missing.'
-Assert-Match $html ([regex]::Escape($downloadName)) 'The landing-page download does not match package.json.'
+Assert-Match $html ([regex]::Escape(('v{0}' -f $version))) 'The landing-page version does not match package.json.'
+Assert-Match $html 'https://github\.com/abooodbah/leanmark/releases/latest' 'The landing-page release CTA must resolve across platforms.'
+foreach ($platform in @('Windows', 'Linux', 'macOS')) {
+    Assert-Match $html $platform ("The landing page does not name the {0} release." -f $platform)
+}
+Assert-Match $html '"operatingSystem":\s*"[^"]*macOS 12 or later"' 'Structured platform metadata must match the macOS 12 deployment target.'
+Assert-Match $html '(?i)macOS\s+(?:Universal 2\s+)?preview' 'The credential-free macOS artifact must remain visibly labeled as a preview.'
+Assert-Match $html 'does not establish publisher\s+identity' 'Checksum copy must not imply publisher authentication.'
 Assert-Match $html '<img[^>]+leanmark-window\.png[^>]+alt="LeanMark displaying' 'The real product screenshot must retain meaningful alternative text.'
 Assert-NotMatch $html '(?i)javascript\s*:' 'The static site must not contain javascript: URLs.'
 Assert-NotMatch $html '(?is)<script[^>]+\bsrc\s*=' 'The static landing page must not execute external or bundled JavaScript.'

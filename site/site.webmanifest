@@ -1,7 +1,7 @@
 {
   "name": "LeanMark",
   "short_name": "LeanMark",
-  "description": "A focused Markdown viewer for Windows.",
+  "description": "A focused Markdown viewer for Windows, Linux, and macOS.",
   "start_url": "./",
   "display": "standalone",
   "background_color": "#faf9f7",
