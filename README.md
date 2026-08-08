@@ -148,7 +148,7 @@ package does not imply a tiny in-memory footprint.
 | Peak working set, full process tree | 322.96 MiB | 362.39 MiB |
 | Observed process count | 7 | 7 |
 
-Release download: **1.32 MiB ZIP**. The extracted, staged application payload is
+Release download: **1.34 MiB ZIP**. The extracted, staged application payload is
 **4.11 MiB**.
 
 Test machine: Windows 11 Pro build 26200, 13th Gen Intel Core i7-13620H,

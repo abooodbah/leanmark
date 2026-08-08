@@ -70,7 +70,7 @@ background.
 
 Approved launch measurements:
 
-- 1.32 MiB compressed v0.1.0 ZIP and 4.11 MiB staged application payload.
+- 1.34 MiB published v0.1.0 ZIP and 4.11 MiB staged application payload.
 - About 321 ms until a simple document became visible on the test machine.
 - About 163 MiB peak private memory for the full WebView2 process tree in that
   simple-document test.
