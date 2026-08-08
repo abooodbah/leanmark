@@ -255,7 +255,7 @@ $InstalledUninstaller = Join-Path $InstallDir 'uninstall.ps1'
 $UninstallCommand = $Quote + (Join-Path $PSHOME 'powershell.exe') + $Quote +
     ' -NoProfile -ExecutionPolicy Bypass -File ' + $Quote + $InstalledUninstaller + $Quote
 $Version = [Diagnostics.FileVersionInfo]::GetVersionInfo($InstalledExe).ProductVersion
-if (-not $Version) { $Version = '0.1.0' }
+if (-not $Version) { $Version = '0.2.0' }
 Set-RegString $UninstallKey 'DisplayName' $AppName
 Set-RegString $UninstallKey 'DisplayVersion' $Version
 Set-RegString $UninstallKey 'DisplayIcon' ($InstalledExe + ',0')

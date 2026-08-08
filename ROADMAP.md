@@ -4,30 +4,36 @@ This roadmap records the next useful improvements under consideration. It is a
 direction, not a release promise. Security, correctness, and the focused
 read-only experience take priority over adding features.
 
-## 1. Trustworthy release packages
+## 1. Trusted publisher identities
 
-Publish versioned Windows x64 portable archives with SHA-256 checksums, clear
-install and uninstall notes, and documented WebView2 requirements. Add code
-signing when it becomes sustainable for the project.
+Add Windows Authenticode signing and macOS Developer ID signing/notarization
+when sustainable credentials and protected release automation are available.
+Retain checksums and explicit trust metadata for every artifact.
 
-## 2. Rendering compatibility baseline
+## 2. Cross-platform runtime parity
+
+Expand Linux and macOS runtime/security fixtures to match the established
+Windows coverage. Publish equivalent startup and full-process memory methods
+before making cross-platform efficiency comparisons.
+
+## 3. Rendering compatibility baseline
 
 Publish a compact compatibility table for CommonMark, GitHub-style extensions,
 and Mermaid. Expand regression fixtures for Unicode and long paths, nested
 content, missing local resources, invalid diagrams, and large documents.
 
-## 3. Accessibility verification
+## 4. Accessibility verification
 
-Test every release with Windows Narrator, keyboard-only navigation, High
-Contrast themes, and 100% through 200% display scaling. Add automated checks for
-accessibility behavior that can be tested reliably.
+Test every release with Windows Narrator, Linux desktop accessibility tooling,
+macOS VoiceOver, keyboard-only navigation, contrast themes, and representative
+display scaling. Add reliable automated accessibility checks where possible.
 
-## 4. Windows on ARM64
+## 5. Additional native architectures
 
-Add an ARM64 build and test path while preserving the same offline assets,
-security restrictions, installer behavior, and release checks as x64.
+Add Windows ARM64 and Linux ARM64 build/test paths while preserving the same
+offline assets, security restrictions, package behavior, and release checks.
 
-## 5. Optional Explorer preview
+## 6. Optional desktop integrations
 
 Prototype a read-only Windows Explorer Preview pane integration. It must not
 require elevation, silently replace the user's `.md` default application, or

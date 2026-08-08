@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=LeanMark
+Comment=Read local Markdown and Mermaid documents offline
+Exec=leanmark %F
+Icon=io.github.abooodbah.leanmark
+Terminal=false
+StartupNotify=true
+Categories=Office;Viewer;
+MimeType=text/markdown;text/x-markdown;
+Keywords=Markdown;Mermaid;Reader;Offline;

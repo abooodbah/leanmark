@@ -47,6 +47,17 @@ function parseSitePath() {
   return resolve(process.argv[index + 1]);
 }
 
+function parseCapturePath() {
+  const index = process.argv.indexOf("--capture-dir");
+  if (index === -1) {
+    return null;
+  }
+  if (!process.argv[index + 1]) {
+    fail("--capture-dir requires a directory path.");
+  }
+  return resolve(process.argv[index + 1]);
+}
+
 async function startStaticServer(siteRoot) {
   const rootPrefix = siteRoot.endsWith(sep) ? siteRoot : siteRoot + sep;
   const server = createServer(async (request, response) => {
@@ -364,7 +375,7 @@ function assertAudit(name, viewport, audit) {
     [audit.overflowers.length === 0, "no visible element crosses the viewport"],
     [audit.focusVisible, "keyboard focus is visibly outlined"],
     [audit.externalResources.length === 0, "all loaded resources are local"],
-    [audit.primaryDownload.includes("/releases/download/v0.1.0/"), "version-pinned primary download"],
+    [audit.primaryDownload.endsWith("/releases/latest"), "cross-platform release-page CTA"],
   ];
 
   if (viewport.width <= 390) {
@@ -402,6 +413,9 @@ async function terminateBrowser(browser) {
       ["/PID", String(browser.pid), "/T", "/F"],
       { stdio: "ignore", windowsHide: true },
     );
+    for (let attempt = 0; attempt < 30 && browser.exitCode === null; attempt += 1) {
+      await delay(100);
+    }
   } else {
     browser.kill("SIGTERM");
     await Promise.race([once(browser, "exit"), delay(3000)]);
@@ -423,13 +437,17 @@ async function removeOwnedProfile(profile) {
   await fs.rm(resolvedProfile, {
     recursive: true,
     force: true,
-    maxRetries: 4,
-    retryDelay: 100,
+    maxRetries: 10,
+    retryDelay: 200,
   });
 }
 
 async function main() {
   const siteRoot = parseSitePath();
+  const captureRoot = parseCapturePath();
+  if (captureRoot) {
+    await fs.mkdir(captureRoot, { recursive: true });
+  }
   await fs.access(join(siteRoot, "index.html"));
   const browserPath = await findBrowser();
   const profile = await fs.mkdtemp(join(tmpdir(), "leanmark-site-smoke-"));
@@ -540,6 +558,17 @@ async function main() {
       await waitForDocument(client);
       const audit = await evaluate(client, PAGE_AUDIT_EXPRESSION);
       assertAudit(viewport.name, viewport, audit);
+      if (captureRoot) {
+        const screenshot = await client.send("Page.captureScreenshot", {
+          captureBeyondViewport: true,
+          format: "png",
+          fromSurface: true,
+        });
+        await fs.writeFile(
+          join(captureRoot, "site-" + viewport.name + ".png"),
+          Buffer.from(screenshot.data, "base64"),
+        );
+      }
     }
 
     const accessibility = await client.send("Accessibility.getFullAXTree");

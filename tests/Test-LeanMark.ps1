@@ -28,6 +28,8 @@ function Test-PeHeader {
 function Test-StaticInvariants {
     $markdownPath = Join-Path $repoRoot 'src\Markdown.cpp'
     $markdownHeaderPath = Join-Path $repoRoot 'src\Markdown.h'
+    $markdownCorePath = Join-Path $repoRoot 'src\core\MarkdownCore.cpp'
+    $markdownCoreHeaderPath = Join-Path $repoRoot 'src\core\MarkdownCore.h'
     $appPath = Join-Path $repoRoot 'src\App.cpp'
     $mainPath = Join-Path $repoRoot 'src\main.cpp'
     $manifestPath = Join-Path $repoRoot 'src\LeanMark.manifest'
@@ -38,6 +40,8 @@ function Test-StaticInvariants {
 
     $markdown = Read-TextFile $markdownPath
     $markdownHeader = Read-TextFile $markdownHeaderPath
+    $markdownCore = Read-TextFile $markdownCorePath
+    $markdownCoreHeader = Read-TextFile $markdownCoreHeaderPath
     $app = Read-TextFile $appPath
     $main = Read-TextFile $mainPath
     $manifestText = Read-TextFile $manifestPath
@@ -46,9 +50,10 @@ function Test-StaticInvariants {
     $installer = Read-TextFile $installerPath
     $uninstaller = Read-TextFile $uninstallerPath
 
-    Assert-Match $markdown 'MD_DIALECT_GITHUB\s*\|\s*MD_FLAG_NOHTML' 'Markdown must use GFM with raw HTML disabled.'
-    Assert-Match $markdownHeader 'kMaximumDocumentBytes\s*=\s*32ull\s*\*\s*1024ull\s*\*\s*1024ull' 'The native parser must retain its 32 MiB safety limit.'
-    Assert-Match $markdown 'HasUtf8Bom' 'UTF-8 BOM handling must not regress.'
+    Assert-Match $markdown 'core::RenderMarkdownUtf8' 'The Windows file adapter must delegate to the shared parser core.'
+    Assert-Match $markdownCore 'MD_DIALECT_GITHUB\s*\|\s*MD_FLAG_NOHTML' 'Markdown must use GFM with raw HTML disabled.'
+    Assert-Match $markdownCoreHeader 'kMaximumDocumentBytes\s*=\s*32ull\s*\*\s*1024ull\s*\*\s*1024ull' 'The portable parser must retain its 32 MiB safety limit.'
+    Assert-Match $markdownCore 'HasUtf8Bom' 'UTF-8 BOM handling must not regress.'
     Write-TestPass 'GFM, raw-HTML, encoding, and document-size parser guards'
 
     try { [void]([xml]$manifestText) }
@@ -63,7 +68,7 @@ function Test-StaticInvariants {
     $csp = $cspMatch.Groups[1].Value
     foreach ($directive in @(
         "default-src 'none'", "script-src 'self'", "style-src 'self' 'unsafe-inline'",
-        "font-src 'self'", "img-src 'self' https://doc.leanmark.invalid data:",
+        "font-src 'self'", "img-src 'self' https://doc.leanmark.invalid leanmark-doc: data:",
         "connect-src 'none'", "object-src 'none'", "frame-src 'none'",
         "form-action 'none'", "base-uri 'none'"
     )) {
@@ -76,6 +81,8 @@ function Test-StaticInvariants {
 
     Assert-Match $reader 'securityLevel\s*:\s*["'']strict["'']' 'Mermaid must retain strict security mode.'
     Assert-Match $reader 'https://doc\.leanmark\.invalid/' 'Relative images must resolve through the document virtual host.'
+    Assert-Match $reader '(?s)window\.webkit.*messageHandlers.*leanmark' 'The shared reader must retain its WebKit bridge.'
+    Assert-Match $reader 'window\.LeanMarkHost\s*=' 'WebKit hosts need one bounded native-to-reader entry point.'
     Assert-Match $reader 'Remote image blocked' 'Remote image replacement must remain explicit.'
     Assert-True $reader.Contains('^data:image\/(png|jpeg|gif|webp);base64,') 'Only the intended raster data-image allowlist may bypass local mapping.'
     Assert-Match $reader 'source\.length\s*>\s*100000' 'Individual Mermaid sources must retain their 100 KB limit.'

@@ -2,6 +2,7 @@
 .vs/
 bin/
 obj/
+build/
 dist/
 release/
 *.user

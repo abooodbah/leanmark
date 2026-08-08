@@ -7,17 +7,17 @@ notes, screenshots, and launch posts.
 
 **Promise:** Open the README, not the IDE.
 
-LeanMark gives Windows users a focused way to read local technical Markdown.
-It is built for documents, not workspaces: open a file, read it clearly, and
-close it when finished.
+LeanMark provides a focused way to read local technical Markdown on Windows,
+Linux, and macOS. It is built for documents, not workspaces.
 
-**Positioning:** LeanMark is an MIT-licensed Markdown viewer for Windows x64
-that renders GitHub-flavored Markdown and Mermaid offline through a native C++
-host and WebView2.
+**Positioning:** LeanMark is an MIT-licensed desktop Markdown viewer that
+renders GitHub-flavored Markdown and Mermaid offline through a portable C++
+core, thin native hosts, and each platform's system web runtime.
 
 ## Voice
 
-- **Precise:** name the native host and WebView2 renderer separately.
+- **Precise:** distinguish the portable parser, native host, and system web
+  runtime.
 - **Transparent:** show package size beside memory use and test conditions.
 - **Practical:** lead with local READMEs and diagrams, not architecture trivia.
 - **Open:** invite inspection, issues, and contributions.
@@ -68,15 +68,17 @@ background.
 
 ## Product claims
 
-Approved launch measurements:
+Approved Windows baseline measurements:
 
-- 1.34 MiB published v0.1.0 ZIP and 4.11 MiB staged application payload.
+- 1.34 MiB published v0.1.0 Windows ZIP and 4.11 MiB staged application
+  payload.
 - About 321 ms until a simple document became visible on the test machine.
 - About 163 MiB peak private memory for the full WebView2 process tree in that
   simple-document test.
 
-Always state that performance varies and that WebView2's platform footprint is
-separate from the LeanMark package.
+Always state that performance varies, these measurements are Windows-specific,
+and the system web runtime's footprint is separate from the LeanMark package.
+Linux and macOS figures require equivalent measurements before publication.
 
 ## Project DNA
 
@@ -85,7 +87,8 @@ separate from the LeanMark package.
 1. Hero: state the narrow job and offer the official download.
 2. Proof: publish measured package, startup, and memory figures together.
 3. Product: show a real Markdown and Mermaid document in LeanMark.
-4. Architecture: explain the native-host/WebView2 tradeoff plainly.
+4. Architecture: explain the portable-core/native-host/system-webview tradeoff
+   plainly.
 5. Security: list concrete guards without claiming absolute safety.
 6. Community: link source, issues, roadmap, and MIT license.
 

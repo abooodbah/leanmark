@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        LeanMark is a fast, read-only Windows Markdown viewer. Explain the user problem before the proposed implementation.
+        LeanMark is a focused, read-only desktop Markdown viewer. Explain the user problem and affected platform before the proposed implementation.
 
   - type: textarea
     id: problem

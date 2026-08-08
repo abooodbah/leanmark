@@ -147,46 +147,18 @@ Reset-SafeDirectory -Path $distDirectory
 Copy-RequiredFile -Source (Join-Path $binaryDirectory "LeanMark.exe") -Destination (Join-Path $distDirectory "LeanMark.exe")
 Copy-RequiredFile -Source (Join-Path $binaryDirectory "WebView2Loader.dll") -Destination (Join-Path $distDirectory "WebView2Loader.dll")
 
-# Hand-authored files in assets/ are runtime files by repository convention. Preserve
-# their relative paths, but deliberately exclude source maps and documentation.
-$sourceAssets = Join-Path $repoRoot "assets"
 $stagedAssets = Join-Path $distDirectory "assets"
-if (Test-Path -LiteralPath $sourceAssets -PathType Container) {
-    Get-ChildItem -LiteralPath $sourceAssets -Recurse -File |
-        Where-Object { $_.Extension -notin @(".map", ".md") } |
-        ForEach-Object {
-            $relativePath = $_.FullName.Substring($sourceAssets.Length).TrimStart('\', '/')
-            Copy-RequiredFile -Source $_.FullName -Destination (Join-Path $stagedAssets $relativePath)
-        }
+$node = Get-Command "node.exe" -ErrorAction SilentlyContinue
+if ($null -eq $node) {
+    $node = Get-Command "node" -ErrorAction SilentlyContinue
 }
-
-# Fail closed if the native host's three handcrafted entry assets are missing.
-foreach ($requiredAssetName in @("reader.html", "reader.css", "reader.js")) {
-    $requiredAssetPath = Join-Path $stagedAssets $requiredAssetName
-    if (-not (Test-Path -LiteralPath $requiredAssetPath -PathType Leaf)) {
-        throw "Required runtime asset was not staged: $requiredAssetPath"
-    }
+if ($null -eq $node) {
+    throw "Node.js was not found. Runtime assets require Node.js 20 or newer."
 }
-
-# Only the browser-ready Mermaid bundle is shipped; the rest of node_modules remains
-# a build dependency and never enters dist.
-Copy-RequiredFile -Source (Join-Path $nodeModules "mermaid\dist\mermaid.min.js") -Destination (Join-Path $stagedAssets "vendor\mermaid.min.js")
-
-# Stage only the Latin font weights used by LeanMark's stylesheet. Keeping the original
-# Fontsource filenames makes @font-face URLs obvious and easy to audit.
-$fontFiles = @(
-    "@fontsource\ibm-plex-sans\files\ibm-plex-sans-latin-400-normal.woff2",
-    "@fontsource\ibm-plex-sans\files\ibm-plex-sans-latin-500-normal.woff2",
-    "@fontsource\ibm-plex-sans\files\ibm-plex-sans-latin-600-normal.woff2",
-    "@fontsource\ibm-plex-serif\files\ibm-plex-serif-latin-600-normal.woff2",
-    "@fontsource\ibm-plex-mono\files\ibm-plex-mono-latin-400-normal.woff2"
+Invoke-CheckedCommand -FilePath $node.Source -ArgumentList @(
+    (Join-Path $repoRoot "scripts\stage-runtime-assets.mjs"),
+    $stagedAssets
 )
-
-foreach ($fontRelativePath in $fontFiles) {
-    $fontSource = Join-Path $nodeModules $fontRelativePath
-    $fontName = Split-Path -Leaf $fontRelativePath
-    Copy-RequiredFile -Source $fontSource -Destination (Join-Path $stagedAssets "fonts\$fontName")
-}
 
 # Distribution documentation is required, not opportunistic: a release must carry
 # its use terms and the notices for bundled dependencies.

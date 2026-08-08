@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.abooodbah.leanmark</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>LeanMark</name>
+  <developer id="io.github.abooodbah">
+    <name>LeanMark contributors</name>
+  </developer>
+  <summary>Read local Markdown and Mermaid documents offline</summary>
+  <description>
+    <p>
+      LeanMark is a focused, read-only desktop reader for local Markdown files.
+      It renders GitHub-flavored Markdown, local images, and bundled Mermaid
+      diagrams without requiring an active network connection.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.abooodbah.leanmark.desktop</launchable>
+  <url type="homepage">https://abooodbah.github.io/leanmark/</url>
+  <url type="bugtracker">https://github.com/abooodbah/leanmark/issues</url>
+  <url type="vcs-browser">https://github.com/abooodbah/leanmark</url>
+  <provides>
+    <binary>leanmark</binary>
+    <mediatype>text/markdown</mediatype>
+    <mediatype>text/x-markdown</mediatype>
+  </provides>
+  <supports>
+    <control>pointing</control>
+    <control>keyboard</control>
+  </supports>
+  <releases>
+    <release version="@PROJECT_VERSION@" date="2026-08-08" />
+  </releases>
+  <content_rating type="oars-1.1" />
+  <custom>
+    <value key="LeanMark::BuildVersion">@PROJECT_VERSION@</value>
+  </custom>
+</component>

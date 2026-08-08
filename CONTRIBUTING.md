@@ -15,17 +15,19 @@ documentation fixes, tests, and code changes are welcome.
 
 ## Development setup
 
-LeanMark currently builds on Windows x64. You need:
+All platform builds require Node.js 20 or newer for pinned fonts and Mermaid
+assets. Native toolchains are platform-specific:
 
-- Windows 10 or 11
-- Visual Studio 2022 Build Tools with the MSVC v143 toolset and Windows SDK
-- Node.js 20 or newer
-- Evergreen WebView2 Runtime
+- Windows: Visual Studio 2022 Build Tools, MSVC v143, Windows SDK, and the
+  Evergreen WebView2 Runtime.
+- Ubuntu 24.04: CMake, Ninja, a C++17 compiler, pkg-config, GTK 4, and
+  WebKitGTK 6.0 development packages.
+- macOS 12 or later: Xcode command-line tools and CMake 3.24 or newer.
 
 Node.js is used only to stage pinned fonts and Mermaid assets. It is not a
 runtime dependency.
 
-From a PowerShell prompt in the repository root, build a release:
+Windows release build:
 
 ```powershell
 .\scripts\build.ps1 -Configuration Release
@@ -35,10 +37,17 @@ The build restores pinned packages, compiles the C++17 application, and creates
 the portable `dist\` directory. Installing LeanMark is not required for normal
 development.
 
+Linux and macOS build/package commands are maintained in the platform sections
+of [README.md](README.md).
+
 ## Project layout
 
-- `src/` contains the native Win32 and WebView2 host and the MD4C integration.
-- `assets/` contains the local reader HTML, CSS, and JavaScript.
+- `src/core/` contains the portable Markdown, UTF-8, and resource-path policy.
+- `src/` contains the Win32/WebView2 host and Windows project.
+- `src/linux/` and `packaging/linux/` contain the GTK/WebKitGTK host and
+  Debian metadata.
+- `macos/` contains the AppKit/WKWebView host, tests, and bundle packaging.
+- `assets/` contains the shared local reader HTML, CSS, and JavaScript.
 - `installer/` contains the per-user install and uninstall scripts.
 - `tests/` contains PowerShell checks, fixtures, DOM smoke tests, and performance
   measurement helpers.
@@ -49,7 +58,7 @@ development.
 
 - Keep LeanMark a fast, read-only, offline-capable Markdown viewer.
 - Treat Markdown, Mermaid, links, and local resources as untrusted input.
-  Preserve the WebView2 navigation, resource, permission, popup, and download
+  Preserve every host's navigation, resource, permission, popup, and download
   restrictions unless the change includes a clear security review.
 - Use C++17 and follow `.editorconfig`: four spaces for C++ and headers, and two
   spaces for web assets, YAML, Markdown, JSON, and PowerShell.
@@ -59,7 +68,8 @@ development.
 
 ## Validate a change
 
-Run the release build and default checks for code or runtime-asset changes:
+Run the affected platform Release build and checks for code or runtime-asset
+changes. Windows:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Configuration Release
@@ -82,6 +92,10 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-LeanMark.ps1 -R
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-Site.ps1
 node .\tests\Invoke-SiteBrowserSmoke.mjs --site .\site
 ```
+
+Linux and macOS CTest commands are listed in [README.md](README.md). CI builds
+all three platforms; a platform failure is not treated as optional when shared
+core or reader assets change.
 
 Describe any skipped check in the pull request. Include screenshots for visible
 changes and remove private information from sample Markdown files.

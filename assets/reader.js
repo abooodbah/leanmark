@@ -1,7 +1,10 @@
 (function () {
   "use strict";
 
-  var bridge = window.chrome && window.chrome.webview;
+  var webView2Bridge = window.chrome && window.chrome.webview;
+  var webKitBridge = window.webkit &&
+    window.webkit.messageHandlers &&
+    window.webkit.messageHandlers.leanmark;
   var systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
   var elements = {
     article: document.getElementById("article"),
@@ -30,11 +33,31 @@
   var toastTimer = 0;
   var mermaidLoader = null;
   var diagramGeneration = 0;
+  var documentAssetBase = "https://doc.leanmark.invalid/";
 
   function post(message) {
-    if (bridge) {
-      bridge.postMessage(message);
+    if (webView2Bridge) {
+      webView2Bridge.postMessage(message);
+    } else if (webKitBridge) {
+      webKitBridge.postMessage(message);
     }
+  }
+
+  function selectDocumentAssetBase(candidate) {
+    if (!candidate) {
+      return "https://doc.leanmark.invalid/";
+    }
+    try {
+      var parsed = new URL(candidate);
+      if (parsed.href === "https://doc.leanmark.invalid/" ||
+          (parsed.protocol === "leanmark-doc:" &&
+           parsed.hostname === "document")) {
+        return parsed.href;
+      }
+    } catch (_error) {
+      // A host-provided base still passes through this fail-closed allowlist.
+    }
+    return "https://doc.leanmark.invalid/";
   }
 
   function effectiveDarkTheme() {
@@ -132,7 +155,7 @@
 
       try {
         var normalized = source.replace(/\\/g, "/");
-        image.src = new URL(normalized, "https://doc.leanmark.invalid/").href;
+        image.src = new URL(normalized, documentAssetBase).href;
         image.loading = "lazy";
         image.decoding = "async";
         image.addEventListener("error", function () {
@@ -373,6 +396,7 @@
     clearSearch();
     diagramGeneration += 1;
     currentPath = data.path || "";
+    documentAssetBase = selectDocumentAssetBase(data.documentBaseUrl);
     applyTheme(data.theme || currentTheme, false);
     elements.fileName.textContent = data.fileName || "Untitled";
     elements.fileName.title = data.path || "";
@@ -616,9 +640,14 @@
     }
   });
 
-  if (bridge) {
-    bridge.addEventListener("message", handleNativeMessage);
+  if (webView2Bridge) {
+    webView2Bridge.addEventListener("message", handleNativeMessage);
   }
+  window.LeanMarkHost = Object.freeze({
+    receive: function (data) {
+      handleNativeMessage({ data: data || {} });
+    }
+  });
   window.LeanMarkTest = Object.freeze({
     renderDocument: renderDocument,
     applyTheme: function (theme) {

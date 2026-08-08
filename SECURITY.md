@@ -1,8 +1,9 @@
 # Security policy
 
 LeanMark treats every Markdown document as untrusted input. Security reports are
-welcome for the native host, Markdown rendering, local-resource handling,
-WebView2 boundaries, installer behavior, and bundled dependencies.
+welcome for the native hosts, Markdown rendering, local-resource handling,
+WebView2/WebKit boundaries, installer behavior, packages, and bundled
+dependencies.
 
 ## Supported versions
 
@@ -23,7 +24,7 @@ Do not open a public issue with exploit details.
 Include the following in the private report when possible:
 
 - the affected LeanMark version or commit;
-- the Windows and WebView2 versions;
+- the operating system and WebView2, WebKitGTK, or macOS version;
 - clear reproduction steps and a minimal, non-private test file;
 - the expected impact and required user interaction;
 - a proof of concept or suggested fix, if available.

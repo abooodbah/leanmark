@@ -4,8 +4,8 @@
 IDI_LEANMARK ICON "LeanMark.ico"
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 0,1,0,0
- PRODUCTVERSION 0,1,0,0
+ FILEVERSION 0,2,0,0
+ PRODUCTVERSION 0,2,0,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS VS_FF_DEBUG
@@ -22,12 +22,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "Abdulfatah Bahbouh"
             VALUE "FileDescription", "LeanMark Markdown Reader"
-            VALUE "FileVersion", "0.1.0"
+            VALUE "FileVersion", "0.2.0"
             VALUE "InternalName", "LeanMark"
             VALUE "LegalCopyright", "Copyright (c) 2026 Abdulfatah Bahbouh"
             VALUE "OriginalFilename", "LeanMark.exe"
             VALUE "ProductName", "LeanMark"
-            VALUE "ProductVersion", "0.1.0"
+            VALUE "ProductVersion", "0.2.0"
         END
     END
     BLOCK "VarFileInfo"

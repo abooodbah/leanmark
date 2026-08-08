@@ -4,142 +4,187 @@
 
 <h1 align="center">LeanMark</h1>
 
-<p align="center"><strong>Open the README, not the IDE.</strong></p>
+<p align="center"><strong>Focused Markdown reading without the IDE.</strong></p>
 
 <p align="center">
-  A focused, read-only Markdown viewer for Windows x64 with offline
-  GitHub-flavored Markdown and Mermaid rendering.
+  A small, read-only desktop viewer for GitHub-flavored Markdown, local images,
+  and Mermaid diagrams. Available for Windows, Linux, and macOS.
 </p>
 
 <p align="center">
-  <a href="https://github.com/abooodbah/leanmark/actions/workflows/build.yml"><img alt="Windows build" src="https://github.com/abooodbah/leanmark/actions/workflows/build.yml/badge.svg"></a>
+  <a href="https://github.com/abooodbah/leanmark/actions/workflows/build.yml"><img alt="Platform builds" src="https://github.com/abooodbah/leanmark/actions/workflows/build.yml/badge.svg"></a>
   <a href="https://github.com/abooodbah/leanmark/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/abooodbah/leanmark?display_name=tag&sort=semver"></a>
   <a href="https://github.com/abooodbah/leanmark/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-1d4ed8"></a>
-  <img alt="Windows x64" src="https://img.shields.io/badge/Windows-x64-1a1917">
+  <img alt="Windows, Linux, and macOS" src="https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS-1a1917">
 </p>
 
 <p align="center">
-  <a href="https://github.com/abooodbah/leanmark/releases/download/v0.1.0/LeanMark-v0.1.0-windows-x64.zip"><strong>Download for Windows x64</strong></a>
+  <a href="https://github.com/abooodbah/leanmark/releases/latest"><strong>Release downloads</strong></a>
   ·
   <a href="https://abooodbah.github.io/leanmark/">Website</a>
   ·
-  <a href="https://github.com/abooodbah/leanmark/issues/new/choose">Report an issue</a>
+  <a href="https://github.com/abooodbah/leanmark/issues/new/choose">Issue tracker</a>
 </p>
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/abooodbah/leanmark/main/site/assets/leanmark-window.png" width="980" alt="LeanMark displaying a local Markdown document with Mermaid diagrams and an automatic outline.">
 </p>
 
-LeanMark opens an ordinary Markdown file as a document—not a project. It
+LeanMark opens an ordinary Markdown file as a document, not a project. It
 provides a calm reading surface, local diagrams, and useful navigation without
 the editor panes, extensions, or workspace indexing of a full IDE.
 
-The Windows host is C++17. WebView2 renders the final document. That distinction
-is intentional and public: LeanMark has a small shipped package, while WebView2
-still carries a browser-process memory cost.
+One portable C++17/MD4C core parses every document. Thin native hosts use the
+system web runtime on each platform: WebView2 on Windows, WebKitGTK on Linux,
+and WKWebView on macOS. No Electron or bundled Chromium runtime is shipped.
 
-## Who it is for
+## Platform releases
 
-LeanMark is a good fit when you:
+| Operating system | Architecture | v0.2.0 artifact | Runtime and verification |
+| --- | --- | --- | --- |
+| Windows 10 / 11 | x64 | [ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.2.0/LeanMark-v0.2.0-windows-x64.zip) | Evergreen WebView2; Windows 11 runtime-verified |
+| Ubuntu 24.04 / compatible Debian-based systems | x86-64 | [DEB](https://github.com/abooodbah/leanmark/releases/download/v0.2.0/LeanMark-v0.2.0-linux-x86_64.deb) | GTK 4 + WebKitGTK 6.0; package and WebKit smoke-verified in CI |
+| macOS 12 or later | Intel + Apple silicon | [Universal app preview ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.2.0/LeanMark-v0.2.0-macos-universal-preview.zip) | Preview: system WKWebView; CI verifies both Mach-O slices and a real WebKit smoke test |
 
-- want a focused app you can make the double-click handler for Markdown;
-- need GFM tables, task lists, local images, or Mermaid diagrams offline;
-- prefer a focused viewer over an editor or knowledge-management system; or
-- value inspectable, MIT-licensed source and transparent measurements.
+Each artifact has an adjacent <code>.sha256</code> sidecar on the
+[v0.2.0 release](https://github.com/abooodbah/leanmark/releases/tag/v0.2.0).
+Runtime-verified records tested coverage; it does not imply publisher signing.
+Windows ARM64, Linux ARM64, and distro-independent Linux packages are not part
+of this release.
 
-It is not a full Markdown editor, an Obsidian-style vault, a pure native text
-renderer, or the lowest-RAM option. LeanMark v0.1.0 is verified on Windows 11
-x64. It targets Windows 10 or later, but this release has not yet completed a
-Windows 10 runtime test.
+> [!IMPORTANT]
+> The Windows executable is unsigned. The macOS preview bundle is ad-hoc signed with
+> the hardened-runtime flag but is not Developer ID signed or notarized.
+> Windows SmartScreen or macOS Gatekeeper may therefore require an explicit
+> trust decision. Official project binaries are limited to assets attached to
+> this repository's GitHub Releases. The published checksum proves byte
+> identity with the release asset; it does not replace platform code signing.
 
-## Download and run
+## Package use
 
-Download
-<a href="https://github.com/abooodbah/leanmark/releases/download/v0.1.0/LeanMark-v0.1.0-windows-x64.zip">LeanMark-v0.1.0-windows-x64.zip</a>
-from the official GitHub Release and verify the adjacent SHA-256 file if your
-workflow requires it.
+### Windows x64
 
-### Portable
+The extracted ZIP is portable. <code>LeanMark.exe</code>,
+<code>WebView2Loader.dll</code>, and the <code>assets</code> directory must
+remain together. Markdown paths may be opened from the application or passed
+as command-line arguments.
 
-1. Extract the complete ZIP.
-2. Keep <code>LeanMark.exe</code>, <code>WebView2Loader.dll</code>, and the
-   <code>assets</code> folder together.
-3. Run <code>LeanMark.exe</code>, then open a Markdown file.
-
-### Add Windows integration
-
-The release includes <code>INSTALL.txt</code> and bounded per-user install and
-uninstall scripts. From the extracted folder:
+The optional current-user integration entry point is:
 
 ~~~powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\installer\install.ps1 -OpenDefaultAppsSettings
 ~~~
 
-The installer copies LeanMark to
-<code>%LOCALAPPDATA%\Programs\LeanMark</code>, adds Start menu and Open With
-entries, and registers the app with Windows Default Apps. It never edits or
-deletes Windows' protected <code>UserChoice</code> value. Windows may ask you to
-confirm LeanMark as the default Markdown app.
-
-Uninstall through Windows Settings > Apps > Installed apps > LeanMark, or run:
+It copies LeanMark to <code>%LOCALAPPDATA%\Programs\LeanMark</code>, creates
+Start menu and Open With entries, and registers Default Apps capabilities. It
+does not write or delete Windows' protected <code>UserChoice</code> value.
+Removal is available through Windows Settings or the installed uninstaller:
 
 ~~~powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$env:LOCALAPPDATA\Programs\LeanMark\uninstall.ps1"
 ~~~
 
-> [!WARNING]
-> LeanMark v0.1.0 is currently unsigned. Windows may identify the publisher as
-> unknown or show a Microsoft Defender SmartScreen warning. Use only a release
-> linked from this repository. If your device or organization prohibits
-> unsigned applications, wait for a signed release.
+### Linux x86-64
 
-Requirements: Windows 11 x64 is tested; Windows 10 x64 compatibility is not yet
-runtime-verified. Both require the
-[Microsoft Edge WebView2 Runtime](https://developer.microsoft.com/en-us/microsoft-edge/webview2/consumer/).
+The Debian package declares its GTK 4 and WebKitGTK 6.0 dependencies. A local
+download can be installed through APT:
 
-## What it does
+~~~sh
+sudo apt install ./LeanMark-v0.2.0-linux-x86_64.deb
+~~~
 
-- Renders CommonMark plus GFM tables, task lists, autolinks, and strikethrough.
-- Renders fenced Mermaid diagrams offline and loads Mermaid only when needed.
-- Displays relative local images while blocking remote images.
-- Opens relative Markdown links inside LeanMark.
-- Provides find, an automatic outline, reading progress, reader zoom, printing,
-  and system/light/dark themes.
-- Watches the open file and refreshes after a save while preserving the
+The package installs <code>/usr/bin/leanmark</code>, desktop and AppStream
+metadata, the application icon, and the offline reader assets. It advertises
+Markdown support to the desktop without forcibly replacing an existing default
+application.
+
+### macOS universal preview
+
+The ZIP contains <code>LeanMark.app</code> with native Intel and Apple-silicon
+slices. The application bundle may be placed in <code>/Applications</code> or
+another application directory. Finder recognizes the four supported Markdown
+extensions and offers LeanMark as a viewer.
+
+Because the v0.2.0 preview is not notarized, Gatekeeper may block the first launch.
+macOS records any explicit approval under **System Settings > Privacy &
+Security**. Environments that require a Developer ID/notarized application are
+not supported by this release.
+
+## Use cases and scope
+
+LeanMark is designed for:
+
+- opening a local README or generated report without loading an editor;
+- offline GFM tables, task lists, local images, and Mermaid diagrams;
+- focused reading without vault, workspace, or authoring features; and
+- inspectable, MIT-licensed source with reproducible package checks.
+
+LeanMark is not a Markdown editor, an Obsidian-style knowledge base, a
+browser-free renderer, or a claim to the lowest possible RAM use.
+
+## Reader features
+
+- CommonMark plus GFM tables, task lists, autolinks, and strikethrough.
+- Lazy, offline Mermaid rendering with strict mode and bounded diagram input.
+- Relative local images and relative Markdown document links.
+- Automatic outline, find, reading progress, zoom, printing, and system/light/
+  dark themes.
+- Live refresh after a save while retaining the last complete render and
   approximate reading position.
-- Accepts <code>.md</code>, <code>.markdown</code>, <code>.mdown</code>, and
-  <code>.mkd</code>.
-- Uses a 32 MiB input limit and retains the last complete view when it catches a
-  file mid-save.
+- Support for <code>.md</code>, <code>.markdown</code>, <code>.mdown</code>,
+  and <code>.mkd</code>.
+- UTF-8 validation and a 32 MiB document safety limit.
 
-| Shortcut | Action |
-| --- | --- |
-| Ctrl+O | Open a Markdown file |
-| Ctrl+F | Focus find |
-| Enter / Shift+Enter | Next / previous match |
-| F3 / Shift+F3 | Next / previous match |
-| Ctrl+R | Reload from disk |
-| Ctrl++ / Ctrl+- / Ctrl+0 | Zoom in / out / reset |
-| Ctrl+Shift+T | Cycle system, light, and dark themes |
-| Ctrl+P | Print with the standard Windows print UI |
-| Escape | Leave find and return to the document |
+| Action | Windows / Linux | macOS |
+| --- | --- | --- |
+| Open a Markdown file | Ctrl+O | Command+O |
+| Find | Ctrl+F | Command+F |
+| Next / previous match | Enter / Shift+Enter or F3 / Shift+F3 | Enter / Shift+Enter |
+| Reload from disk | Ctrl+R | Command+R |
+| Zoom in / out / reset | Ctrl++ / Ctrl+- / Ctrl+0 | Command++ / Command+- / Command+0 |
+| Cycle reader theme | Ctrl+Shift+T | Command+Shift+T |
+| Print | Ctrl+P | Command+P |
+| Leave find | Escape | Escape |
 
 Mermaid uses its familiar fenced syntax:
 
 ~~~~text
 ~~~mermaid
 flowchart LR
-    File[Markdown file] --> Parse[Native MD4C parser]
-    Parse --> Read[LeanMark reading surface]
-    Parse --> Diagram[Bundled Mermaid renderer]
-    Diagram --> Read
+    File[Markdown file] --> Parse[Portable MD4C core]
+    Parse --> Host[Native desktop host]
+    Host --> Read[LeanMark reader]
 ~~~
 ~~~~
 
-## Measured release
+## Architecture
 
-LeanMark publishes package, startup, and memory figures together. A small
-package does not imply a tiny in-memory footprint.
+~~~mermaid
+flowchart LR
+    File[Local Markdown file] --> Core[Portable C++ / MD4C core]
+    Core --> Host{Native host}
+    Host -->|Win32| W[WebView2]
+    Host -->|GTK 4| L[WebKitGTK]
+    Host -->|AppKit| M[WKWebView]
+    W --> Reader[Shared offline reader]
+    L --> Reader
+    M --> Reader
+~~~
+
+The parser owns UTF-8 validation, the 32 MiB limit, GFM rendering, raw-HTML
+disablement, and Mermaid detection. Native hosts own file dialogs, file
+watching, appearance, printing, external links, and web-runtime policy. The
+reader HTML, CSS, JavaScript, Mermaid bundle, and fonts are identical across
+packages.
+
+The rationale and security contract are documented in
+[the cross-platform architecture decision](https://github.com/abooodbah/leanmark/blob/main/docs/architecture/cross-platform-port.md).
+
+## Measured Windows baseline
+
+A small package does not imply a tiny in-memory process tree. The measurements
+below are retained as an explicit Windows 11/WebView2 baseline; no Linux or
+macOS values are inferred from them.
 
 | Measurement | Simple document | Mermaid showcase |
 | --- | ---: | ---: |
@@ -148,103 +193,111 @@ package does not imply a tiny in-memory footprint.
 | Peak working set, full process tree | 322.96 MiB | 362.39 MiB |
 | Observed process count | 7 | 7 |
 
-Release download: **1.34 MiB ZIP**. The extracted, staged application payload is
-**4.11 MiB**.
-
-Test machine: Windows 11 Pro build 26200, 13th Gen Intel Core i7-13620H,
+Baseline environment: Windows 11 Pro build 26200, Intel Core i7-13620H,
 16 logical processors, and 15.6 GiB RAM. The simple-document figures used a
-three-second observation window. Hardware, system state, WebView2 version, and
+three-second observation window. Hardware, system state, runtime version, and
 document complexity affect results.
 
-The measurement helper and methodology are in
+The measurement helper and method are documented in
 [tests/README.md](https://github.com/abooodbah/leanmark/blob/main/tests/README.md).
-There is deliberately no unmeasured comparison against VS Code or another app.
+No unmeasured comparison against VS Code or
+another application is claimed.
 
 ## Privacy and security
 
 Markdown is treated as untrusted input:
 
 - MD4C runs with raw HTML disabled.
-- The reader page uses a strict Content Security Policy.
-- The app origin and current document-image folder use separate virtual hosts.
-- Remote images, custom URL schemes, downloads, popups, permissions, and
-  in-reader external navigation are blocked.
+- The reader uses a strict, deny-by-default Content Security Policy.
+- Application assets and current-document images use separate origins.
+- Document image handlers canonicalize paths and reject directory traversal and
+  symlink escapes.
+- Remote images, unrequested navigation, downloads, popups, permissions, and
+  script dialogs are blocked.
 - Mermaid runs with <code>securityLevel: "strict"</code>.
-- External HTTP, HTTPS, and mail links are handed to Windows only after a click.
-  No command shell is involved.
+- External HTTP(S) and mail links leave the reader only after a click and open
+  through the operating-system handler. No command shell is involved.
+- WebKit hosts use nonpersistent browser data stores; all rendering libraries
+  and fonts are bundled locally.
 
-LeanMark renders documents with bundled local assets and does not require a
-document-processing service. GFM and Mermaid rendering work offline once the
-WebView2 Runtime is available. Security smoke tests exercise hostile HTML,
-links, images, and Mermaid content in a real WebView.
+Windows security smoke tests exercise hostile input in WebView2. Linux and
+macOS CI run their platform-specific source policy, core, package/bundle, and
+real-WebKit checks.
 
-Please report vulnerabilities privately as described in
+Private vulnerability reports follow
 [SECURITY.md](https://github.com/abooodbah/leanmark/blob/main/SECURITY.md).
 
-## Build from source
+## Source builds
 
-Requirements:
+Node.js 20 or later installs the pinned Mermaid and IBM Plex build-time assets.
+Node.js is not a runtime dependency.
 
-- Visual Studio 2022 Build Tools with the MSVC v143 toolset
-- Node.js 20 or newer for pinned build-time assets
-- Evergreen WebView2 Runtime
+### Windows
 
-Build and stage the portable payload:
+Requirements: Visual Studio 2022 Build Tools with MSVC v143, the Evergreen
+WebView2 Runtime, and Node.js.
 
 ~~~powershell
 .\scripts\build.ps1 -Configuration Release -Platform x64
-~~~
-
-Run the dependency-free core verification suite:
-
-~~~powershell
 .\tests\Test-LeanMark.ps1 -DistPath .\dist
+.\scripts\package-release.ps1 -Version 0.2.0
 ~~~
 
-Create the same versioned ZIP and SHA-256 sidecar used for releases:
+### Linux
 
-~~~powershell
-.\scripts\package-release.ps1 -Version 0.1.0
+Requirements: CMake 3.22+, Ninja, a C++17 compiler, pkg-config, GTK 4,
+WebKitGTK 6.0, Node.js, and Debian packaging tools. Ubuntu 24.04 build packages:
+
+~~~sh
+sudo apt install build-essential cmake ninja-build pkg-config \
+  libgtk-4-dev libwebkitgtk-6.0-dev
+./scripts/package-linux.sh --version 0.2.0
 ~~~
 
-The build restores pinned packages, compiles the native host with a static C++
-runtime, and stages only the app, WebView2 loader, reader assets, bundled
-Mermaid, five IBM Plex font files, and license notices. Node.js is not a runtime
-dependency.
+### macOS
+
+Requirements: macOS 12+, Xcode command-line tools, CMake 3.24+, and Node.js.
+
+~~~sh
+npm ci --ignore-scripts --no-audit --no-fund
+cmake -S . -B obj/macos -G Xcode -DCMAKE_BUILD_TYPE=Release
+cmake --build obj/macos --config Release
+ctest --test-dir obj/macos -C Release --output-on-failure
+cmake --build obj/macos --config Release --target package_macos
+~~~
+
+Developer ID signing and notarization require credentialed, protected release
+automation and are not simulated by the public CI build.
 
 ### Project map
 
-- <code>src/</code> — native window, argument handling, file reading, MD4C
-  rendering, WebView2 policy, and Windows resources.
-- <code>assets/</code> — the trusted reader page, style system, navigation,
-  find, and lazy Mermaid integration.
-- <code>installer/</code> — auditable per-user registration and cleanup.
-- <code>tests/</code> — static invariants, hostile fixtures, real DOM smoke
-  tests, and performance helpers.
-- <code>site/</code> — the dependency-free GitHub Pages product site.
-- <code>brand/</code> — deterministic source artwork for the app and launch
-  assets.
+- <code>src/core/</code>: portable file policy, UTF-8 validation, and MD4C
+  rendering.
+- <code>src/</code>: Windows host, resources, and Visual Studio project.
+- <code>src/linux/</code> and <code>packaging/linux/</code>: GTK/WebKitGTK
+  host and Debian metadata.
+- <code>macos/</code>: AppKit/WKWebView host, bundle metadata, and packaging.
+- <code>assets/</code>: shared trusted reader UI and security policy.
+- <code>scripts/</code>: deterministic asset and release staging.
+- <code>tests/</code>: static invariants, hostile fixtures, runtime/DOM smoke,
+  package checks, and performance helpers.
+- <code>site/</code>: dependency-free GitHub Pages product site.
 
-Comments focus on the Windows, rendering, and security decisions that are not
-obvious from the code.
+## Contributing
 
-## Contribute
+Compatibility reports based on real, non-private Markdown documents are
+welcome, especially documents containing local images or Mermaid blocks.
+Rendering issues belong in the
+[issue tracker](https://github.com/abooodbah/leanmark/issues/new/choose).
 
-Real documents are the best compatibility tests. Try one of your READMEs,
-ideally with a Mermaid block, then
-[report what rendered incorrectly](https://github.com/abooodbah/leanmark/issues/new/choose).
-
-See
-[CONTRIBUTING.md](https://github.com/abooodbah/leanmark/blob/main/CONTRIBUTING.md)
-for setup and validation,
-[ROADMAP.md](https://github.com/abooodbah/leanmark/blob/main/ROADMAP.md) for
-current priorities, and
-[CHANGELOG.md](https://github.com/abooodbah/leanmark/blob/main/CHANGELOG.md) for
-release history.
+Contribution guidance, current priorities, and release history are documented
+in
+[CONTRIBUTING.md](https://github.com/abooodbah/leanmark/blob/main/CONTRIBUTING.md),
+[ROADMAP.md](https://github.com/abooodbah/leanmark/blob/main/ROADMAP.md), and
+[CHANGELOG.md](https://github.com/abooodbah/leanmark/blob/main/CHANGELOG.md).
 
 ## License
 
-LeanMark is free to use, modify, and redistribute under the
-[MIT License](https://github.com/abooodbah/leanmark/blob/main/LICENSE). Bundled
-dependencies retain their own permissive licenses; see
-[THIRD_PARTY_NOTICES.md](https://github.com/abooodbah/leanmark/blob/main/THIRD_PARTY_NOTICES.md).
+LeanMark is free to use, modify, and redistribute under the [MIT License](LICENSE).
+Bundled dependencies retain their own permissive licenses; details are in
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

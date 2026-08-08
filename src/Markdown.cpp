@@ -1,21 +1,16 @@
 #include "Markdown.h"
+#include "core/MarkdownCore.h"
 
 #include <windows.h>
 
 #include <algorithm>
 #include <filesystem>
 #include <limits>
+#include <utility>
 #include <vector>
-
-#include "md4c-html.h"
 
 namespace leanmark {
 namespace {
-
-void AppendRenderedHtml(const MD_CHAR* text, MD_SIZE size, void* userData) {
-    auto* output = static_cast<std::string*>(userData);
-    output->append(text, size);
-}
 
 std::wstring LastErrorMessage(DWORD errorCode) {
     wchar_t* rawMessage = nullptr;
@@ -64,13 +59,6 @@ std::wstring CanonicalExistingPath(const std::wstring& requestedPath) {
     }
     fullPath.resize(written);
     return fullPath;
-}
-
-bool HasUtf8Bom(const std::vector<char>& bytes) {
-    return bytes.size() >= 3 &&
-           static_cast<unsigned char>(bytes[0]) == 0xEF &&
-           static_cast<unsigned char>(bytes[1]) == 0xBB &&
-           static_cast<unsigned char>(bytes[2]) == 0xBF;
 }
 
 }  // namespace
@@ -146,44 +134,15 @@ RenderedDocument RenderMarkdownFile(const std::wstring& requestedPath) {
     CloseHandle(file);
     bytes.resize(totalRead);
 
-    const std::size_t contentOffset = HasUtf8Bom(bytes) ? 3 : 0;
-    std::string markdown;
-    if (bytes.size() > contentOffset) {
-        markdown.assign(
-            bytes.data() + contentOffset, bytes.size() - contentOffset);
-    }
-
-    // Validate before parsing so malformed byte sequences never leak into JSON or
-    // become replacement characters that hide the actual file problem.
-    if (!markdown.empty() &&
-        MultiByteToWideChar(
-            CP_UTF8,
-            MB_ERR_INVALID_CHARS,
-            markdown.data(),
-            static_cast<int>(markdown.size()),
-            nullptr,
-            0) == 0) {
-        result.error =
-            L"This file is not valid UTF-8. Convert it to UTF-8, then open it again.";
+    auto rendered = core::RenderMarkdownUtf8(
+        std::string(bytes.begin(), bytes.end()));
+    if (!rendered.ok) {
+        result.error = Utf8ToWide(rendered.error);
         return result;
     }
 
-    const unsigned parserFlags = MD_DIALECT_GITHUB | MD_FLAG_NOHTML;
-    const int renderStatus = md_html(
-        markdown.data(),
-        static_cast<MD_SIZE>(markdown.size()),
-        AppendRenderedHtml,
-        &result.html,
-        parserFlags,
-        MD_HTML_FLAG_SKIP_UTF8_BOM);
-    if (renderStatus != 0) {
-        result.error = L"LeanMark could not parse this Markdown document.";
-        result.html.clear();
-        return result;
-    }
-
-    result.hasMermaid =
-        result.html.find("language-mermaid") != std::string::npos;
+    result.html = std::move(rendered.html);
+    result.hasMermaid = rendered.hasMermaid;
     result.ok = true;
     return result;
 }
