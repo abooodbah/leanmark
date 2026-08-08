@@ -2,6 +2,10 @@ name: Build Windows x64
 
 on:
   push:
+    branches:
+      - '**'
+    tags:
+      - 'v*'
   pull_request:
   workflow_dispatch:
 
@@ -12,6 +16,8 @@ jobs:
   build:
     runs-on: windows-latest
     timeout-minutes: 20
+    outputs:
+      version: ${{ steps.package.outputs.version }}
 
     steps:
       - name: Check out source
@@ -30,10 +36,82 @@ jobs:
         shell: pwsh
         run: ./scripts/build.ps1 -Configuration Release -Platform x64
 
-      - name: Upload LeanMark portable build
+      - name: Run core verification
+        shell: pwsh
+        run: ./tests/Test-LeanMark.ps1 -DistPath ./dist
+
+      - name: Verify launch site
+        shell: pwsh
+        run: ./tests/Test-Site.ps1 -SitePath ./site
+
+      - name: Smoke-test launch site in Edge
+        shell: pwsh
+        run: node ./tests/Invoke-SiteBrowserSmoke.mjs --site ./site
+
+      - name: Resolve release package version
+        id: package
+        shell: pwsh
+        env:
+          LEANMARK_REF_TYPE: ${{ github.ref_type }}
+          LEANMARK_REF_NAME: ${{ github.ref_name }}
+        run: |
+          $manifestVersion = [string](Get-Content -LiteralPath package.json -Raw | ConvertFrom-Json).version
+          $version = $manifestVersion
+          if ($env:LEANMARK_REF_TYPE -eq 'tag') {
+            if (-not $env:LEANMARK_REF_NAME.StartsWith('v')) {
+              throw ('Release tags must start with v: {0}' -f $env:LEANMARK_REF_NAME)
+            }
+            $version = $env:LEANMARK_REF_NAME.Substring(1)
+            if ($version -cne $manifestVersion) {
+              throw ('Tag version {0} does not match package.json version {1}.' -f $version, $manifestVersion)
+            }
+          }
+          ('version={0}' -f $version) | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Create portable and installable release package
+        shell: pwsh
+        run: ./scripts/package-release.ps1 -Version '${{ steps.package.outputs.version }}' -Platform x64
+
+      - name: Upload LeanMark release package
         uses: actions/upload-artifact@v7
         with:
-          name: LeanMark-windows-x64
-          path: dist/
+          name: LeanMark-v${{ steps.package.outputs.version }}-windows-x64
+          path: |
+            release/*.zip
+            release/*.zip.sha256
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
+
+  release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+
+    steps:
+      - name: Check out release notes
+        uses: actions/checkout@v7
+
+      - name: Download the verified package
+        uses: actions/download-artifact@v7
+        with:
+          name: LeanMark-v${{ needs.build.outputs.version }}-windows-x64
+          path: release-assets
+
+      - name: Publish the GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LEANMARK_TAG: ${{ github.ref_name }}
+        run: |
+          notes="docs/releases/${LEANMARK_TAG}.md"
+          test -f "$notes"
+          gh release create "$LEANMARK_TAG" \
+            release-assets/*.zip \
+            release-assets/*.zip.sha256 \
+            --verify-tag \
+            --latest \
+            --title "LeanMark $LEANMARK_TAG" \
+            --notes-file "$notes"

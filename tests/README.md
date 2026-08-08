@@ -27,6 +27,18 @@ after launch, and fails if the endpoint cannot be inspected:
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-LeanMark.ps1 -Dom
 ```
 
+Verify the public product site statically, then render it in a test-owned
+headless Edge or Chrome profile at desktop, tablet, and mobile widths:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-Site.ps1
+node .\tests\Invoke-SiteBrowserSmoke.mjs --site .\site
+```
+
+The browser smoke fails on page-level horizontal overflow, broken local assets
+or anchors, undersized buttons, missing focus indicators, unnamed interactive
+elements, browser exceptions, and failed local resources.
+
 After deliberately running the per-user installer, opt into read-only registry
 verification. The second command also requires that Windows currently resolves
 `.md` to the installed LeanMark executable:

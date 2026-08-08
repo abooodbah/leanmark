@@ -1,0 +1,84 @@
+name: Bug report
+description: Report a reproducible problem in LeanMark
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for helping improve LeanMark. Remove private information from files, screenshots, and logs.
+
+  - type: input
+    id: version
+    attributes:
+      label: LeanMark version
+      description: Enter the release version or commit you tested.
+      placeholder: "For example: 0.1.0 or commit abc1234"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: windows-version
+    attributes:
+      label: Windows version
+      options:
+        - Windows 11
+        - Windows 10
+        - Other Windows setup
+    validations:
+      required: true
+
+  - type: input
+    id: webview2-version
+    attributes:
+      label: WebView2 Runtime version
+      description: Include this if known. It can help diagnose rendering problems.
+      placeholder: "For example: 138.0.x"
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: List the shortest reliable sequence that triggers the problem.
+      placeholder: |
+        1. Open ...
+        2. Select ...
+        3. Observe ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual result
+      description: Describe what happened, including any visible error.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected result
+      description: Describe what you expected LeanMark to do.
+    validations:
+      required: true
+
+  - type: textarea
+    id: sample
+    attributes:
+      label: Minimal sample or screenshot
+      description: Paste minimal Markdown or attach a safe test file or screenshot. Do not include private documents.
+      render: markdown
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing open and closed issues for this problem.
+          required: true
+        - label: I reproduced this with the latest release or a current build, or explained why I could not.
+          required: true
+        - label: This report does not contain a security vulnerability. I will follow SECURITY.md for security reports.
+          required: true

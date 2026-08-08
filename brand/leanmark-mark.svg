@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="256" height="256" preserveAspectRatio="xMidYMid meet" role="img" aria-labelledby="title desc">
+  <title id="title">LeanMark</title>
+  <desc id="desc">A Markdown document connected to a small diagram.</desc>
+  <rect width="64" height="64" rx="12" fill="#1a1917"/>
+  <path d="M15 8h25l10 10v38H15z" fill="#faf9f7"/>
+  <path d="M40 8v10h10" fill="#e8e4dc"/>
+  <path d="M40 8v10h10" fill="none" stroke="#d5cfc3" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M21 22h14M24 18l-2 12M31 18l-2 12" fill="none" stroke="#1a1917" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M23 40h12M35 40l6 6" fill="none" stroke="#1d4ed8" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="22" cy="40" r="3.5" fill="#1d4ed8"/>
+  <circle cx="42" cy="47" r="3.5" fill="#1d4ed8"/>
+</svg>

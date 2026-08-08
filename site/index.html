@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#faf9f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e0d0b" media="(prefers-color-scheme: dark)">
+  <title>LeanMark — a focused Markdown viewer for Windows</title>
+  <meta name="description" content="LeanMark is an MIT-licensed Markdown viewer for Windows x64, with offline GFM and Mermaid rendering in a native C++ host powered by WebView2.">
+  <link rel="canonical" href="https://abooodbah.github.io/leanmark/">
+  <link rel="icon" href="assets/leanmark-icon.png" sizes="256x256">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="preload" href="assets/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/ibm-plex-serif-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="styles.css">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="LeanMark — Open the README, not the IDE">
+  <meta property="og:description" content="A focused Windows viewer for offline GitHub-flavored Markdown and Mermaid. MIT licensed.">
+  <meta property="og:url" content="https://abooodbah.github.io/leanmark/">
+  <meta property="og:image" content="https://abooodbah.github.io/leanmark/assets/social-preview.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="LeanMark: Open the README, not the IDE.">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "LeanMark",
+    "applicationCategory": "UtilitiesApplication",
+    "operatingSystem": "Windows 11",
+    "softwareVersion": "0.1.0",
+    "license": "https://opensource.org/license/mit",
+    "downloadUrl": "https://github.com/abooodbah/leanmark/releases/download/v0.1.0/LeanMark-v0.1.0-windows-x64.zip",
+    "codeRepository": "https://github.com/abooodbah/leanmark",
+    "description": "A focused Markdown viewer for Windows x64 with offline GitHub-flavored Markdown and Mermaid rendering."
+  }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container header-row">
+      <a class="brand" href="#top" aria-label="LeanMark home">
+        <img src="assets/leanmark-icon.png" width="36" height="36" alt="">
+        <span>LeanMark</span>
+      </a>
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <a href="#features">Features</a>
+        <a href="#performance">Measurements</a>
+        <a href="#security">Security</a>
+        <a href="https://github.com/abooodbah/leanmark">Source</a>
+      </nav>
+      <a class="button button-small button-primary header-download"
+         href="https://github.com/abooodbah/leanmark/releases/download/v0.1.0/LeanMark-v0.1.0-windows-x64.zip">
+        Download
+      </a>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="hero" id="top">
+      <div class="container hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">A focused Markdown viewer for Windows x64</p>
+          <h1>Open the README,<br>not the IDE.</h1>
+          <p class="hero-lead">
+            Read GitHub-flavored Markdown and Mermaid diagrams offline in a
+            native C++ host powered by WebView2.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-large button-primary"
+               href="https://github.com/abooodbah/leanmark/releases/download/v0.1.0/LeanMark-v0.1.0-windows-x64.zip">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M12 3v12m0 0 5-5m-5 5-5-5M5 20h14"/>
+              </svg>
+              Download for Windows x64
+            </a>
+            <a class="button button-large button-secondary"
+               href="https://github.com/abooodbah/leanmark">
+              View source
+            </a>
+          </div>
+          <p class="release-meta">
+            v0.1.0 · 1.32 MiB ZIP · MIT licensed
+          </p>
+          <p class="unsigned-note">
+            <strong>Early release:</strong> LeanMark is currently unsigned, so
+            Windows may identify the publisher as unknown.
+          </p>
+        </div>
+
+        <figure class="product-shot">
+          <img src="assets/leanmark-window.png"
+               width="1226"
+               height="853"
+               alt="LeanMark displaying a local Markdown document with a Mermaid flowchart and document outline."
+               fetchpriority="high">
+          <figcaption>A real local document rendered by LeanMark.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <section class="proof-strip" aria-labelledby="proof-heading">
+      <div class="container">
+        <h2 class="visually-hidden" id="proof-heading">Measured release facts</h2>
+        <dl class="proof-list">
+          <div>
+            <dt>1.32 MiB</dt>
+            <dd>Versioned ZIP download</dd>
+          </div>
+          <div>
+            <dt>~321 ms</dt>
+            <dd>Native window visible for a simple document</dd>
+          </div>
+          <div>
+            <dt>~163 MiB</dt>
+            <dd>Peak private memory in that full-process test</dd>
+          </div>
+          <div>
+            <dt>MIT</dt>
+            <dd>Free to use, inspect, and improve</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="container split-section">
+        <div class="section-copy">
+          <p class="eyebrow">The reading workflow</p>
+          <h2>A document opens as a document.</h2>
+          <p class="section-lead">
+            Open a Markdown file and get a calm reading surface—without
+            project indexing, editor panes, extensions, or a workspace to manage.
+          </p>
+          <ul class="check-list">
+            <li>CommonMark plus GFM tables, tasks, autolinks, and strikethrough</li>
+            <li>Automatic outline, find, zoom, print, themes, and reading progress</li>
+            <li>Relative local images and Markdown links</li>
+            <li>Live refresh after the file changes on disk</li>
+          </ul>
+        </div>
+        <div class="markdown-sample" aria-label="Markdown source and rendered result">
+          <div class="sample-bar">
+            <span class="sample-name">architecture.md</span>
+            <span class="sample-label">local file</span>
+          </div>
+          <pre><code><span class="token-heading"># Release path</span>
+
+The viewer stays focused on
+the document in front of you.
+
+<span class="token-code">&#96;&#96;&#96;mermaid</span>
+flowchart LR
+  File --> Parse --> Read
+<span class="token-code">&#96;&#96;&#96;</span></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-muted">
+      <div class="container split-section split-reverse">
+        <div class="diagram-surface" aria-label="LeanMark local rendering flow">
+          <svg viewBox="0 0 720 420" role="img" aria-labelledby="diagram-title diagram-desc">
+            <title id="diagram-title">LeanMark rendering flow</title>
+            <desc id="diagram-desc">A Markdown file is parsed by MD4C, shown in a trusted local view, and diagrams are rendered by the bundled Mermaid library only when needed.</desc>
+            <defs>
+              <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z"/>
+              </marker>
+            </defs>
+            <path class="diagram-line" marker-end="url(#arrow)" d="M174 112H276"/>
+            <path class="diagram-line" marker-end="url(#arrow)" d="M444 112H546"/>
+            <path class="diagram-line" marker-end="url(#arrow)" d="M360 170V264"/>
+            <rect class="diagram-node" x="34" y="64" width="140" height="96" rx="8"/>
+            <rect class="diagram-node" x="276" y="64" width="168" height="96" rx="8"/>
+            <rect class="diagram-node" x="546" y="64" width="140" height="96" rx="8"/>
+            <rect class="diagram-node diagram-node-accent" x="276" y="264" width="168" height="96" rx="8"/>
+            <text x="104" y="105">Markdown</text>
+            <text x="104" y="130" class="diagram-subtext">local file</text>
+            <text x="360" y="105">MD4C</text>
+            <text x="360" y="130" class="diagram-subtext">raw HTML off</text>
+            <text x="616" y="105">Reader</text>
+            <text x="616" y="130" class="diagram-subtext">trusted view</text>
+            <text x="360" y="305">Mermaid</text>
+            <text x="360" y="330" class="diagram-subtext">only when present</text>
+          </svg>
+        </div>
+        <div class="section-copy">
+          <p class="eyebrow">Offline diagrams</p>
+          <h2>Mermaid stays with the document.</h2>
+          <p class="section-lead">
+            The release includes its Mermaid renderer. Diagrams work without an
+            active connection, and the library is loaded only when the document
+            contains a Mermaid fence.
+          </p>
+          <p>
+            LeanMark is explicit about its architecture: the Windows host is C++;
+            WebView2 renders the final document. That keeps the shipped package
+            small while providing selectable text, printing, images, and diagrams.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="performance">
+      <div class="container measurement-layout">
+        <div class="section-copy">
+          <p class="eyebrow">Measured, not magical</p>
+          <h2>Small package. Honest runtime cost.</h2>
+          <p class="section-lead">
+            WebView2 keeps its platform runtime outside the LeanMark package,
+            but its renderer, GPU, and utility processes still use memory.
+            Package size is not the same as total footprint.
+          </p>
+          <p>
+            Measurements vary with hardware, Windows state, and document
+            complexity. These figures describe one reproducible test, not a
+            universal guarantee.
+          </p>
+          <a class="text-link" href="https://github.com/abooodbah/leanmark/blob/main/tests/README.md">
+            Read the measurement method
+            <span aria-hidden="true">→</span>
+          </a>
+        </div>
+        <dl class="measurement-list">
+          <div>
+            <dt>4.11 <span>MiB</span></dt>
+            <dd>Staged application payload</dd>
+          </div>
+          <div>
+            <dt>320.88 <span>ms</span></dt>
+            <dd>Native window visible for a simple document</dd>
+          </div>
+          <div>
+            <dt>162.94 <span>MiB</span></dt>
+            <dd>Peak private memory, full seven-process app tree</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="security-section" id="security">
+      <div class="container security-layout">
+        <div>
+          <p class="eyebrow eyebrow-inverse">Practical guards</p>
+          <h2>Local Markdown is treated as untrusted input.</h2>
+          <p class="security-lead">
+            LeanMark narrows what a document can do, then verifies those
+            boundaries against hostile fixtures.
+          </p>
+          <a class="button button-large button-inverse"
+             href="https://github.com/abooodbah/leanmark/blob/main/SECURITY.md">
+            Read the security policy
+          </a>
+        </div>
+        <ul class="security-list">
+          <li><strong>Raw HTML disabled</strong><span>MD4C renders Markdown without activating embedded HTML.</span></li>
+          <li><strong>Strict local page policy</strong><span>A Content Security Policy limits scripts and resources.</span></li>
+          <li><strong>Remote content blocked</strong><span>Remote images, downloads, popups, and permissions are denied.</span></li>
+          <li><strong>External links leave the reader</strong><span>HTTP, HTTPS, and mail links go to Windows only after a click.</span></li>
+        </ul>
+      </div>
+    </section>
+
+    <section class="section" id="install">
+      <div class="container install-layout">
+        <div class="section-copy">
+          <p class="eyebrow">Try the release</p>
+          <h2>Portable first. Windows integration when you want it.</h2>
+          <p class="section-lead">
+            Download the official ZIP and extract it anywhere. Run
+            LeanMark.exe directly, or follow INSTALL.txt to add Start menu,
+            Open With, and Default Apps integration for your Windows account.
+          </p>
+          <div class="inline-alert" role="note">
+            <strong>Unsigned preview.</strong>
+            Windows may show an unknown-publisher or Microsoft Defender
+            SmartScreen warning. Use only the release linked from this official
+            repository. If your device prohibits unsigned apps, wait for a
+            signed build.
+          </div>
+          <div class="hero-actions">
+            <a class="button button-large button-primary"
+               href="https://github.com/abooodbah/leanmark/releases/download/v0.1.0/LeanMark-v0.1.0-windows-x64.zip">
+              Download v0.1.0
+            </a>
+            <a class="button button-large button-secondary"
+               href="https://github.com/abooodbah/leanmark/releases/latest">
+              Release notes
+            </a>
+          </div>
+          <p class="requirements">
+            Windows 11 x64 tested · Windows 10 x64 not yet runtime-verified ·
+            <a href="https://developer.microsoft.com/en-us/microsoft-edge/webview2/consumer/">
+              Microsoft Edge WebView2 Runtime
+            </a>
+          </p>
+        </div>
+        <ol class="install-steps">
+          <li>
+            <span>01</span>
+            <div><strong>Download</strong><p>Get the versioned ZIP from GitHub Releases.</p></div>
+          </li>
+          <li>
+            <span>02</span>
+            <div><strong>Extract</strong><p>Keep the executable, loader, and assets together.</p></div>
+          </li>
+          <li>
+            <span>03</span>
+            <div><strong>Open a real README</strong><p>Try one with a Mermaid block and tell us what needs work.</p></div>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="closing-section">
+      <div class="container closing-layout">
+        <div>
+          <p class="eyebrow">Built in public</p>
+          <h2>Useful tools get better through real documents.</h2>
+        </div>
+        <div>
+          <p>
+            LeanMark is early, public, and MIT licensed. Try one of your actual
+            READMEs—ideally with Mermaid—and report the first thing that renders
+            incorrectly or gets in your way.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-large button-primary"
+               href="https://github.com/abooodbah/leanmark/issues/new/choose">
+              Report an issue
+            </a>
+            <a class="button button-large button-secondary"
+               href="https://github.com/abooodbah/leanmark/blob/main/ROADMAP.md">
+              View roadmap
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-row">
+      <a class="brand" href="#top">
+        <img src="assets/leanmark-icon.png" width="32" height="32" alt="">
+        <span>LeanMark</span>
+      </a>
+      <p>MIT-licensed open source software for Windows x64.</p>
+      <nav aria-label="Footer navigation">
+        <a href="https://github.com/abooodbah/leanmark">GitHub</a>
+        <a href="https://github.com/abooodbah/leanmark/releases">Releases</a>
+        <a href="https://github.com/abooodbah/leanmark/blob/main/CONTRIBUTING.md">Contribute</a>
+        <a href="https://github.com/abooodbah/leanmark/blob/main/LICENSE">License</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

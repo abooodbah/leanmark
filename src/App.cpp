@@ -1,4 +1,5 @@
 #include "App.h"
+#include "resource.h"
 
 #include <WebView2EnvironmentOptions.h>
 #include <dwmapi.h>
@@ -196,8 +197,14 @@ bool LeanMarkApp::CreateMainWindow(int showCommand) {
     windowClass.lpfnWndProc = WindowProcedure;
     windowClass.hInstance = instance_;
     windowClass.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    windowClass.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
-    windowClass.hIconSm = windowClass.hIcon;
+    windowClass.hIcon = LoadIconW(instance_, MAKEINTRESOURCEW(IDI_LEANMARK));
+    windowClass.hIconSm = static_cast<HICON>(LoadImageW(
+        instance_,
+        MAKEINTRESOURCEW(IDI_LEANMARK),
+        IMAGE_ICON,
+        GetSystemMetrics(SM_CXSMICON),
+        GetSystemMetrics(SM_CYSMICON),
+        LR_DEFAULTCOLOR));
     windowClass.hbrBackground =
         CreateSolidBrush(dark ? RGB(14, 13, 11) : RGB(250, 249, 247));
     windowClass.lpszClassName = kWindowClassName;

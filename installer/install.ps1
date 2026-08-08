@@ -29,6 +29,7 @@ function Resolve-Payload {
         @($Requested)
     } else {
         @(
+            $Root,
             (Join-Path $Root 'dist'),
             (Join-Path $Root 'bin\x64\Release'),
             (Join-Path $Root 'build\bin\x64\Release'),
@@ -204,7 +205,7 @@ $OpenCommand = $Quote + $InstalledExe + $Quote + ' -- ' + $Quote + '%1' + $Quote
 Set-RegString $AppKey 'InstallLocation' $InstallDir
 Set-RegString $AppKey 'ExecutablePath' $InstalledExe
 Set-RegString (Join-Path $AppKey 'Capabilities') 'ApplicationName' $AppName
-Set-RegString (Join-Path $AppKey 'Capabilities') 'ApplicationDescription' 'A lightweight Markdown reader with Mermaid support.'
+Set-RegString (Join-Path $AppKey 'Capabilities') 'ApplicationDescription' 'A focused Markdown reader with offline Mermaid support.'
 Set-RegString (Join-Path $AppKey 'Capabilities') 'ApplicationIcon' ($InstalledExe + ',0')
 foreach ($Extension in $Extensions) {
     Set-RegString (Join-Path $AppKey 'Capabilities\FileAssociations') $Extension $ProgId
@@ -254,7 +255,7 @@ $InstalledUninstaller = Join-Path $InstallDir 'uninstall.ps1'
 $UninstallCommand = $Quote + (Join-Path $PSHOME 'powershell.exe') + $Quote +
     ' -NoProfile -ExecutionPolicy Bypass -File ' + $Quote + $InstalledUninstaller + $Quote
 $Version = [Diagnostics.FileVersionInfo]::GetVersionInfo($InstalledExe).ProductVersion
-if (-not $Version) { $Version = '1.0.0' }
+if (-not $Version) { $Version = '0.1.0' }
 Set-RegString $UninstallKey 'DisplayName' $AppName
 Set-RegString $UninstallKey 'DisplayVersion' $Version
 Set-RegString $UninstallKey 'DisplayIcon' ($InstalledExe + ',0')

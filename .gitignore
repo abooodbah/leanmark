@@ -3,6 +3,7 @@
 bin/
 obj/
 dist/
+release/
 *.user
 *.suo
 *.VC.db
