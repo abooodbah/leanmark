@@ -1,42 +1,30 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/abooodbah/leanmark/main/site/assets/leanmark-icon.png" width="88" height="88" alt="LeanMark">
-</p>
+# LeanMark
 
-<h1 align="center">LeanMark</h1>
+**Read Markdown and Mermaid diagrams without opening an IDE. Fully offline, no
+Electron, no telemetry, no network access.**
 
-<p align="center"><strong>Focused Markdown reading without the IDE.</strong></p>
+![LeanMark rendering Mermaid diagrams offline](docs/images/leanmark-mermaid.png)
 
-<p align="center">
-  A small, read-only desktop viewer for GitHub-flavored Markdown, local images,
-  and Mermaid diagrams. Available for Windows, Linux, and macOS.
-</p>
+*Mermaid flowcharts, GFM tables, and task lists rendered with no network calls.
+Working set: 20 MB.*
 
-<p align="center">
-  <a href="https://github.com/abooodbah/leanmark/actions/workflows/build.yml"><img alt="Platform builds" src="https://github.com/abooodbah/leanmark/actions/workflows/build.yml/badge.svg"></a>
-  <a href="https://github.com/abooodbah/leanmark/releases/latest"><img alt="Latest release" src="https://img.shields.io/github/v/release/abooodbah/leanmark?display_name=tag&sort=semver"></a>
-  <a href="https://github.com/abooodbah/leanmark/blob/main/LICENSE"><img alt="MIT license" src="https://img.shields.io/badge/license-MIT-1d4ed8"></a>
-  <img alt="Windows, Linux, and macOS" src="https://img.shields.io/badge/platforms-Windows%20%7C%20Linux%20%7C%20macOS-1a1917">
-</p>
+Every other Markdown tool is an editor. VS Code, Typora, Obsidian, MarkText: all
+heavy, most built on Electron, all designed for writing. LeanMark is for reading.
 
-<p align="center">
-  <a href="https://github.com/abooodbah/leanmark/releases/latest"><strong>Release downloads</strong></a>
-  ·
-  <a href="https://abooodbah.github.io/leanmark/">Website</a>
-  ·
-  <a href="https://github.com/abooodbah/leanmark/issues/new/choose">Issue tracker</a>
-</p>
+It renders GitHub-flavored Markdown, local images, and Mermaid diagrams entirely
+offline, using the system web runtime rather than a bundled Chromium. Raw HTML is
+disabled, a strict CSP is enforced, and remote images and navigation are blocked,
+which makes it usable in environments where outbound network calls are not
+permitted.
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/abooodbah/leanmark/main/site/assets/leanmark-window.png" width="980" alt="LeanMark displaying a local Markdown document with Mermaid diagrams and an automatic outline.">
-</p>
+## Install
 
-LeanMark opens an ordinary Markdown file as a document, not a project. It
-provides a calm reading surface, local diagrams, and useful navigation without
-the editor panes, extensions, or workspace indexing of a full IDE.
+```powershell
+scoop install leanmark
+```
 
-One portable C++17/MD4C core parses every document. Thin native hosts use the
-system web runtime on each platform: WebView2 on Windows, WebKitGTK on Linux,
-and WKWebView on macOS. No Electron or bundled Chromium runtime is shipped.
+Windows, Linux (.deb), and macOS builds are on the
+[Releases](https://github.com/abooodbah/leanmark/releases) page.
 
 ## Platform releases
 
