@@ -7,7 +7,6 @@
 #include <filesystem>
 #include <limits>
 #include <utility>
-#include <vector>
 
 namespace leanmark {
 namespace {
@@ -38,7 +37,9 @@ std::wstring LastErrorMessage(DWORD errorCode) {
     return message;
 }
 
-std::wstring CanonicalExistingPath(const std::wstring& requestedPath) {
+}  // namespace
+
+std::wstring CanonicalPath(const std::wstring& requestedPath) {
     std::error_code error;
     const auto canonical =
         std::filesystem::weakly_canonical(std::filesystem::path(requestedPath), error);
@@ -61,28 +62,21 @@ std::wstring CanonicalExistingPath(const std::wstring& requestedPath) {
     return fullPath;
 }
 
-}  // namespace
-
-RenderedDocument RenderMarkdownFile(const std::wstring& requestedPath) {
-    RenderedDocument result;
-    result.path = CanonicalExistingPath(requestedPath);
-
-    const std::filesystem::path filePath(result.path);
-    result.directory = filePath.parent_path().wstring();
-    result.fileName = filePath.filename().wstring();
-
-    const DWORD attributes = GetFileAttributesW(result.path.c_str());
+bool ReadDocumentBytes(
+    const std::wstring& path, std::string& bytes, std::wstring& error) {
+    bytes.clear();
+    const DWORD attributes = GetFileAttributesW(path.c_str());
     if (attributes == INVALID_FILE_ATTRIBUTES) {
-        result.error = L"LeanMark could not find this file.";
-        return result;
+        error = L"LeanMark could not find this file.";
+        return false;
     }
     if ((attributes & FILE_ATTRIBUTE_DIRECTORY) != 0) {
-        result.error = L"That path is a folder, not a Markdown file.";
-        return result;
+        error = L"That path is a folder, not a Markdown file.";
+        return false;
     }
 
     HANDLE file = CreateFileW(
-        result.path.c_str(),
+        path.c_str(),
         GENERIC_READ,
         FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
         nullptr,
@@ -90,29 +84,28 @@ RenderedDocument RenderMarkdownFile(const std::wstring& requestedPath) {
         FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
         nullptr);
     if (file == INVALID_HANDLE_VALUE) {
-        result.error =
-            L"LeanMark could not read this file. " + LastErrorMessage(GetLastError());
-        return result;
+        error = L"LeanMark could not read this file. " + LastErrorMessage(GetLastError());
+        return false;
     }
 
     LARGE_INTEGER size = {};
     if (!GetFileSizeEx(file, &size) || size.QuadPart < 0) {
         const DWORD errorCode = GetLastError();
         CloseHandle(file);
-        result.error =
-            L"LeanMark could not measure this file. " + LastErrorMessage(errorCode);
-        return result;
+        error = L"LeanMark could not measure this file. " + LastErrorMessage(errorCode);
+        return false;
     }
-    result.sourceBytes = static_cast<std::uint64_t>(size.QuadPart);
-    if (result.sourceBytes > kMaximumDocumentBytes) {
+    if (static_cast<std::uint64_t>(size.QuadPart) > kMaximumDocumentBytes) {
         CloseHandle(file);
-        result.error =
+        error =
             L"This file is larger than LeanMark's 32 MB safety limit. Open it in "
             L"an editor if you need to inspect the raw text.";
-        return result;
+        return false;
     }
 
-    std::vector<char> bytes(static_cast<std::size_t>(result.sourceBytes));
+    // Read straight into the string the parser will see; the old path read into
+    // a vector and then copied the whole file into a std::string.
+    bytes.resize(static_cast<std::size_t>(size.QuadPart));
     std::size_t totalRead = 0;
     while (totalRead < bytes.size()) {
         const DWORD request = static_cast<DWORD>(std::min<std::size_t>(
@@ -121,10 +114,10 @@ RenderedDocument RenderMarkdownFile(const std::wstring& requestedPath) {
         if (!ReadFile(file, bytes.data() + totalRead, request, &justRead, nullptr)) {
             const DWORD errorCode = GetLastError();
             CloseHandle(file);
-            result.error =
-                L"LeanMark could not finish reading this file. " +
-                LastErrorMessage(errorCode);
-            return result;
+            bytes.clear();
+            error = L"LeanMark could not finish reading this file. " +
+                    LastErrorMessage(errorCode);
+            return false;
         }
         if (justRead == 0) {
             break;
@@ -133,9 +126,24 @@ RenderedDocument RenderMarkdownFile(const std::wstring& requestedPath) {
     }
     CloseHandle(file);
     bytes.resize(totalRead);
+    return true;
+}
 
-    auto rendered = core::RenderMarkdownUtf8(
-        std::string(bytes.begin(), bytes.end()));
+RenderedDocument RenderMarkdownFile(const std::wstring& requestedPath) {
+    RenderedDocument result;
+    result.path = CanonicalPath(requestedPath);
+
+    const std::filesystem::path filePath(result.path);
+    result.directory = filePath.parent_path().wstring();
+    result.fileName = filePath.filename().wstring();
+
+    std::string bytes;
+    if (!ReadDocumentBytes(result.path, bytes, result.error)) {
+        return result;
+    }
+    result.sourceBytes = static_cast<std::uint64_t>(bytes.size());
+
+    auto rendered = core::RenderMarkdownUtf8(bytes);
     if (!rendered.ok) {
         result.error = Utf8ToWide(rendered.error);
         return result;
@@ -147,8 +155,9 @@ RenderedDocument RenderMarkdownFile(const std::wstring& requestedPath) {
     return result;
 }
 
-std::wstring Utf8ToWide(const std::string& value) {
-    if (value.empty()) {
+std::wstring Utf8ToWide(std::string_view value) {
+    if (value.empty() ||
+        value.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
         return {};
     }
     const int required = MultiByteToWideChar(
@@ -165,8 +174,9 @@ std::wstring Utf8ToWide(const std::string& value) {
     return output;
 }
 
-std::string WideToUtf8(const std::wstring& value) {
-    if (value.empty()) {
+std::string WideToUtf8(std::wstring_view value) {
+    if (value.empty() ||
+        value.size() > static_cast<std::size_t>(std::numeric_limits<int>::max())) {
         return {};
     }
     const int required = WideCharToMultiByte(
@@ -180,51 +190,6 @@ std::string WideToUtf8(const std::wstring& value) {
     WideCharToMultiByte(
         CP_UTF8, 0, value.data(), static_cast<int>(value.size()), output.data(),
         required, nullptr, nullptr);
-    return output;
-}
-
-std::wstring EscapeJsonString(const std::wstring& value) {
-    static constexpr wchar_t kHex[] = L"0123456789abcdef";
-    std::wstring output;
-    output.reserve(value.size() + 16);
-
-    for (const wchar_t character : value) {
-        switch (character) {
-            case L'"':
-                output += L"\\\"";
-                break;
-            case L'\\':
-                output += L"\\\\";
-                break;
-            case L'\b':
-                output += L"\\b";
-                break;
-            case L'\f':
-                output += L"\\f";
-                break;
-            case L'\n':
-                output += L"\\n";
-                break;
-            case L'\r':
-                output += L"\\r";
-                break;
-            case L'\t':
-                output += L"\\t";
-                break;
-            default:
-                if (character < 0x20 || character == 0x2028 ||
-                    character == 0x2029) {
-                    output += L"\\u";
-                    output += kHex[(character >> 12) & 0xF];
-                    output += kHex[(character >> 8) & 0xF];
-                    output += kHex[(character >> 4) & 0xF];
-                    output += kHex[character & 0xF];
-                } else {
-                    output += character;
-                }
-                break;
-        }
-    }
     return output;
 }
 

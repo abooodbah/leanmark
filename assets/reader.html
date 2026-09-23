@@ -6,52 +6,71 @@
     <meta name="color-scheme" content="light dark" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' https://doc.leanmark.invalid leanmark-doc: data:; connect-src 'none'; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'"
+      content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' https://*.doc.leanmark.invalid leanmark-doc: data:; connect-src 'none'; object-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'"
     />
     <title>LeanMark</title>
     <link rel="stylesheet" href="/reader.css" />
     <script src="/reader.js" defer></script>
   </head>
   <body>
-    <header class="topbar">
-      <div class="identity" role="group" aria-label="Current document">
-        <span class="wordmark" aria-hidden="true">LM</span>
-        <span class="file-copy">
-          <strong id="fileName">LeanMark</strong>
-          <span id="fileMeta">Lightweight Markdown reader</span>
-        </span>
+    <header class="chrome">
+      <div class="topbar">
+        <div class="identity" role="group" aria-label="Current document">
+          <span class="wordmark" aria-hidden="true">LM</span>
+          <span class="file-copy">
+            <strong id="fileName">LeanMark</strong>
+            <span id="fileMeta">Lightweight Markdown reader</span>
+          </span>
+        </div>
+
+        <div class="toolbar" aria-label="Reader controls">
+          <label class="search-field" for="findInput">
+            <span class="visually-hidden">Find in document</span>
+            <input
+              id="findInput"
+              type="search"
+              placeholder="Find"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <span id="findCount" aria-live="polite"></span>
+          </label>
+          <button
+            id="copyButton"
+            class="button button-ghost"
+            type="button"
+            title="Copy the whole document (Ctrl+Shift+C)"
+            disabled
+          >
+            Copy
+          </button>
+          <button id="themeButton" class="button button-ghost" type="button">
+            System
+          </button>
+          <button id="openButton" class="button button-secondary" type="button">
+            Open
+          </button>
+        </div>
       </div>
 
-      <div class="toolbar" aria-label="Reader controls">
-        <label class="search-field" for="findInput">
-          <span class="visually-hidden">Find in document</span>
-          <input
-            id="findInput"
-            type="search"
-            placeholder="Find"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          <span id="findCount" aria-live="polite"></span>
-        </label>
-        <button id="themeButton" class="button button-ghost" type="button">
-          System
-        </button>
-        <button id="openButton" class="button button-secondary" type="button">
-          Open
-        </button>
-      </div>
+      <div
+        id="tabStrip"
+        class="tab-strip"
+        role="tablist"
+        aria-label="Open documents"
+        hidden
+      ></div>
+
+      <div
+        id="readingProgress"
+        class="reading-progress"
+        role="progressbar"
+        aria-label="Reading progress"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+      ></div>
     </header>
-
-    <div
-      id="readingProgress"
-      class="reading-progress"
-      role="progressbar"
-      aria-label="Reading progress"
-      aria-valuemin="0"
-      aria-valuemax="100"
-      aria-valuenow="0"
-    ></div>
 
     <div id="readerPane" class="content-grid" hidden>
       <nav id="outline" class="outline" aria-label="Document outline" hidden>
@@ -79,5 +98,6 @@
     </main>
 
     <div id="statusToast" class="status-toast" role="status" hidden></div>
+    <div id="liveStatus" class="visually-hidden" aria-live="polite"></div>
   </body>
 </html>

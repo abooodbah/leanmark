@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <string_view>
 
 namespace leanmark {
 
@@ -22,8 +23,16 @@ struct RenderedDocument {
 // Raw HTML is deliberately disabled because Markdown files can be untrusted.
 RenderedDocument RenderMarkdownFile(const std::wstring& requestedPath);
 
-std::wstring Utf8ToWide(const std::string& value);
-std::string WideToUtf8(const std::wstring& value);
-std::wstring EscapeJsonString(const std::wstring& value);
+// Reads a file's raw bytes with the same sharing flags and size limit as
+// RenderMarkdownFile, for callers that need the source rather than the HTML.
+bool ReadDocumentBytes(
+    const std::wstring& path, std::string& bytes, std::wstring& error);
+
+// Resolves a path the way RenderMarkdownFile does, so two spellings of one file
+// compare equal.
+std::wstring CanonicalPath(const std::wstring& requestedPath);
+
+std::wstring Utf8ToWide(std::string_view value);
+std::string WideToUtf8(std::wstring_view value);
 
 }  // namespace leanmark

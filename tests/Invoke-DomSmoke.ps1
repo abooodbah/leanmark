@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$ExePath,
     [ValidateRange(5, 120)][int]$TimeoutSeconds = 30,
-    [ValidateSet('Both', 'Showcase', 'Security')][string]$Fixture = 'Both'
+    [ValidateSet('All', 'Both', 'Showcase', 'Security', 'Tabs')][string]$Fixture = 'All'
 )
 
 Set-StrictMode -Version Latest
@@ -141,7 +141,7 @@ JSON.stringify((function () {
   var resources = performance.getEntriesByType("resource").filter(function (entry) {
     return /^https?:/i.test(entry.name) &&
       !/^https:\/\/app\.leanmark\.invalid\//i.test(entry.name) &&
-      !/^https:\/\/doc\.leanmark\.invalid\//i.test(entry.name);
+      !/^https:\/\/d[1-9][0-9]*\.doc\.leanmark\.invalid\//i.test(entry.name);
   }).map(function (entry) {
     return { name: entry.name, transferSize: entry.transferSize || 0,
       encodedBodySize: entry.encodedBodySize || 0 };
@@ -164,6 +164,11 @@ JSON.stringify((function () {
     text: article.innerText,
     h1: Array.from(article.querySelectorAll("h1")).map(function (node) { return node.textContent; }),
     headings: article.querySelectorAll("h1,h2,h3,h4,h5,h6").length,
+    headingsWithText: Array.from(article.querySelectorAll("h1,h2,h3,h4,h5,h6")).filter(function (node) {
+      return node.textContent.trim().length > 0;
+    }).length,
+    copyButtons: article.querySelectorAll("h1 > .copy-section,h2 > .copy-section,h3 > .copy-section,h4 > .copy-section,h5 > .copy-section,h6 > .copy-section").length,
+    copyButtonText: Array.from(article.querySelectorAll(".copy-section")).map(function (node) { return node.textContent; }).join(""),
     tables: article.querySelectorAll("table").length,
     tasks: article.querySelectorAll('input[type="checkbox"]').length,
     enabledTasks: article.querySelectorAll('input[type="checkbox"]:not([disabled])').length,
@@ -223,8 +228,10 @@ function Test-DomFixture {
             Assert-Equal $snapshot.diagrams 2 'Expected two Mermaid figure containers.'
             Assert-Equal $snapshot.diagramSvgs 2 'Expected two completed local Mermaid SVGs.'
             Assert-Equal $snapshot.unsafeDiagramNodes 0 'Mermaid output contains an unsafe node or URL.'
-            Assert-True (@($snapshot.images | Where-Object { $_ -like 'https://doc.leanmark.invalid/*' }).Count -eq 1) 'Local SVG did not resolve through the document origin.'
-            Write-TestPass 'real WebView DOM: CommonMark/GFM, local SVG, accessibility structure, and two Mermaid diagrams'
+            Assert-True (@($snapshot.images | Where-Object { $_ -match '^https://d[1-9][0-9]*\.doc\.leanmark\.invalid/' }).Count -eq 1) 'Local SVG did not resolve through its folder origin.'
+            Assert-Equal $snapshot.copyButtons $snapshot.headingsWithText 'Every heading with text needs one copy button.'
+            Assert-Equal $snapshot.copyButtonText '' 'Copy buttons must add no text to headings, outlines, or search.'
+            Write-TestPass 'real WebView DOM: CommonMark/GFM, local SVG, copy buttons, accessibility structure, and two Mermaid diagrams'
         } else {
             Assert-Equal $snapshot.externalTransferredBytes 0 'A hostile external resource transferred bytes despite CSP.'
             if (@($snapshot.externalResources).Count -gt 0) {
@@ -245,17 +252,207 @@ function Test-DomFixture {
     } finally { Stop-LeanMarkTestProcessTree -RootProcess $process }
 }
 
+function Wait-DomCondition {
+    param([string]$WebSocketUrl, [string]$Expression, [string]$Description, [int]$Seconds = 15)
+    $deadline = [DateTime]::UtcNow.AddSeconds($Seconds)
+    do {
+        if ((Invoke-CdpExpression -WebSocketUrl $WebSocketUrl -Expression $Expression) -eq $true) { return }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw "Timed out waiting for: $Description"
+}
+
+# Another program (a clipboard manager, or Windows clipboard history) can hold
+# the clipboard for a moment, and the cmdlets then throw instead of waiting.
+function Invoke-WithClipboard {
+    param([Parameter(Mandatory = $true)][scriptblock]$Action)
+    for ($attempt = 1; ; $attempt += 1) {
+        try { return & $Action }
+        catch {
+            if ($attempt -ge 20) { throw }
+            Start-Sleep -Milliseconds 100
+        }
+    }
+}
+
+function Wait-ClipboardChange {
+    param([string]$From, [int]$Seconds = 10)
+    $deadline = [DateTime]::UtcNow.AddSeconds($Seconds)
+    do {
+        $text = Invoke-WithClipboard { Get-Clipboard -Raw }
+        if ($null -ne $text -and $text -ne $From) { return $text }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw 'The clipboard did not change after a copy button was pressed.'
+}
+
+function Get-TabState {
+    param([string]$WebSocketUrl)
+    $expression = @'
+JSON.stringify({
+  file: document.getElementById("fileName").textContent,
+  state: document.documentElement.dataset.renderState || "",
+  stripHidden: document.getElementById("tabStrip").hidden,
+  tabs: Array.from(document.querySelectorAll("#tabStrip .tab")).map(function (tab) {
+    return { id: Number(tab.dataset.tabId), label: tab.textContent, selected: tab.getAttribute("aria-selected") === "true" };
+  }),
+  loadedImages: Array.from(document.querySelectorAll("#article img")).filter(function (image) {
+    return image.complete && image.naturalWidth > 0;
+  }).map(function (image) { return image.src; }),
+  timeOrigin: performance.timeOrigin,
+  navigations: performance.getEntriesByType("navigation").length
+})
+'@
+    (Invoke-CdpExpression -WebSocketUrl $WebSocketUrl -Expression $expression) | ConvertFrom-Json
+}
+
+function Test-TabsAndCopy {
+    $folder = Join-Path ([System.IO.Path]::GetTempPath()) ('leanmark-tabs-' + [guid]::NewGuid().ToString('N'))
+    $outside = Join-Path ([System.IO.Path]::GetTempPath()) ('leanmark-outside-' + [guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $folder | Out-Null
+    New-Item -ItemType Directory -Path $outside | Out-Null
+    [System.IO.File]::WriteAllText((Join-Path $outside 'secret.svg'),
+        '<svg xmlns="http://www.w3.org/2000/svg" width="4" height="4"><rect width="4" height="4"/></svg>')
+    $clipboardSaved = $false
+    $savedClipboard = $null
+    [int]$port = 0
+    $process = $null
+    try {
+        $otherDocument = Join-Path $folder 'other.md'
+        [System.IO.File]::WriteAllText((Join-Path $folder 'pic.svg'),
+            '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="20"><rect width="40" height="20" fill="teal"/></svg>')
+        # LF endings on disk; the clipboard must receive CRLF.
+        [System.IO.File]::WriteAllText($otherDocument, (@(
+            '# Other folder', '', '![teal](pic.svg)', '', '## Part two', '',
+            'First line', 'second line', '', '### Nested', '', 'Inside', '',
+            '```md', '# not a heading', '```', '', '## Part three', '', 'Last', ''
+        ) -join "`n"))
+
+        $process = Start-DebuggableLeanMark -DocumentPath (Join-Path $PSScriptRoot 'fixtures\showcase.md') -Port ([ref]$port)
+        [void](Wait-LeanMarkWindow -Process $process -TimeoutSeconds $TimeoutSeconds)
+        $target = Wait-CdpPageTarget -Port $port -Seconds $TimeoutSeconds
+        $socket = $target.webSocketDebuggerUrl
+        Wait-RenderedDocument -WebSocketUrl $socket -Seconds $TimeoutSeconds
+        $before = Get-TabState -WebSocketUrl $socket
+        Assert-True $before.stripHidden 'The tab strip must stay hidden while one document is open.'
+
+        # A later launch hands its file to the running window and exits.
+        $forwarder = Start-LeanMarkProcess -ExePath $resolvedExe -DocumentPaths @($otherDocument)
+        Assert-True ($forwarder.WaitForExit(15000)) 'A later launch did not exit after handing over its file.'
+        Assert-Equal $forwarder.ExitCode 0 'A forwarding launch must exit cleanly.'
+        Wait-DomCondition -WebSocketUrl $socket -Description 'the forwarded document to render' -Expression @'
+document.getElementById("fileName").textContent === "other.md" &&
+  document.documentElement.dataset.renderState === "ready" &&
+  Array.from(document.querySelectorAll("#article img")).some(function (image) { return image.complete && image.naturalWidth > 0; })
+'@
+        $after = Get-TabState -WebSocketUrl $socket
+        Assert-Equal @($after.tabs).Count 2 'The forwarded file must open as a second tab.'
+        Assert-True (-not $after.stripHidden) 'The tab strip must appear with two documents.'
+        Assert-True (@($after.tabs | Where-Object { $_.selected -and $_.label -eq 'other.md' }).Count -eq 1) 'The forwarded tab must be the selected one.'
+        Assert-Equal $after.timeOrigin $before.timeOrigin 'Opening a tab from another folder must not reload the reader.'
+        Assert-True (@($after.loadedImages | Where-Object { $_ -match '^https://d[1-9][0-9]*\.doc\.leanmark\.invalid/pic\.svg$' }).Count -eq 1) 'An image beside the new tab did not load from its own folder origin.'
+        $readers = @(Get-Process LeanMark -ErrorAction SilentlyContinue | Where-Object {
+            try { $_.MainModule.FileName -ieq $resolvedExe } catch { $false }
+        })
+        Assert-Equal $readers.Count 1 'Only one reader process may remain after forwarding.'
+        Write-TestPass 'real WebView DOM: a later launch opens as a tab in the same page, with images from its own folder'
+
+        # The folder origin answers images inside that folder and nothing else.
+        $origin = ([regex]::Match(@($after.loadedImages)[0], '^https://d[1-9][0-9]*\.doc\.leanmark\.invalid/')).Value
+        $outsideName = Split-Path -Leaf $outside
+        $probes = [ordered]@{
+            inside = $origin + 'pic.svg'
+            encodedParent = $origin + '%2e%2e/' + $outsideName + '/secret.svg'
+            backslashParent = $origin + '..%5c' + $outsideName + '%5csecret.svg'
+            notAnImage = $origin + 'other.md'
+            unknownHost = 'https://d999999.doc.leanmark.invalid/pic.svg'
+        }
+        $probeJson = $probes | ConvertTo-Json -Compress
+        $results = (Invoke-CdpExpression -WebSocketUrl $socket -Expression @"
+(function (probes) {
+  var names = Object.keys(probes);
+  return Promise.all(names.map(function (name) {
+    return new Promise(function (resolve) {
+      var image = new Image();
+      image.onload = function () { resolve(name + "=load"); };
+      image.onerror = function () { resolve(name + "=error"); };
+      image.src = probes[name] + (probes[name].indexOf("?") < 0 ? "?probe=" : "&probe=") + Date.now();
+    });
+  })).then(function (list) { return list.join(","); });
+}($probeJson))
+"@) -split ','
+        Assert-True ($results -contains 'inside=load') 'The control image inside the folder did not load.'
+        foreach ($name in @('encodedParent', 'backslashParent', 'notAnImage', 'unknownHost')) {
+            Assert-True ($results -contains "$name=error") "A folder origin served a request it must refuse: $name ($($results -join ', '))"
+        }
+        Write-TestPass 'real WebView DOM: folder origins refuse traversal, other file types, and unknown hosts'
+
+        # Section copy comes from the file on disk. "Part two" is heading 1 and
+        # owns its "Nested" subsection and the fenced block's fake heading.
+        try { $savedClipboard = Invoke-WithClipboard { Get-Clipboard -Raw }; $clipboardSaved = $true } catch { $clipboardSaved = $false }
+        $sentinel = 'leanmark-clipboard-sentinel-' + [guid]::NewGuid().ToString('N')
+        Invoke-WithClipboard { Set-Clipboard -Value $sentinel }
+        [void](Invoke-CdpExpression -WebSocketUrl $socket -Expression 'document.querySelectorAll("#article .copy-section")[1].click(); true')
+        $section = Wait-ClipboardChange -From $sentinel
+        $expectedSection = (@('## Part two', '', 'First line', 'second line', '', '### Nested', '', 'Inside', '', '```md', '# not a heading', '```') -join "`r`n")
+        Assert-Equal $section $expectedSection 'A section copy must be the exact Markdown of that section with CRLF endings.'
+        Wait-DomCondition -WebSocketUrl $socket -Description 'the copied mark on the section button' -Expression 'document.querySelectorAll("#article .copy-section")[1].hasAttribute("data-copied")'
+
+        Invoke-WithClipboard { Set-Clipboard -Value $sentinel }
+        [void](Invoke-CdpExpression -WebSocketUrl $socket -Expression 'document.getElementById("copyButton").click(); true')
+        $whole = Wait-ClipboardChange -From $sentinel
+        $expectedWhole = ([System.IO.File]::ReadAllText($otherDocument).TrimEnd() -replace "`n", "`r`n")
+        Assert-Equal $whole $expectedWhole 'The toolbar copy must be the whole file with CRLF endings.'
+        Write-TestPass 'real WebView DOM: section and whole-document copy give the exact Markdown source'
+
+        # Selecting a tab re-reads that file into the same page.
+        $showcaseTab = @($after.tabs | Where-Object { $_.label -eq 'showcase.md' })[0]
+        [void](Invoke-CdpExpression -WebSocketUrl $socket -Expression ('document.querySelector(''#tabStrip .tab[data-tab-id="{0}"]'').click(); true' -f $showcaseTab.id))
+        Wait-DomCondition -WebSocketUrl $socket -Description 'the first tab to render again' -Expression 'document.getElementById("fileName").textContent === "showcase.md" && document.querySelectorAll("#article figure.diagram svg").length === 2'
+        $process.Refresh()
+        Assert-Match $process.MainWindowTitle 'showcase\.md.*LeanMark' 'The window title must follow the selected tab.'
+
+        # Opening a file that is already open brings its tab forward instead of
+        # adding a second copy.
+        $again = Start-LeanMarkProcess -ExePath $resolvedExe -DocumentPaths @($otherDocument)
+        Assert-True ($again.WaitForExit(15000)) 'A repeated launch did not exit after handing over its file.'
+        Wait-DomCondition -WebSocketUrl $socket -Description 'the open tab to come forward' -Expression 'document.getElementById("fileName").textContent === "other.md"'
+        $reopened = Get-TabState -WebSocketUrl $socket
+        Assert-Equal @($reopened.tabs).Count 2 'Opening an already open file must not add a duplicate tab.'
+
+        # Closing a tab leaves one document and hides the strip again.
+        $otherTab = @($after.tabs | Where-Object { $_.label -eq 'other.md' })[0]
+        [void](Invoke-CdpExpression -WebSocketUrl $socket -Expression ('document.querySelector(''#tabStrip .tab[data-tab-id="{0}"] .tab-close'').click(); true' -f $otherTab.id))
+        Wait-DomCondition -WebSocketUrl $socket -Description 'the closed tab to disappear' -Expression 'document.getElementById("tabStrip").hidden && document.getElementById("fileName").textContent === "showcase.md" && document.querySelectorAll("#article figure.diagram svg").length === 2'
+        $final = Get-TabState -WebSocketUrl $socket
+        Assert-Equal $final.timeOrigin $before.timeOrigin 'Switching and closing tabs must not reload the reader.'
+        Write-TestPass 'real WebView DOM: switching and closing tabs keep one page and follow the title'
+    } finally {
+        if ($null -ne $process) { Stop-LeanMarkTestProcessTree -RootProcess $process }
+        if ($clipboardSaved -and $null -ne $savedClipboard) {
+            try { Invoke-WithClipboard { Set-Clipboard -Value $savedClipboard } } catch { }
+        }
+        Remove-Item -LiteralPath $folder -Recurse -Force -ErrorAction SilentlyContinue
+        Remove-Item -LiteralPath $outside -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 $resolvedExe = [System.IO.Path]::GetFullPath($ExePath)
 Assert-True (Test-Path -LiteralPath $resolvedExe -PathType Leaf) "LeanMark.exe is missing: $resolvedExe"
 Write-TestNote 'DOM smoke enables an ephemeral loopback-only CDP port for each test process, then restores the environment.'
-if ($Fixture -in @('Both', 'Showcase')) {
+# WebView2's shared user-data process needs a brief shutdown boundary before a
+# new instance can honor a different ephemeral debugging port.
+$ranOne = $false
+if ($Fixture -in @('All', 'Both', 'Showcase')) {
     Test-DomFixture -FixturePath (Join-Path $PSScriptRoot 'fixtures\showcase.md') -Kind Showcase
+    $ranOne = $true
 }
-if ($Fixture -eq 'Both') {
-    # WebView2's shared user-data process needs a brief shutdown boundary before
-    # a new instance can honor a different ephemeral debugging port.
-    Start-Sleep -Milliseconds 1500
-}
-if ($Fixture -in @('Both', 'Security')) {
+if ($Fixture -in @('All', 'Both', 'Security')) {
+    if ($ranOne) { Start-Sleep -Milliseconds 1500 }
     Test-DomFixture -FixturePath (Join-Path $PSScriptRoot 'fixtures\security.md') -Kind Security
+    $ranOne = $true
+}
+if ($Fixture -in @('All', 'Tabs')) {
+    if ($ranOne) { Start-Sleep -Milliseconds 1500 }
+    Test-TabsAndCopy
 }

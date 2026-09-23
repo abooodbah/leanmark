@@ -6,12 +6,15 @@
     window.webkit.messageHandlers &&
     window.webkit.messageHandlers.leanmark;
   var systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+  var headingSelector = "h1, h2, h3, h4, h5, h6";
   var elements = {
     article: document.getElementById("article"),
+    copyButton: document.getElementById("copyButton"),
     fileName: document.getElementById("fileName"),
     fileMeta: document.getElementById("fileMeta"),
     findCount: document.getElementById("findCount"),
     findInput: document.getElementById("findInput"),
+    liveStatus: document.getElementById("liveStatus"),
     mainContent: document.getElementById("mainContent"),
     openButton: document.getElementById("openButton"),
     outline: document.getElementById("outline"),
@@ -23,6 +26,7 @@
     statePane: document.getElementById("statePane"),
     stateTitle: document.getElementById("stateTitle"),
     status: document.getElementById("statusToast"),
+    tabStrip: document.getElementById("tabStrip"),
     themeButton: document.getElementById("themeButton")
   };
 
@@ -33,7 +37,20 @@
   var toastTimer = 0;
   var mermaidLoader = null;
   var diagramGeneration = 0;
-  var documentAssetBase = "https://doc.leanmark.invalid/";
+  // Relative images resolve against the folder host the native side names for
+  // the document on screen. With no valid host they show as unavailable.
+  var documentAssetBase = "";
+  // Hosts that can read the file answer copy requests with the exact Markdown
+  // source. Other hosts fall back to the rendered text.
+  var hostCopiesSource = false;
+  var hostHasTabs = false;
+  var tabs = [];
+  var activeTabId = 0;
+  var displayedTabId = 0;
+  var focusTabAfterRender = false;
+  var savedScroll = new Map();
+  var copyRequests = new Map();
+  var nextCopyRequest = 0;
 
   function post(message) {
     if (webView2Bridge) {
@@ -45,11 +62,15 @@
 
   function selectDocumentAssetBase(candidate) {
     if (!candidate) {
-      return "https://doc.leanmark.invalid/";
+      return "";
     }
     try {
       var parsed = new URL(candidate);
-      if (parsed.href === "https://doc.leanmark.invalid/" ||
+      // Windows maps each open folder to https://d<N>.doc.leanmark.invalid/;
+      // the WebKit hosts use their confined leanmark-doc: scheme.
+      if ((parsed.protocol === "https:" &&
+           /^d[1-9][0-9]{0,9}\.doc\.leanmark\.invalid$/.test(parsed.hostname) &&
+           parsed.href === "https://" + parsed.hostname + "/") ||
           (parsed.protocol === "leanmark-doc:" &&
            parsed.hostname === "document")) {
         return parsed.href;
@@ -57,7 +78,7 @@
     } catch (_error) {
       // A host-provided base still passes through this fail-closed allowlist.
     }
-    return "https://doc.leanmark.invalid/";
+    return "";
   }
 
   function effectiveDarkTheme() {
@@ -107,16 +128,38 @@
     return (bytes / (1024 * 1024)).toFixed(1) + " MB";
   }
 
+  function scrollRatio() {
+    var available = document.documentElement.scrollHeight - window.innerHeight;
+    return available > 0 ? window.scrollY / available : 0;
+  }
+
+  function scrollToRatio(ratio) {
+    var available = document.documentElement.scrollHeight - window.innerHeight;
+    window.scrollTo(0, Math.max(0, available * ratio));
+  }
+
+  // Background tabs keep no DOM. Only their reading position survives, so
+  // returning to a tab lands where the reader left it.
+  function rememberScroll() {
+    if (displayedTabId && !elements.readerPane.hidden) {
+      savedScroll.set(displayedTabId, scrollRatio());
+    }
+  }
+
   function showReader() {
     elements.statePane.hidden = true;
     elements.readerPane.hidden = false;
+    elements.copyButton.disabled = false;
   }
 
   function showState(title, message, fileName) {
+    rememberScroll();
     clearSearch();
     currentPath = "";
+    displayedTabId = 0;
     elements.readerPane.hidden = true;
     elements.statePane.hidden = false;
+    elements.copyButton.disabled = true;
     elements.stateTitle.textContent = title;
     elements.stateMessage.textContent = message;
     elements.fileName.textContent = fileName || "LeanMark";
@@ -152,6 +195,10 @@
         replaceImageWithMessage(image, "Remote image blocked — " + alt);
         return;
       }
+      if (!documentAssetBase) {
+        replaceImageWithMessage(image, "Image unavailable — " + alt);
+        return;
+      }
 
       try {
         var normalized = source.replace(/\\/g, "/");
@@ -170,21 +217,52 @@
   }
 
   function prepareLinks() {
+    // Clicks are handled once on the article, not with a listener per link.
     elements.article.querySelectorAll("a[href]").forEach(function (link) {
       var href = (link.getAttribute("href") || "").trim();
       link.removeAttribute("target");
       link.removeAttribute("download");
-      if (!href || href.charAt(0) === "#") {
-        return;
-      }
       if (/^https?:/i.test(href)) {
         link.rel = "noopener noreferrer";
       }
-      link.addEventListener("click", function (event) {
-        event.preventDefault();
-        post("open-link|" + href);
-      });
     });
+  }
+
+  function linkTarget(event) {
+    var link = event.target && event.target.closest
+      ? event.target.closest("a[href]")
+      : null;
+    if (!link || !elements.article.contains(link)) {
+      return "";
+    }
+    var href = (link.getAttribute("href") || "").trim();
+    return href && href.charAt(0) !== "#" ? href : "";
+  }
+
+  function handleArticleClick(event) {
+    var copy = event.target && event.target.closest
+      ? event.target.closest(".copy-section")
+      : null;
+    if (copy && elements.article.contains(copy)) {
+      event.preventDefault();
+      copySection(Number(copy.dataset.heading), copy);
+      return;
+    }
+    var href = linkTarget(event);
+    if (!href) {
+      return;
+    }
+    event.preventDefault();
+    var newTab = hostHasTabs && (event.ctrlKey || event.metaKey);
+    post((newTab ? "open-link-tab|" : "open-link|") + href);
+  }
+
+  function handleArticleAuxClick(event) {
+    var href = hostHasTabs && event.button === 1 ? linkTarget(event) : "";
+    if (href) {
+      event.preventDefault();
+      post("open-link-tab|" + href);
+    }
   }
 
   function wrapTables() {
@@ -223,9 +301,7 @@
 
   function buildOutline() {
     var usedSlugs = new Set();
-    var headings = Array.from(
-      elements.article.querySelectorAll("h1, h2, h3, h4, h5, h6")
-    );
+    var headings = Array.from(elements.article.querySelectorAll(headingSelector));
     headings.forEach(function (heading) {
       heading.id = slugifyHeading(heading.textContent || "", usedSlugs);
     });
@@ -249,6 +325,27 @@
       elements.outlineList.appendChild(item);
     });
     elements.outline.hidden = false;
+  }
+
+  // One small button per heading. The icon is drawn in CSS, so the button adds
+  // no text: outline labels, anchors, and search all see the heading unchanged.
+  function addCopyButtons() {
+    var title = hostCopiesSource
+      ? "Copy this section as Markdown"
+      : "Copy this section";
+    elements.article.querySelectorAll(headingSelector).forEach(function (heading, index) {
+      var text = (heading.textContent || "").trim();
+      if (!text) {
+        return;
+      }
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "copy-section";
+      button.dataset.heading = String(index);
+      button.title = title;
+      button.setAttribute("aria-label", "Copy section: " + text);
+      heading.appendChild(button);
+    });
   }
 
   function prepareDiagrams() {
@@ -386,15 +483,24 @@
   }
 
   function renderDocument(data) {
-    var sameDocument = currentPath && currentPath === data.path;
-    var scrollableBefore =
-      document.documentElement.scrollHeight - window.innerHeight;
-    var scrollRatio = sameDocument && scrollableBefore > 0
-      ? window.scrollY / scrollableBefore
-      : 0;
+    var tabId = Number(data.tabId) || 0;
+    var sameDocument = !!currentPath && currentPath === data.path &&
+      tabId === displayedTabId;
+    var keepPosition = sameDocument;
+    var ratio = sameDocument ? scrollRatio() : 0;
+    if (tabId !== displayedTabId) {
+      rememberScroll();
+      if (savedScroll.has(tabId)) {
+        ratio = savedScroll.get(tabId);
+        savedScroll.delete(tabId);
+        keepPosition = true;
+      }
+    }
+    // A followed link replaces the document in the same tab: start at the top.
 
     clearSearch();
     diagramGeneration += 1;
+    displayedTabId = tabId;
     currentPath = data.path || "";
     documentAssetBase = selectDocumentAssetBase(data.documentBaseUrl);
     applyTheme(data.theme || currentTheme, false);
@@ -409,15 +515,14 @@
     wrapTables();
     buildOutline();
     prepareDiagrams();
+    addCopyButtons();
     showReader();
     document.documentElement.dataset.renderState =
       data.hasMermaid ? "diagrams" : "ready";
 
     requestAnimationFrame(function () {
-      if (sameDocument) {
-        var scrollableAfter =
-          document.documentElement.scrollHeight - window.innerHeight;
-        window.scrollTo(0, Math.max(0, scrollableAfter * scrollRatio));
+      if (keepPosition) {
+        scrollToRatio(ratio);
       } else {
         window.scrollTo(0, 0);
       }
@@ -426,14 +531,226 @@
 
     if (data.hasMermaid) {
       renderDiagrams().then(function () {
-        if (sameDocument) {
-          var scrollable =
-            document.documentElement.scrollHeight - window.innerHeight;
-          window.scrollTo(0, Math.max(0, scrollable * scrollRatio));
+        if (keepPosition) {
+          scrollToRatio(ratio);
         }
         updateReadingProgress();
       });
     }
+  }
+
+  function headingCount() {
+    return elements.article.querySelectorAll(headingSelector).length;
+  }
+
+  // Rendered-text copy for hosts that cannot read the source file. It follows
+  // the same rule as the native copy: the heading through the next heading of
+  // the same or a higher level.
+  function renderedSectionText(index) {
+    if (index < 0) {
+      return elements.article.innerText.trim();
+    }
+    var heading = elements.article.querySelectorAll(headingSelector)[index];
+    if (!heading) {
+      return "";
+    }
+    var level = Number(heading.tagName.charAt(1));
+    var parts = [heading.innerText];
+    for (var node = heading.nextElementSibling; node; node = node.nextElementSibling) {
+      if (/^H[1-6]$/.test(node.tagName) && Number(node.tagName.charAt(1)) <= level) {
+        break;
+      }
+      parts.push(node.innerText);
+    }
+    return parts.join("\n\n").trim();
+  }
+
+  function copyWithCommand(text) {
+    var copied = false;
+    function fill(event) {
+      event.clipboardData.setData("text/plain", text);
+      event.preventDefault();
+      copied = true;
+    }
+    document.addEventListener("copy", fill);
+    try {
+      document.execCommand("copy");
+    } finally {
+      document.removeEventListener("copy", fill);
+    }
+    return copied ? Promise.resolve() : Promise.reject(new Error("Copy failed."));
+  }
+
+  function writeClipboardText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      return navigator.clipboard.writeText(text).catch(function () {
+        return copyWithCommand(text);
+      });
+    }
+    return copyWithCommand(text);
+  }
+
+  function announce(message) {
+    elements.liveStatus.textContent = "";
+    window.setTimeout(function () {
+      elements.liveStatus.textContent = message;
+    }, 30);
+  }
+
+  function confirmCopy(button, index) {
+    var what = index < 0 ? "Document" : "Section";
+    announce(hostCopiesSource
+      ? what + " copied as Markdown."
+      : what + " copied as text.");
+    if (!button || !button.isConnected) {
+      return;
+    }
+    button.dataset.copied = "true";
+    if (button === elements.copyButton) {
+      button.textContent = "Copied";
+    }
+    window.setTimeout(function () {
+      button.removeAttribute("data-copied");
+      if (button === elements.copyButton) {
+        button.textContent = "Copy";
+      }
+    }, 1500);
+  }
+
+  function copySection(index, button) {
+    if (elements.readerPane.hidden || !Number.isInteger(index)) {
+      return;
+    }
+    if (hostCopiesSource) {
+      nextCopyRequest += 1;
+      copyRequests.set(nextCopyRequest, { button: button, index: index });
+      post("copy-source|" + nextCopyRequest + "|" + displayedTabId + "|" +
+        index + "|" + headingCount());
+      return;
+    }
+    writeClipboardText(renderedSectionText(index)).then(function () {
+      confirmCopy(button, index);
+    }, function () {
+      showStatus("LeanMark could not copy to the clipboard.", "error");
+    });
+  }
+
+  function tabLabel(tab, duplicateNames) {
+    if (!duplicateNames.has(tab.name.toLocaleLowerCase())) {
+      return tab.name;
+    }
+    // Several README.md tabs are told apart by their folder name.
+    var parts = tab.path.split(/[\\/]/).filter(Boolean);
+    return parts.length > 1 ? tab.name + " · " + parts[parts.length - 2] : tab.name;
+  }
+
+  function renderTabs() {
+    var visible = tabs.length > 1;
+    elements.tabStrip.hidden = !visible;
+    if (visible) {
+      document.documentElement.setAttribute("data-tabs", "");
+    } else {
+      document.documentElement.removeAttribute("data-tabs");
+    }
+
+    var seen = new Set();
+    var duplicates = new Set();
+    tabs.forEach(function (tab) {
+      var key = tab.name.toLocaleLowerCase();
+      if (seen.has(key)) {
+        duplicates.add(key);
+      }
+      seen.add(key);
+    });
+
+    var fragment = document.createDocumentFragment();
+    tabs.forEach(function (tab) {
+      var selected = tab.id === activeTabId;
+      var item = document.createElement("div");
+      item.className = "tab";
+      item.setAttribute("role", "tab");
+      item.setAttribute("aria-selected", selected ? "true" : "false");
+      item.setAttribute("aria-controls", "readerPane");
+      item.tabIndex = selected ? 0 : -1;
+      item.dataset.tabId = String(tab.id);
+      item.title = tab.path;
+      var label = document.createElement("span");
+      label.className = "tab-label";
+      label.textContent = tabLabel(tab, duplicates);
+      var close = document.createElement("button");
+      close.type = "button";
+      close.className = "tab-close";
+      close.tabIndex = -1;
+      close.title = "Close (Ctrl+W)";
+      close.setAttribute("aria-label", "Close " + tab.name);
+      item.append(label, close);
+      fragment.appendChild(item);
+    });
+    elements.tabStrip.replaceChildren(fragment);
+
+    var current = elements.tabStrip.querySelector('[aria-selected="true"]');
+    if (visible && current) {
+      current.scrollIntoView({ block: "nearest", inline: "nearest" });
+      if (focusTabAfterRender) {
+        current.focus();
+      }
+    }
+    focusTabAfterRender = false;
+  }
+
+  function receiveTabs(data) {
+    var nextActive = Number(data.active) || 0;
+    if (nextActive !== activeTabId) {
+      rememberScroll();
+    }
+    tabs = (Array.isArray(data.tabs) ? data.tabs.slice(0, 1000) : [])
+      .map(function (tab) {
+        return {
+          id: Number(tab && tab.id) || 0,
+          name: String((tab && tab.name) || "Untitled"),
+          path: String((tab && tab.path) || "")
+        };
+      })
+      .filter(function (tab) {
+        return tab.id > 0;
+      });
+    activeTabId = nextActive;
+    savedScroll.forEach(function (_ratio, id) {
+      if (!tabs.some(function (tab) { return tab.id === id; })) {
+        savedScroll.delete(id);
+      }
+    });
+    renderTabs();
+  }
+
+  function tabIdFrom(target) {
+    var tab = target && target.closest ? target.closest(".tab") : null;
+    return tab ? Number(tab.dataset.tabId) || 0 : 0;
+  }
+
+  function selectTab(id, moveFocus) {
+    if (!id || id === activeTabId) {
+      return;
+    }
+    focusTabAfterRender = !!moveFocus;
+    post("tab-activate|" + id);
+  }
+
+  function closeTab(id) {
+    if (id) {
+      post("tab-close|" + id);
+    }
+  }
+
+  function cycleTab(direction) {
+    if (tabs.length < 2) {
+      return;
+    }
+    var index = tabs.findIndex(function (tab) {
+      return tab.id === activeTabId;
+    });
+    var next = (Math.max(0, index) + direction + tabs.length) % tabs.length;
+    selectTab(tabs[next].id, false);
   }
 
   function clearSearch() {
@@ -560,6 +877,20 @@
     var data = event.data || {};
     if (data.type === "document") {
       renderDocument(data);
+    } else if (data.type === "tabs") {
+      receiveTabs(data);
+    } else if (data.type === "copied") {
+      var request = copyRequests.get(Number(data.requestId));
+      copyRequests.delete(Number(data.requestId));
+      if (request && data.ok === true) {
+        confirmCopy(request.button, request.index);
+      }
+    } else if (data.type === "host") {
+      hostCopiesSource = data.copySource === true;
+      hostHasTabs = data.tabs === true;
+      elements.copyButton.title = hostCopiesSource
+        ? "Copy the whole document as Markdown (Ctrl+Shift+C)"
+        : "Copy the whole document (Ctrl+Shift+C)";
     } else if (data.type === "empty") {
       applyTheme(data.theme || "system", false);
       showState(
@@ -588,7 +919,62 @@
   elements.stateOpenButton.addEventListener("click", function () {
     post("open-file");
   });
+  elements.copyButton.addEventListener("click", function () {
+    copySection(-1, elements.copyButton);
+  });
   elements.themeButton.addEventListener("click", cycleTheme);
+  elements.article.addEventListener("click", handleArticleClick);
+  elements.article.addEventListener("auxclick", handleArticleAuxClick);
+  elements.tabStrip.addEventListener("click", function (event) {
+    var id = tabIdFrom(event.target);
+    if (!id) {
+      return;
+    }
+    if (event.target.closest(".tab-close")) {
+      closeTab(id);
+    } else {
+      selectTab(id, false);
+    }
+  });
+  elements.tabStrip.addEventListener("mousedown", function (event) {
+    if (event.button === 1) {
+      event.preventDefault();
+    }
+  });
+  elements.tabStrip.addEventListener("auxclick", function (event) {
+    var id = event.button === 1 ? tabIdFrom(event.target) : 0;
+    if (id) {
+      event.preventDefault();
+      closeTab(id);
+    }
+  });
+  elements.tabStrip.addEventListener("keydown", function (event) {
+    var id = tabIdFrom(event.target);
+    var index = tabs.findIndex(function (tab) {
+      return tab.id === id;
+    });
+    if (index < 0) {
+      return;
+    }
+    var next = -1;
+    if (event.key === "ArrowRight") {
+      next = (index + 1) % tabs.length;
+    } else if (event.key === "ArrowLeft") {
+      next = (index - 1 + tabs.length) % tabs.length;
+    } else if (event.key === "Home") {
+      next = 0;
+    } else if (event.key === "End") {
+      next = tabs.length - 1;
+    } else if (event.key === "Delete") {
+      event.preventDefault();
+      closeTab(id);
+      return;
+    }
+    if (next >= 0) {
+      event.preventDefault();
+      selectTab(tabs[next].id, true);
+    }
+  });
   elements.findInput.addEventListener("input", updateSearch);
   elements.findInput.addEventListener("keydown", function (event) {
     if (event.key === "Enter") {
@@ -604,25 +990,47 @@
 
   document.addEventListener("keydown", function (event) {
     var control = event.ctrlKey || event.metaKey;
-    if (control && !event.altKey && event.key.toLocaleLowerCase() === "o") {
+    // Chromium sends keydown without a key for autofill; ignore those.
+    var key = typeof event.key === "string" ? event.key.toLocaleLowerCase() : "";
+    if (control && !event.altKey && key === "o") {
       event.preventDefault();
       post("open-file");
-    } else if (control && !event.altKey &&
-               event.key.toLocaleLowerCase() === "f") {
+    } else if (control && !event.altKey && key === "f") {
       event.preventDefault();
       elements.findInput.focus();
       elements.findInput.select();
     } else if (event.key === "F3") {
       event.preventDefault();
       moveSearch(event.shiftKey ? -1 : 1);
-    } else if (control && !event.altKey &&
-               event.key.toLocaleLowerCase() === "r") {
+    } else if (control && !event.altKey && key === "r") {
       event.preventDefault();
       post("reload");
-    } else if (control && event.shiftKey &&
-               event.key.toLocaleLowerCase() === "t") {
+    } else if (control && event.shiftKey && key === "t") {
       event.preventDefault();
       cycleTheme();
+    } else if (control && event.shiftKey && key === "c") {
+      event.preventDefault();
+      copySection(-1, elements.copyButton);
+    } else if (control && event.key === "Tab" && tabs.length > 1) {
+      event.preventDefault();
+      cycleTab(event.shiftKey ? -1 : 1);
+    } else if (control && tabs.length > 1 &&
+               (event.key === "PageDown" || event.key === "PageUp")) {
+      event.preventDefault();
+      cycleTab(event.key === "PageDown" ? 1 : -1);
+    } else if (control && !event.shiftKey && !event.altKey && key === "w" &&
+               activeTabId) {
+      event.preventDefault();
+      closeTab(activeTabId);
+    } else if (control && !event.shiftKey && !event.altKey &&
+               /^[1-9]$/.test(event.key) && tabs.length > 1) {
+      event.preventDefault();
+      var target = event.key === "9"
+        ? tabs[tabs.length - 1]
+        : tabs[Number(event.key) - 1];
+      if (target) {
+        selectTab(target.id, false);
+      }
     } else if (control &&
                (event.key === "+" || event.key === "=" ||
                 event.key === "-" || event.key === "0")) {
@@ -659,7 +1067,8 @@
         "Open a local Markdown file to begin.",
         ""
       );
-    }
+    },
+    sectionText: renderedSectionText
   });
 
   applyTheme("system", false);
