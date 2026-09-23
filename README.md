@@ -28,14 +28,14 @@ Windows, Linux (.deb), and macOS builds are on the
 
 ## Platform releases
 
-| Operating system | Architecture | v0.2.0 artifact | Runtime and verification |
+| Operating system | Architecture | v0.3.0 artifact | Runtime and verification |
 | --- | --- | --- | --- |
-| Windows 10 / 11 | x64 | [ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.2.0/LeanMark-v0.2.0-windows-x64.zip) | Evergreen WebView2; Windows 11 runtime-verified |
-| Ubuntu 24.04 / compatible Debian-based systems | x86-64 | [DEB](https://github.com/abooodbah/leanmark/releases/download/v0.2.0/LeanMark-v0.2.0-linux-x86_64.deb) | GTK 4 + WebKitGTK 6.0; package and WebKit smoke-verified in CI |
-| macOS 12 or later | Intel + Apple silicon | [Universal app preview ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.2.0/LeanMark-v0.2.0-macos-universal-preview.zip) | Preview: system WKWebView; CI verifies both Mach-O slices and a real WebKit smoke test |
+| Windows 10 / 11 | x64 | [ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.3.0/LeanMark-v0.3.0-windows-x64.zip) | Evergreen WebView2; Windows 11 runtime-verified |
+| Ubuntu 24.04 / compatible Debian-based systems | x86-64 | [DEB](https://github.com/abooodbah/leanmark/releases/download/v0.3.0/LeanMark-v0.3.0-linux-x86_64.deb) | GTK 4 + WebKitGTK 6.0; package and WebKit smoke-verified in CI |
+| macOS 12 or later | Intel + Apple silicon | [Universal app preview ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.3.0/LeanMark-v0.3.0-macos-universal-preview.zip) | Preview: system WKWebView; CI verifies both Mach-O slices and a real WebKit smoke test |
 
 Each artifact has an adjacent <code>.sha256</code> sidecar on the
-[v0.2.0 release](https://github.com/abooodbah/leanmark/releases/tag/v0.2.0).
+[v0.3.0 release](https://github.com/abooodbah/leanmark/releases/tag/v0.3.0).
 Runtime-verified records tested coverage; it does not imply publisher signing.
 Windows ARM64, Linux ARM64, and distro-independent Linux packages are not part
 of this release.
@@ -78,7 +78,7 @@ The Debian package declares its GTK 4 and WebKitGTK 6.0 dependencies. A local
 download can be installed through APT:
 
 ~~~sh
-sudo apt install ./LeanMark-v0.2.0-linux-x86_64.deb
+sudo apt install ./LeanMark-v0.3.0-linux-x86_64.deb
 ~~~
 
 The package installs <code>/usr/bin/leanmark</code>, desktop and AppStream
@@ -93,7 +93,7 @@ slices. The application bundle may be placed in <code>/Applications</code> or
 another application directory. Finder recognizes the four supported Markdown
 extensions and offers LeanMark as a viewer.
 
-Because the v0.2.0 preview is not notarized, Gatekeeper may block the first launch.
+Because the v0.3.0 preview is not notarized, Gatekeeper may block the first launch.
 macOS records any explicit approval under **System Settings > Privacy &
 Security**. Environments that require a Developer ID/notarized application are
 not supported by this release.
@@ -181,13 +181,13 @@ The rationale and security contract are documented in
 ## Measured Windows footprint
 
 A small package does not imply a tiny in-memory process tree. The figures below
-compare the 0.2.0 release with the current code on the same machine and day.
+compare the 0.2.0 and 0.3.0 releases on the same machine and day.
 Each is the median of ten warm launches from
 <code>tests/Measure-Performance.ps1</code> with a three-second observation
 window, and covers LeanMark plus every WebView2 process it starts. No Linux or
 macOS values are inferred from them.
 
-| Measurement | Simple, 0.2.0 | Simple, now | Showcase, 0.2.0 | Showcase, now |
+| Measurement | Simple, 0.2.0 | Simple, 0.3.0 | Showcase, 0.2.0 | Showcase, 0.3.0 |
 | --- | ---: | ---: | ---: | ---: |
 | Native window visible | 70.39 ms | 74.15 ms | 93.43 ms | 88.62 ms |
 | Peak private memory, full process tree | 163.91 MiB | 96.79 MiB | 205.70 MiB | 125.31 MiB |
@@ -196,7 +196,7 @@ macOS values are inferred from them.
 
 Opening five documents in one launch (the four test fixtures and this README)
 peaked at 447.66 MiB private and 15 processes in 0.2.0, which started a reader
-per document. The current code opens them as tabs of one reader and peaked at
+per document. 0.3.0 opens them as tabs of one reader and peaked at
 120.56 MiB and 6 processes, because only the visible tab is rendered. Two of the
 ten 0.2.0 launches joined the previous launch's still-running browser, so their
 trees were incomplete; that median uses the other eight.
@@ -247,7 +247,7 @@ WebView2 Runtime, and Node.js.
 ~~~powershell
 .\scripts\build.ps1 -Configuration Release -Platform x64
 .\tests\Test-LeanMark.ps1 -DistPath .\dist
-.\scripts\package-release.ps1 -Version 0.2.0
+.\scripts\package-release.ps1 -Version 0.3.0
 ~~~
 
 ### Linux
@@ -258,7 +258,7 @@ WebKitGTK 6.0, Node.js, and Debian packaging tools. Ubuntu 24.04 build packages:
 ~~~sh
 sudo apt install build-essential cmake ninja-build pkg-config \
   libgtk-4-dev libwebkitgtk-6.0-dev
-./scripts/package-linux.sh --version 0.2.0
+./scripts/package-linux.sh --version 0.3.0
 ~~~
 
 ### macOS
