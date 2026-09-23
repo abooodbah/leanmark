@@ -1,7 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$ExePath,
-    [string]$DocumentPath,
+    [string[]]$DocumentPath,
     [ValidateRange(1, 100)][int]$Iterations = 3,
     [ValidateRange(0, 20)][int]$WarmupIterations = 1,
     [ValidateRange(1, 60)][int]$ObservationSeconds = 3,
@@ -19,8 +19,8 @@ Import-Module (Join-Path $PSScriptRoot 'TestSupport.psm1') -Force
 if ([string]::IsNullOrWhiteSpace($ExePath)) {
     $ExePath = Join-Path (Split-Path -Parent $PSScriptRoot) 'dist\LeanMark.exe'
 }
-if ([string]::IsNullOrWhiteSpace($DocumentPath)) {
-    $DocumentPath = Join-Path $PSScriptRoot 'fixtures\showcase.md'
+if (@($DocumentPath | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }).Count -eq 0) {
+    $DocumentPath = @(Join-Path $PSScriptRoot 'fixtures\showcase.md')
 }
 
 function Get-Percentile {
@@ -34,7 +34,9 @@ function Get-Percentile {
 function Invoke-MeasurementIteration {
     param([int]$Number, [bool]$Warmup)
     $clock = [System.Diagnostics.Stopwatch]::StartNew()
-    $process = Start-LeanMarkProcess -ExePath $resolvedExe -DocumentPaths @($resolvedDocument)
+    # Several documents measure one launch that opens them all, which is what
+    # Explorer does with a multi-file selection.
+    $process = Start-LeanMarkProcess -ExePath $resolvedExe -DocumentPaths $resolvedDocuments
     try {
         [void](Wait-LeanMarkWindow -Process $process -TimeoutSeconds 30)
         $windowMilliseconds = $clock.Elapsed.TotalMilliseconds
@@ -87,9 +89,11 @@ function Invoke-MeasurementIteration {
 }
 
 $resolvedExe = [System.IO.Path]::GetFullPath($ExePath)
-$resolvedDocument = [System.IO.Path]::GetFullPath($DocumentPath)
+$resolvedDocuments = @($DocumentPath | ForEach-Object { [System.IO.Path]::GetFullPath($_) })
 Assert-True (Test-Path -LiteralPath $resolvedExe -PathType Leaf) "LeanMark executable is missing: $resolvedExe"
-Assert-True (Test-Path -LiteralPath $resolvedDocument -PathType Leaf) "Benchmark fixture is missing: $resolvedDocument"
+foreach ($resolvedDocument in $resolvedDocuments) {
+    Assert-True (Test-Path -LiteralPath $resolvedDocument -PathType Leaf) "Benchmark fixture is missing: $resolvedDocument"
+}
 
 $all = [System.Collections.Generic.List[object]]::new()
 for ($index = 1; $index -le $WarmupIterations; $index += 1) {
@@ -114,7 +118,7 @@ $report = [ordered]@{
     SchemaVersion = 1
     TimestampUtc = [DateTime]::UtcNow.ToString('o')
     Executable = $resolvedExe
-    Document = $resolvedDocument
+    Document = if ($resolvedDocuments.Count -eq 1) { $resolvedDocuments[0] } else { @($resolvedDocuments) }
     OperatingSystem = [Environment]::OSVersion.VersionString
     LogicalProcessorCount = [Environment]::ProcessorCount
     ObservationSeconds = $ObservationSeconds

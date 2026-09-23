@@ -68,7 +68,7 @@ function Test-StaticInvariants {
     $csp = $cspMatch.Groups[1].Value
     foreach ($directive in @(
         "default-src 'none'", "script-src 'self'", "style-src 'self' 'unsafe-inline'",
-        "font-src 'self'", "img-src 'self' https://doc.leanmark.invalid leanmark-doc: data:",
+        "font-src 'self'", "img-src 'self' https://*.doc.leanmark.invalid leanmark-doc: data:",
         "connect-src 'none'", "object-src 'none'", "frame-src 'none'",
         "form-action 'none'", "base-uri 'none'"
     )) {
@@ -80,7 +80,8 @@ function Test-StaticInvariants {
     Write-TestPass 'fail-closed renderer Content Security Policy and local entry assets'
 
     Assert-Match $reader 'securityLevel\s*:\s*["'']strict["'']' 'Mermaid must retain strict security mode.'
-    Assert-Match $reader 'https://doc\.leanmark\.invalid/' 'Relative images must resolve through the document virtual host.'
+    Assert-True $reader.Contains('/^d[1-9][0-9]{0,9}\.doc\.leanmark\.invalid$/') 'Document image hosts must pass the fail-closed d<N> allowlist.'
+    Assert-Match $reader 'if \(!documentAssetBase\)' 'Relative images must fail closed when the host names no document origin.'
     Assert-Match $reader '(?s)window\.webkit.*messageHandlers.*leanmark' 'The shared reader must retain its WebKit bridge.'
     Assert-Match $reader 'window\.LeanMarkHost\s*=' 'WebKit hosts need one bounded native-to-reader entry point.'
     Assert-Match $reader 'Remote image blocked' 'Remote image replacement must remain explicit.'
@@ -91,8 +92,15 @@ function Test-StaticInvariants {
     Write-TestPass 'strict, bounded, local-only Mermaid and image preparation'
 
     Assert-Match $app 'kAppOrigin\[\].*https://app\.leanmark\.invalid/' 'The trusted application origin changed unexpectedly.'
-    Assert-Match $app 'kDocumentHost\[\].*doc\.leanmark\.invalid' 'The document asset origin changed unexpectedly.'
-    Assert-True ([regex]::Matches($app, 'COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS').Count -ge 2) 'Both virtual-host mappings must deny CORS.'
+    Assert-Match $app 'kDocumentHostSuffix\[\].*\.doc\.leanmark\.invalid' 'The document asset origin changed unexpectedly.'
+    Assert-Match $app 'COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS' 'The application virtual-host mapping must deny CORS.'
+    foreach ($guard in @(
+        'AddWebResourceRequestedFilter\(\s*kDocumentRequestFilter',
+        'leanmark::core::IsPathWithin\(directory, candidate\)',
+        'ImageContentType\(candidate\)',
+        'kMaximumImageBytes',
+        'X-Content-Type-Options: nosniff'
+    )) { Assert-Match $app $guard "Document image requests lost a guard: $guard" }
     foreach ($guard in @(
         'put_AreDevToolsEnabled\(FALSE\)',
         'put_AreDefaultScriptDialogsEnabled\(FALSE\)',
@@ -111,9 +119,26 @@ function Test-StaticInvariants {
 
     Assert-Match $main 'CommandLineToArgvW' 'Windows command lines must use the system parser.'
     Assert-Match $main 'argument\s*==\s*L"--"' 'The option terminator must be supported for dash-prefixed file names.'
-    Assert-Match $main 'CreateProcessW' 'Multi-document launches must create isolated reader processes.'
-    Assert-Match $main 'QuoteArgument\(executable\)\s*\+\s*L" -- "' 'Child launches must preserve the option terminator.'
-    Write-TestPass 'quoted single- and multi-document command-line handling'
+    Assert-NotMatch $main 'CreateProcessW' 'Extra documents must open as tabs, not as more reader processes.'
+    Assert-Match $main 'CreateMutexW' 'A second launch must find the running reader through its mutex.'
+    Assert-Match $main 'QueryFullProcessImageNameW' 'Forwarding must stay within the same executable path.'
+    Assert-Match $main 'AllowSetForegroundWindow' 'The forwarding launch must pass on its right to take the foreground.'
+    Assert-Match $main 'WM_COPYDATA' 'Documents must be forwarded with WM_COPYDATA.'
+    Assert-Match $app 'data->dwData != kOpenDocumentsCopyData' 'Forwarded requests must carry the LeanMark marker.'
+    Assert-Match $app 'kMaximumForwardedPaths' 'Forwarded requests must be bounded.'
+    Write-TestPass 'command-line parsing and single-window forwarding of later launches'
+
+    Assert-Match $app '--disable-gpu --disable-software-rasterizer' 'GPU rasterization must stay off; the GPU process is the largest avoidable memory cost.'
+    Assert-Match $app '--enable-features=NetworkServiceInProcess2' 'The network service must stay in the browser process; the CSP leaves it no web traffic.'
+    Assert-Match $app 'put_EnableTrackingPrevention\(FALSE\)' 'Tracking prevention must stay off; the reader loads no third-party content.'
+    Assert-Match $app 'put_IsReputationCheckingRequired\(FALSE\)' 'SmartScreen checks must stay off; the reader blocks downloads and web navigation.'
+    Assert-Match $app 'bool stale = !SameStamp\(current, tab->loaded\)' 'Section copy must refuse a file that changed after it was shown.'
+    Assert-Match $app 'section\.headingCount != static_cast<std::size_t>\(headingCount\)' 'Section copy must refuse when the page and the file disagree on headings.'
+    Assert-Match $app 'put_MemoryUsageTargetLevel' 'A minimized reader must ask WebView2 to trim memory.'
+    Assert-Match $app 'TrySuspend' 'A minimized reader must suspend its renderer.'
+    Assert-Match $app 'ExtractSection\(bytes, headingIndex\)' 'Section copy must come from the file through the shared parser.'
+    Assert-Match $app 'SetClipboardData\(CF_UNICODETEXT' 'Section copy must write Unicode text to the clipboard.'
+    Write-TestPass 'memory limits, minimized suspension, and source-accurate section copy'
 
     Assert-Match $installer '\$ProgId\s*=\s*''LeanMark\.Markdown''' 'Installer ProgID is missing or inconsistent.'
     Assert-Match $installer '\$Capabilities\s*=\s*''Software\\LeanMark\\Capabilities''' 'Installer capabilities path is missing.'
@@ -288,27 +313,44 @@ function Test-RuntimeWindow {
     $multi = Start-LeanMarkProcess -ExePath $exe -DocumentPaths @($showcase, $linked)
     try {
         [void](Wait-LeanMarkWindow -Process $multi)
-        $deadline = [DateTime]::UtcNow.AddSeconds(20)
-        $hosts = @()
-        do {
-            $hosts = @()
-            foreach ($processId in @(Get-LeanMarkProcessTreeIds -RootProcessId $multi.Id)) {
-                $candidate = Get-Process -Id $processId -ErrorAction SilentlyContinue
-                if ($null -ne $candidate -and $candidate.ProcessName -eq 'LeanMark') {
-                    $candidate.Refresh()
-                    if ($candidate.MainWindowHandle -ne [IntPtr]::Zero) { $hosts += $candidate }
-                }
-            }
-            if ($hosts.Count -lt 2) { Start-Sleep -Milliseconds 100 }
-        } while ($hosts.Count -lt 2 -and [DateTime]::UtcNow -lt $deadline)
-        Assert-True ($hosts.Count -eq 2) "Expected two LeanMark document windows; found $($hosts.Count)."
-        $titles = @($hosts | ForEach-Object { $_.Refresh(); $_.MainWindowTitle })
-        Assert-True (@($titles | Where-Object { $_ -match 'showcase\.md.*LeanMark' }).Count -eq 1) 'Multi-file launch lost the showcase document.'
-        Assert-True (@($titles | Where-Object { $_ -match 'linked-document\.md.*LeanMark' }).Count -eq 1) 'Multi-file launch lost the linked document.'
-        Write-TestPass 'two-path launch creates exactly one isolated window for each document'
+        # Both files open as tabs of one window, and the last one is shown.
+        Wait-LeanMarkTitle -Process $multi -Pattern 'linked-document\.md.*LeanMark'
+        Assert-Equal @(Get-LeanMarkHosts -ExePath $exe).Count 1 'A two-path launch must open one window, not one process per file.'
+
+        # A later launch hands its file to that window and exits. The file is
+        # already open, so its existing tab comes forward instead of a copy.
+        $forwarder = Start-LeanMarkProcess -ExePath $exe -DocumentPaths @($showcase)
+        Assert-True ($forwarder.WaitForExit(15000)) 'A later launch did not exit after handing over its file.'
+        Assert-Equal $forwarder.ExitCode 0 'A forwarding launch must exit cleanly.'
+        Wait-LeanMarkTitle -Process $multi -Pattern 'showcase\.md.*LeanMark'
+        Assert-Equal @(Get-LeanMarkHosts -ExePath $exe).Count 1 'A later launch must not leave a second reader running.'
+        Write-TestPass 'multi-file and later launches share one window as tabs'
     } finally {
         Stop-LeanMarkTestProcessTree -RootProcess $multi
     }
+}
+
+function Get-LeanMarkHosts {
+    param([Parameter(Mandatory = $true)][string]$ExePath)
+    $resolved = [System.IO.Path]::GetFullPath($ExePath)
+    @(Get-Process LeanMark -ErrorAction SilentlyContinue | Where-Object {
+        try { $_.MainModule.FileName -ieq $resolved } catch { $false }
+    })
+}
+
+function Wait-LeanMarkTitle {
+    param(
+        [Parameter(Mandatory = $true)][System.Diagnostics.Process]$Process,
+        [Parameter(Mandatory = $true)][string]$Pattern,
+        [int]$TimeoutSeconds = 15
+    )
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        $Process.Refresh()
+        if ($Process.MainWindowTitle -match $Pattern) { return }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw "The LeanMark window title did not match '$Pattern'; it is '$($Process.MainWindowTitle)'."
 }
 
 try {

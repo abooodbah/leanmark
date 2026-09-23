@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <charconv>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -47,6 +48,19 @@ bool StartsWithInsensitive(
             return false;
         }
     }
+    return true;
+}
+
+bool ParseInteger(std::string_view text, long long minimum, long long maximum,
+                  long long& value) {
+    long long parsed = 0;
+    const char* end = text.data() + text.size();
+    const auto result = std::from_chars(text.data(), end, parsed);
+    if (text.empty() || result.ec != std::errc() || result.ptr != end ||
+        parsed < minimum || parsed > maximum) {
+        return false;
+    }
+    value = parsed;
     return true;
 }
 
@@ -524,15 +538,25 @@ void LinuxApp::SendCurrentView() {
         return;
     }
 
-    SendJson(
-        "{\"type\":\"document\",\"theme\":\"" + theme +
-        "\",\"fileName\":\"" + core::EscapeJsonString(displayName) +
-        "\",\"path\":\"" + core::EscapeJsonString(displayPath) +
-        "\",\"documentBaseUrl\":\"" + kDocumentBaseUrl +
-        "\",\"html\":\"" + core::EscapeJsonString(document_.html) +
-        "\",\"sourceBytes\":" + std::to_string(document_.sourceBytes) +
-        ",\"hasMermaid\":" + (document_.hasMermaid ? "true" : "false") +
-        "}");
+    // One buffer, escaped in place: the HTML is not copied into a separate
+    // escaped string and then again into the joined message.
+    std::string json;
+    json.reserve(document_.html.size() + document_.html.size() / 8 + 1024);
+    json += "{\"type\":\"document\",\"theme\":\"";
+    json += theme;
+    json += "\",\"fileName\":\"";
+    core::AppendJsonString(json, displayName);
+    json += "\",\"path\":\"";
+    core::AppendJsonString(json, displayPath);
+    json.append("\",\"documentBaseUrl\":\"").append(kDocumentBaseUrl);
+    json += "\",\"sourceBytes\":";
+    json += std::to_string(document_.sourceBytes);
+    json += ",\"hasMermaid\":";
+    json += document_.hasMermaid ? "true" : "false";
+    json += ",\"html\":\"";
+    core::AppendJsonString(json, document_.html);
+    json += "\"}";
+    SendJson(json);
 }
 
 void LinuxApp::SendStatus(
@@ -548,8 +572,13 @@ void LinuxApp::SendStatus(
 }
 
 void LinuxApp::SendJson(const std::string& json) {
-    const std::string script =
-        "window.LeanMarkHost && window.LeanMarkHost.receive(" + json + ");";
+    static constexpr std::string_view kPrefix =
+        "window.LeanMarkHost && window.LeanMarkHost.receive(";
+    std::string script;
+    script.reserve(kPrefix.size() + json.size() + 2);
+    script += kPrefix;
+    script += json;
+    script += ");";
     webkit_web_view_evaluate_javascript(
         webView_,
         script.c_str(),
@@ -564,6 +593,7 @@ void LinuxApp::SendJson(const std::string& json) {
 void LinuxApp::HandleMessage(std::string_view message) {
     if (message == "ready") {
         readerReady_ = true;
+        SendJson("{\"type\":\"host\",\"copySource\":true,\"tabs\":false}");
         SendCurrentView();
         if (smokeTest_) {
             StartSmokeProbe();
@@ -590,6 +620,10 @@ void LinuxApp::HandleMessage(std::string_view message) {
     }
     if (StartsWithInsensitive(message, "open-link|")) {
         HandleLink(message.substr(10));
+        return;
+    }
+    if (StartsWithInsensitive(message, "copy-source|")) {
+        CopySource(message.substr(12));
         return;
     }
     if (StartsWithInsensitive(message, "zoom|")) {
@@ -619,6 +653,72 @@ void LinuxApp::HandleMessage(std::string_view message) {
         SendJson(
             "{\"type\":\"theme\",\"value\":\"" + ThemeName() + "\"}");
     }
+}
+
+void LinuxApp::SendCopyResult(long long requestId, bool ok) {
+    SendJson(
+        "{\"type\":\"copied\",\"requestId\":" + std::to_string(requestId) +
+        ",\"ok\":" + (ok ? "true" : "false") + "}");
+}
+
+void LinuxApp::CopySource(std::string_view arguments) {
+    // requestId|tabId|headingIndex|headingCount. This host shows one document
+    // per window, so the tab id is ignored.
+    std::array<std::string_view, 4> fields;
+    std::size_t start = 0;
+    for (std::size_t index = 0; index < fields.size(); ++index) {
+        const std::size_t end = arguments.find('|', start);
+        const bool last = index + 1 == fields.size();
+        if ((end == std::string_view::npos) != last) {
+            return;
+        }
+        fields[index] = arguments.substr(
+            start, last ? std::string_view::npos : end - start);
+        start = end + 1;
+    }
+    long long requestId = 0;
+    long long headingIndex = 0;
+    long long headingCount = 0;
+    if (!ParseInteger(fields[0], 0, 4294967295ll, requestId) ||
+        !ParseInteger(fields[2], -1, 2147483647ll, headingIndex) ||
+        !ParseInteger(fields[3], 0, 2147483647ll, headingCount)) {
+        return;
+    }
+    if (!document_.ok || document_.path.empty()) {
+        SendCopyResult(requestId, false);
+        SendStatus("Open a document before copying.", "warning");
+        return;
+    }
+
+    // The copy comes from the file, so it is the exact Markdown. If the heading
+    // count no longer matches the page, show the new version first.
+    std::string bytes;
+    std::string error;
+    if (!core::ReadDocumentFile(document_.path, bytes, error)) {
+        SendCopyResult(requestId, false);
+        SendStatus(error, "error");
+        return;
+    }
+    const auto section = core::ExtractSection(bytes, headingIndex);
+    if (headingIndex >= 0 &&
+        section.headingCount != static_cast<std::size_t>(headingCount)) {
+        SendCopyResult(requestId, false);
+        const std::filesystem::path path = document_.path;
+        OpenDocument(path, true);
+        SendStatus(
+            "The file changed on disk, so LeanMark reloaded it. Copy again to "
+            "get the current text.",
+            "warning");
+        return;
+    }
+    if (!section.ok) {
+        SendCopyResult(requestId, false);
+        SendStatus(section.error, "warning");
+        return;
+    }
+    gdk_clipboard_set_text(
+        gtk_widget_get_clipboard(window_), section.markdown.c_str());
+    SendCopyResult(requestId, true);
 }
 
 void LinuxApp::HandleLink(std::string_view hrefView) {

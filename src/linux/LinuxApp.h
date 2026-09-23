@@ -48,6 +48,8 @@ private:
     void SendJson(const std::string& json);
     void HandleMessage(std::string_view message);
     void HandleLink(std::string_view href);
+    void CopySource(std::string_view arguments);
+    void SendCopyResult(long long requestId, bool ok);
 
     void LoadTheme();
     void SaveTheme() const;

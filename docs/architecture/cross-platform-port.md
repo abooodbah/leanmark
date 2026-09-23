@@ -43,8 +43,8 @@ flowchart LR
   C -->|safe HTML + metadata| H[Native host]
   H --> R[Shared reader assets]
   R --> W[System web runtime]
-  W -->|open, reload, theme, zoom, link| H
-  H -->|document, empty, error, status| W
+  W -->|open, reload, theme, zoom, link, copy-source, tab| H
+  H -->|document, empty, error, status, host, copied, tabs| W
 ~~~
 
 The portable core owns file-size enforcement, UTF-8 validation, MD4C flags,
@@ -61,12 +61,27 @@ Hosts send data through a single $leanmark-message__ DOM event. No host
 injects Markdown source as executable JavaScript; it injects a JSON value as
 event detail.
 
+Section copy is answered by the host, not the page. The reader sends the
+heading's index and the number of headings it rendered; the host reads the file,
+finds the section with the same MD4C parser and flags that produced the page, and
+writes the Markdown to the system clipboard. A heading count that no longer
+matches means the file changed, so the host shows the new version instead of
+copying the wrong section. A host that does not announce `copySource` gets a
+copy of the rendered text instead.
+
+On Windows one reader process serves every document as a tab. A later launch
+hands its paths to the running window with WM_COPYDATA and exits. Background
+tabs keep no HTML or DOM; selecting a tab reads its file again.
+
 ## Resource policy
 
 Application assets are exposed from a read-only app origin. Document-relative
 images use a separate document origin that is mapped only to the current
-document directory. Host implementations canonicalize every requested path and
-reject traversal outside the mapped root.
+document directory. On Windows each open folder gets its own origin,
+`d<N>.doc.leanmark.invalid`, answered by the host rather than by a WebView2
+folder mapping, because a mapping added after the page loads is not applied
+until the next navigation. Host implementations canonicalize every requested
+path and reject traversal outside the mapped root.
 
 The reader Content Security Policy remains deny-by-default. Host navigation
 delegates allow the reader origin and $about:blank__ only. New windows,
