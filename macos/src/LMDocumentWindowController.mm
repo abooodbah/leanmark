@@ -8,7 +8,10 @@
 #include "core/MarkdownCore.h"
 
 #include <algorithm>
+#include <charconv>
 #include <filesystem>
+#include <string>
+#include <string_view>
 #include <system_error>
 
 namespace {
@@ -33,6 +36,31 @@ NSString *CurrentTheme(void) {
 BOOL IsExpectedAppURL(NSURL *URL) {
     return [URL.scheme.lowercaseString isEqualToString:@"leanmark-app"] &&
            [URL.host.lowercaseString isEqualToString:@"app"];
+}
+
+bool ParseInteger(NSString *text, long long minimum, long long maximum,
+                  long long &value) {
+    const char *utf8 = text.UTF8String;
+    if (utf8 == nullptr || utf8[0] == '\0') {
+        return false;
+    }
+    const std::string_view digits(utf8);
+    long long parsed = 0;
+    const auto result =
+        std::from_chars(digits.data(), digits.data() + digits.size(), parsed);
+    if (result.ec != std::errc() || result.ptr != digits.data() + digits.size() ||
+        parsed < minimum || parsed > maximum) {
+        return false;
+    }
+    value = parsed;
+    return true;
+}
+
+NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
+    NSString *text = [[NSString alloc] initWithBytes:value.data()
+                                              length:value.size()
+                                            encoding:NSUTF8StringEncoding];
+    return text != nil ? text : fallback;
 }
 
 }  // namespace
@@ -211,6 +239,11 @@ BOOL IsExpectedAppURL(NSURL *URL) {
     }
     if ([command isEqualToString:@"ready"]) {
         _readerReady = YES;
+        [self deliverPayload:@{
+            @"type" : @"host",
+            @"copySource" : @YES,
+            @"tabs" : @NO,
+        }];
         [self sendCurrentDocument];
         return;
     }
@@ -224,6 +257,10 @@ BOOL IsExpectedAppURL(NSURL *URL) {
     }
     if ([command hasPrefix:@"open-link|"]) {
         [self handleLink:[command substringFromIndex:@"open-link|".length]];
+        return;
+    }
+    if ([command hasPrefix:@"copy-source|"]) {
+        [self copySource:[command substringFromIndex:@"copy-source|".length]];
         return;
     }
     if ([command hasPrefix:@"zoom|"]) {
@@ -248,6 +285,80 @@ BOOL IsExpectedAppURL(NSURL *URL) {
                                                 forKey:LMThemePreferenceKey];
         [self applyWindowTheme:theme];
     }
+}
+
+- (void)deliverPayload:(NSDictionary<NSString *, id> *)payload {
+    if (!_readerReady) {
+        return;
+    }
+    [_webView callAsyncJavaScript:@"window.LeanMarkHost.receive(payload)"
+                        arguments:@{ @"payload" : payload }
+                          inFrame:nil
+                   inContentWorld:WKContentWorld.pageWorld
+                completionHandler:nil];
+}
+
+- (void)sendCopyResult:(long long)requestId ok:(BOOL)ok {
+    [self deliverPayload:@{
+        @"type" : @"copied",
+        @"requestId" : @(requestId),
+        @"ok" : @(ok),
+    }];
+}
+
+// requestId|tabId|headingIndex|headingCount. Each document has its own window
+// here, so the tab id is ignored and the copy comes from this window's file.
+- (void)copySource:(NSString *)arguments {
+    NSArray<NSString *> *fields = [arguments componentsSeparatedByString:@"|"];
+    long long requestId = 0;
+    long long headingIndex = 0;
+    long long headingCount = 0;
+    if (fields.count != 4 ||
+        !ParseInteger(fields[0], 0, 4294967295LL, requestId) ||
+        !ParseInteger(fields[2], -1, 2147483647LL, headingIndex) ||
+        !ParseInteger(fields[3], 0, 2147483647LL, headingCount)) {
+        return;
+    }
+
+    NSURL *fileURL = self.leanMarkDocument.fileURL;
+    if (fileURL == nil || !self.leanMarkDocument.hasSourceFile) {
+        [self sendCopyResult:requestId ok:NO];
+        [self showStatus:@"Open a document before copying." tone:@"warning"];
+        return;
+    }
+
+    // The copy comes from the file, so it is the exact Markdown. If the heading
+    // count no longer matches the page, show the new version first.
+    std::string bytes;
+    std::string error;
+    if (!leanmark::core::ReadDocumentFile(
+            std::filesystem::path(fileURL.fileSystemRepresentation), bytes, error)) {
+        [self sendCopyResult:requestId ok:NO];
+        [self showStatus:StringFromUTF8(error, @"LeanMark could not read this file.")
+                    tone:@"error"];
+        return;
+    }
+    const auto section = leanmark::core::ExtractSection(bytes, headingIndex);
+    if (headingIndex >= 0 &&
+        section.headingCount != static_cast<std::size_t>(headingCount)) {
+        [self sendCopyResult:requestId ok:NO];
+        [self reloadDocument];
+        [self showStatus:@"The file changed on disk, so LeanMark reloaded it. Copy "
+                         @"again to get the current text."
+                    tone:@"warning"];
+        return;
+    }
+    NSString *text = section.ok ? StringFromUTF8(section.markdown, nil) : nil;
+    if (text == nil) {
+        [self sendCopyResult:requestId ok:NO];
+        [self showStatus:StringFromUTF8(section.error, @"That section could not be copied.")
+                    tone:@"warning"];
+        return;
+    }
+    NSPasteboard *pasteboard = NSPasteboard.generalPasteboard;
+    [pasteboard clearContents];
+    const BOOL stored = [pasteboard setString:text forType:NSPasteboardTypeString];
+    [self sendCopyResult:requestId ok:stored];
 }
 
 - (void)handleLink:(NSString *)href {
