@@ -117,6 +117,11 @@ browser-free renderer, or a claim to the lowest possible RAM use.
 - Relative local images and relative Markdown document links.
 - Automatic outline, find, reading progress, zoom, printing, and system/light/
   dark themes.
+- A copy button on every heading that copies that section's Markdown, and a
+  toolbar button that copies the whole file. The copy comes from the file, not
+  the rendered page.
+- On Windows, every Markdown file you open joins the running window as a tab.
+  Background tabs keep no rendered page and are read again when selected.
 - Live refresh after a save while retaining the last complete render and
   approximate reading position.
 - Support for <code>.md</code>, <code>.markdown</code>, <code>.mdown</code>,
@@ -131,6 +136,11 @@ browser-free renderer, or a claim to the lowest possible RAM use.
 | Reload from disk | Ctrl+R | Command+R |
 | Zoom in / out / reset | Ctrl++ / Ctrl+- / Ctrl+0 | Command++ / Command+- / Command+0 |
 | Cycle reader theme | Ctrl+Shift+T | Command+Shift+T |
+| Copy the whole document | Ctrl+Shift+C | Command+Shift+C |
+| Next / previous tab (Windows) | Ctrl+Tab / Ctrl+Shift+Tab | Window menu |
+| Go to tab 1 to 8 / last tab (Windows) | Ctrl+1 to Ctrl+8 / Ctrl+9 | Window menu |
+| Close tab (Windows) | Ctrl+W | Window menu |
+| Open a link in a new tab (Windows) | Ctrl+click or middle-click | Not available |
 | Print | Ctrl+P | Command+P |
 | Leave find | Escape | Escape |
 
@@ -168,23 +178,32 @@ packages.
 The rationale and security contract are documented in
 [the cross-platform architecture decision](https://github.com/abooodbah/leanmark/blob/main/docs/architecture/cross-platform-port.md).
 
-## Measured Windows baseline
+## Measured Windows footprint
 
-A small package does not imply a tiny in-memory process tree. The measurements
-below are retained as an explicit Windows 11/WebView2 baseline; no Linux or
+A small package does not imply a tiny in-memory process tree. The figures below
+compare the 0.2.0 release with the current code on the same machine and day.
+Each is the median of ten warm launches from
+<code>tests/Measure-Performance.ps1</code> with a three-second observation
+window, and covers LeanMark plus every WebView2 process it starts. No Linux or
 macOS values are inferred from them.
 
-| Measurement | Simple document | Mermaid showcase |
-| --- | ---: | ---: |
-| Native window visible | 320.88 ms | 1,158.41 ms |
-| Peak private memory, full process tree | 162.94 MiB | 208.60 MiB |
-| Peak working set, full process tree | 322.96 MiB | 362.39 MiB |
-| Observed process count | 7 | 7 |
+| Measurement | Simple, 0.2.0 | Simple, now | Showcase, 0.2.0 | Showcase, now |
+| --- | ---: | ---: | ---: | ---: |
+| Native window visible | 70.39 ms | 74.15 ms | 93.43 ms | 88.62 ms |
+| Peak private memory, full process tree | 163.91 MiB | 96.79 MiB | 205.70 MiB | 125.31 MiB |
+| Peak working set, full process tree | 335.57 MiB | 294.71 MiB | 372.25 MiB | 339.08 MiB |
+| Observed process count | 7 | 6 | 7 | 6 |
 
-Baseline environment: Windows 11 Pro build 26200, Intel Core i7-13620H,
-16 logical processors, and 15.6 GiB RAM. The simple-document figures used a
-three-second observation window. Hardware, system state, runtime version, and
-document complexity affect results.
+Opening five documents in one launch (the four test fixtures and this README)
+peaked at 447.66 MiB private and 15 processes in 0.2.0, which started a reader
+per document. The current code opens them as tabs of one reader and peaked at
+120.56 MiB and 6 processes, because only the visible tab is rendered. Two of the
+ten 0.2.0 launches joined the previous launch's still-running browser, so their
+trees were incomplete; that median uses the other eight.
+
+Environment: Windows 11 Pro build 26200, Intel Core i7-13620H, 16 logical
+processors, 15.6 GiB RAM, and WebView2 Runtime 153.0.4234.48. Hardware, system
+state, runtime version, and document complexity affect results.
 
 The measurement helper and method are documented in
 [tests/README.md](https://github.com/abooodbah/leanmark/blob/main/tests/README.md).

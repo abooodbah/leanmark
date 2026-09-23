@@ -13,7 +13,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\build.ps1 -Configu
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-LeanMark.ps1
 ```
 
-Add the native window and multi-file launch smoke tests:
+Add the native window, multi-file launch, and forwarded-launch smoke tests:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-LeanMark.ps1 -Runtime
@@ -26,6 +26,10 @@ after launch, and fails if the endpoint cannot be inspected:
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\Test-LeanMark.ps1 -Dom
 ```
+
+The tab and copy check in the DOM run writes to the Windows clipboard. It saves
+the clipboard text first and puts it back afterwards; clipboard content that is
+not text is not restored.
 
 Verify the public product site statically, then render it in a test-owned
 headless Edge or Chrome profile at desktop, tablet, and mobile widths:
@@ -65,6 +69,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\Measure-Performance.
   -OutputPath "$env:TEMP\leanmark-performance.json"
 ```
 
+`-DocumentPath` also takes several files. One launch then opens all of them, the
+way Explorer does with a multi-file selection:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\Measure-Performance.ps1 `
+  -Iterations 10 -DocumentPath .\tests\fixtures\simple.md, .\tests\fixtures\showcase.md
+```
+
 Optional release gates can be supplied without hard-coding machine-sensitive
 limits into normal correctness tests:
 
@@ -83,17 +95,27 @@ LeanMark's distribution size.
 - MD4C GFM dialect, raw-HTML disablement, UTF-8 BOM path, and 32 MiB guard.
 - Well-formed non-elevating manifest, Per-Monitor V2 DPI, and long-path support.
 - Exact CSP directives; no unsafe inline/eval scripts; local renderer assets only.
-- Strict Mermaid mode, diagram count/input bounds, remote-image blocking, and local
-  `doc.leanmark.invalid` asset resolution.
+- Strict Mermaid mode, diagram count/input bounds, remote-image blocking, and
+  per-folder `d<N>.doc.leanmark.invalid` image resolution with path containment.
 - Native WebView navigation, popup, permission, download, DevTools, and CORS guards.
-- Windows argument parsing, `--` handling, quoting, and multi-document process launch.
+- Windows argument parsing, `--` handling, and forwarding of later launches to the
+  running window through a bounded WM_COPYDATA request.
+- Heading and section extraction from the Markdown source: nesting, setext and
+  ATX headings, fenced blocks, containers, CRLF, BOM, and the rule that heading i
+  in the source is heading i on the page (portable core tests).
 - Per-user installer registration and a static ban on UserChoice mutation, HKLM,
   DISM, `assoc`, `ftype`, and SetUserFTA.
 - Complete distribution, local font/stylesheet references, PE headers, absence of
   build artifacts, source/staged asset equality, and a 15 MiB default disk gate.
-- Optional visible window/class/title checks and two-path/two-window behavior.
+- Optional visible window/class/title checks, and a two-path launch plus a later
+  launch that share one window as tabs.
 - Optional real-DOM assertions for headings, tables, task lists, code, blockquotes,
-  local SVG, two Mermaid SVGs, and hostile markup/URL/image/diagram payloads.
+  local SVG, two Mermaid SVGs, copy buttons, and hostile markup/URL/image/diagram
+  payloads.
+- Optional real-DOM tab checks: a later launch opens a tab without reloading the
+  page, its image loads from its own folder origin, section and whole-document copy
+  put the exact Markdown on the clipboard, and switching or closing tabs follows the
+  window title.
 
 The fixtures are also useful for manual visual review:
 
@@ -110,7 +132,8 @@ Automation cannot reliably replace these operator checks on a real desktop:
 1. Review the showcase at 100%, 125%, 150%, and 200% DPI in light, dark, and
    Windows High Contrast themes. Confirm no page-level horizontal overflow.
 2. Navigate every control by keyboard; test Ctrl+O, Ctrl+F/F3/Shift+F3,
-   Ctrl+plus/minus/0, Ctrl+R, Ctrl+Shift+T, Home/End/Page Up/Page Down, and Alt+F4.
+   Ctrl+plus/minus/0, Ctrl+R, Ctrl+Shift+T, Ctrl+Shift+C, Ctrl+Tab/Ctrl+Shift+Tab,
+   Ctrl+W, Home/End/Page Up/Page Down, and Alt+F4.
 3. Run Accessibility Insights and an NVDA smoke pass. Check heading/table/list
    semantics, link names, local-image alt text, diagram accessible names, and focus.
 4. Save the showcase in place, by truncate/rewrite, and by atomic rename. Burst-save

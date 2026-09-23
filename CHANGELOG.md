@@ -3,6 +3,50 @@
 All notable LeanMark changes are recorded here. The project follows semantic
 versioning.
 
+## [Unreleased]
+
+### Added
+
+- A copy button on every heading. It copies that section, from the heading to
+  the next heading of the same or a higher level, subsections included. The
+  toolbar Copy button (Ctrl+Shift+C) copies the whole document. On all three
+  hosts the copy is the Markdown source read from the file, found with the same
+  parser that drew the page, so fenced code that looks like a heading is not
+  mistaken for one.
+- Tabs on Windows. Opening a Markdown file while LeanMark is running adds a tab
+  to the open window instead of starting another reader. Ctrl+Tab and
+  Ctrl+Shift+Tab switch tabs, Ctrl+1 to Ctrl+9 select one, Ctrl+W closes one,
+  and Ctrl+click or middle-click opens a linked document in a new tab. The open
+  dialog accepts several files. A file that is already open is brought forward
+  rather than opened twice.
+- The Windows host reloads the reader from disk if its renderer process exits,
+  instead of leaving a blank window.
+
+### Changed
+
+- Windows runs one reader per executable path. A later launch hands its files
+  to the running window through WM_COPYDATA and exits.
+- Lower memory on Windows. Median peak private memory for the whole process
+  tree fell from 163.91 to 96.79 MiB for the simple fixture, from 205.70 to
+  125.31 MiB for the Mermaid showcase, and from 447.66 to 120.56 MiB with five
+  documents open (see the README for the method).
+- WebView2 now starts with GPU rasterization off, which static text does not
+  need. Tracking prevention, SmartScreen checks, and autofill are off and the
+  network service runs inside the browser process, because the reader's CSP
+  blocks every web request and leaves them nothing to do.
+- A background tab keeps no HTML or DOM. Selecting it reads the file again, so
+  it never shows stale text, and only the visible tab's file is watched.
+- A minimized window stops watching its file, hides and suspends its web view,
+  and asks WebView2 to use less memory until it is restored.
+- Document images on Windows now load from one origin per open folder,
+  `d<N>.doc.leanmark.invalid`, answered by the host with the same path checks
+  and image types as the Linux host. A WebView2 folder mapping only applies
+  after a page reload, which tabs from new folders cannot wait for.
+- The Windows and Linux hosts build each message to the reader in one buffer.
+  The Windows host no longer keeps the rendered HTML after sending it, and no
+  longer copies each file into a second buffer before parsing it.
+- `tests/Measure-Performance.ps1` accepts several documents for one launch.
+
 ## [0.2.0] - 2026-08-08
 
 ### Added
