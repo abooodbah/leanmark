@@ -1,15 +1,14 @@
 # LeanMark
 
-**Read Markdown and Mermaid diagrams without opening an IDE. Fully offline, no
-Electron, no telemetry, no network access.**
+**Read Markdown and Mermaid diagrams without opening an IDE. Everything renders
+offline, with no Electron and no telemetry.**
 
 ![LeanMark rendering Mermaid diagrams offline](docs/images/leanmark-mermaid.png)
 
-*Mermaid flowcharts, GFM tables, and task lists rendered with no network calls.
-Working set: 20 MB.*
+*Mermaid flowcharts, GFM tables, and task lists, rendered offline.*
 
-Every other Markdown tool is an editor. VS Code, Typora, Obsidian, MarkText: all
-heavy, most built on Electron, all designed for writing. LeanMark is for reading.
+Most Markdown tools are editors. VS Code, Typora, Obsidian, and MarkText are
+built for writing, and most of them run on Electron. LeanMark is for reading.
 
 It renders GitHub-flavored Markdown, local images, and Mermaid diagrams entirely
 offline, using the system web runtime rather than a bundled Chromium. Raw HTML is
@@ -19,11 +18,16 @@ permitted.
 
 ## Install
 
+On Windows:
+
 ```powershell
-scoop install leanmark
+winget install abooodbah.LeanMark
 ```
 
-Windows, Linux (.deb), and macOS builds are on the
+This installs the portable Windows build. The optional installer inside the ZIP
+adds Start menu and Open With entries; see [Windows x64](#windows-x64).
+
+Windows, Linux (.deb), and macOS builds are also on the
 [Releases](https://github.com/abooodbah/leanmark/releases) page.
 
 ## Platform releases
@@ -226,6 +230,16 @@ Markdown is treated as untrusted input:
   through the operating-system handler. No command shell is involved.
 - WebKit hosts use nonpersistent browser data stores; all rendering libraries
   and fonts are bundled locally.
+
+LeanMark's own code makes no network requests. On Windows, however, the page is
+drawn by Microsoft's WebView2 runtime, which can contact Microsoft services on
+its own. On one Windows 11 PC with a work account added to Windows, the runtime
+held two connections to Microsoft 365 (`substrate.office.com`, port 443) while
+LeanMark 0.3.0 was open. Chromium's network log from that launch recorded no
+request other than LeanMark's local reader page and Windows proxy
+auto-detection (WPAD) lookups, so the connections do not come from the document
+or the reader. They also appeared with a new, empty WebView2 profile. Other PCs
+have not been measured.
 
 Windows security smoke tests exercise hostile input in WebView2. Linux and
 macOS CI run their platform-specific source policy, core, package/bundle, and
