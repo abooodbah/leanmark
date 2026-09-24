@@ -3,9 +3,10 @@
 **Read Markdown and Mermaid diagrams without opening an IDE. Everything renders
 offline, with no Electron and no telemetry.**
 
-![LeanMark rendering Mermaid diagrams offline](docs/images/leanmark-mermaid.png)
+![LeanMark showing a Mermaid flowchart and a table, with two documents open as tabs](docs/images/leanmark-mermaid.png)
 
-*Mermaid flowcharts, GFM tables, and task lists, rendered offline.*
+*A Mermaid flowchart and a GFM table rendered offline, with a second document
+open in a tab.*
 
 Most Markdown tools are editors. VS Code, Typora, Obsidian, and MarkText are
 built for writing, and most of them run on Electron. LeanMark is for reading.
