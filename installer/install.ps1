@@ -19,6 +19,27 @@ $Classes = 'HKCU:\Software\Classes'
 $LocalData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
 $InstallDir = [IO.Path]::GetFullPath((Join-Path $LocalData 'Programs\LeanMark')).TrimEnd('\')
 $InstalledExe = Join-Path $InstallDir $ExeName
+
+# A running LeanMark holds its executable open, so it cannot be replaced or
+# removed. Ask any copy started from the install directory to close; a
+# reader has no unsaved work to lose. Copies started elsewhere are left alone.
+function Stop-InstalledLeanMark {
+    $Running = @(Get-Process -Name 'LeanMark' -ErrorAction SilentlyContinue | Where-Object {
+        $Path = $null
+        try { $Path = $_.Path } catch { }
+        $Path -and [IO.Path]::GetFullPath($Path).Equals($InstalledExe, [StringComparison]::OrdinalIgnoreCase)
+    })
+    if ($Running.Count -eq 0) { return }
+    if (-not $Quiet) { Write-Host 'Closing the running LeanMark so it can be replaced...' }
+    foreach ($Process in $Running) { [void]$Process.CloseMainWindow() }
+    $Deadline = [DateTime]::UtcNow.AddSeconds(10)
+    foreach ($Process in $Running) {
+        $Remaining = [Math]::Max(0, ($Deadline - [DateTime]::UtcNow).TotalMilliseconds)
+        if (-not $Process.WaitForExit([int]$Remaining)) {
+            throw ('LeanMark is still running from {0}. Close it, then run this script again.' -f $InstallDir)
+        }
+    }
+}
 $ManifestPath = Join-Path $InstallDir 'install-manifest.json'
 $ExistingInstall = Test-Path -LiteralPath $ManifestPath -PathType Leaf
 
@@ -150,6 +171,7 @@ function Get-EffectiveExe {
     return $null
 }
 
+Stop-InstalledLeanMark
 $Payload = Resolve-Payload $SourceDirectory
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 $OwnedFiles = [Collections.Generic.List[string]]::new()

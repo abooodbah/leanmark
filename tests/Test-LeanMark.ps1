@@ -189,6 +189,12 @@ function Test-StaticInvariants {
             catch { throw ("Embedded C# in {0} does not compile: {1}" -f $scriptCase.Name, $_.Exception.Message) }
         }
     }
+    foreach ($script in @($installer, $uninstaller)) {
+        Assert-Match $script '(?s)function Stop-InstalledLeanMark.*CloseMainWindow.*WaitForExit' 'Setup must close a running LeanMark before replacing or removing it.'
+    }
+    Assert-Match $installer 'Stop-InstalledLeanMark\r?\n\$Payload' 'The installer must close LeanMark before copying files.'
+    Assert-True ($uninstaller.IndexOf('Stop-InstalledLeanMark', $uninstaller.IndexOf('function Stop-InstalledLeanMark') + 30) -lt
+        $uninstaller.IndexOf('Remove-ItemProperty')) 'The uninstaller must close LeanMark before changing anything.'
     Write-TestPass 'per-user installer and bounded, consent-preserving uninstaller invariants'
 }
 
