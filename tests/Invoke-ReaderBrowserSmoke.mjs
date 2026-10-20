@@ -6,7 +6,10 @@
 // Chrome, Edge, or Chromium over the DevTools protocol.
 //
 // Usage: node tests/Invoke-ReaderBrowserSmoke.mjs --assets <staged assets dir>
-//          [--browser <executable>] [--capture-dir <dir>]
+//          [--browser <executable>] [--capture-dir <dir>] [--reduced-motion]
+//
+// --reduced-motion runs the page as a system with animations turned off,
+// which Windows CI runners are already.
 
 import { spawn } from "node:child_process";
 import { once } from "node:events";
@@ -343,6 +346,11 @@ async function run() {
     await client.send("Emulation.setDeviceMetricsOverride", {
       width: 1200, height: 900, deviceScaleFactor: 1, mobile: false,
     });
+    if (process.argv.includes("--reduced-motion")) {
+      await client.send("Emulation.setEmulatedMedia", {
+        features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+      });
+    }
     await client.send("Page.addScriptToEvaluateOnNewDocument", { source: HOST_STUB });
     await client.send("Page.navigate", { url: origin + "/reader.html" });
     await waitFor(client, 'window.__posted && window.__posted.indexOf("ready") >= 0',
@@ -397,6 +405,13 @@ async function run() {
       };
     }())`);
     check(layout.diagramFrames === 1, "a rendered diagram gets an expand button");
+    // Five boxes in one row: if Mermaid measured its labels mid-transition,
+    // this comes out roughly square instead of several times wider than tall.
+    const shape = await client.evaluate(
+      'document.querySelector("#article figure.diagram svg").viewBox.baseVal.width / ' +
+      'document.querySelector("#article figure.diagram svg").viewBox.baseVal.height');
+    check(shape > 2.5, "Mermaid lays out the left-to-right flowchart correctly (" +
+      shape.toFixed(2) + ":1)");
     check(layout.imageFrames === 3 && layout.expandableImages === 2,
       "standalone images get a frame, and only large ones an expand button");
     check(layout.visibleButtons === 3, "exactly three expand buttons are shown");
