@@ -100,6 +100,15 @@ core or reader assets change.
 Describe any skipped check in the pull request. Include screenshots for visible
 changes and remove private information from sample Markdown files.
 
+## Release a version
+
+Merge the version bump, changelog entry, and `docs/releases/v<version>.md` to
+`main`. Then either push an annotated `v<version>` tag on that commit, or run
+the **Tag a release** workflow from the Actions tab with the version number.
+Either route runs the full build on the tag, publishes the GitHub Release,
+redeploys the website, and submits the Windows package to winget when the
+`WINGET_TOKEN` secret is set (see `packaging/winget/README.md`).
+
 ## Submit a pull request
 
 Keep the change focused, explain its user-visible effect, and link the related
