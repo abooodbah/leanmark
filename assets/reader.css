@@ -1198,7 +1198,11 @@ button {
   *::before,
   *::after {
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+    /* Turn transitions off. Shortening their duration instead made every
+       property of every element transition (transition-property defaults to
+       all), so script read stale sizes until the next frame. In a window that
+       is not painting that was never, and Mermaid measured its labels wrong. */
+    transition: none !important;
   }
 }
 

@@ -158,6 +158,15 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
                   --assets "${LEANMARK_RUNTIME_ASSETS}"
                   --browser "${LEANMARK_BROWSER_EXECUTABLE}")
         set_tests_properties(leanmark-reader-browser PROPERTIES TIMEOUT 120)
+        add_test(
+          NAME leanmark-reader-browser-reduced-motion
+          COMMAND "${LEANMARK_NODE_EXECUTABLE}"
+                  "${CMAKE_CURRENT_SOURCE_DIR}/tests/Invoke-ReaderBrowserSmoke.mjs"
+                  --assets "${LEANMARK_RUNTIME_ASSETS}"
+                  --browser "${LEANMARK_BROWSER_EXECUTABLE}"
+                  --reduced-motion)
+        set_tests_properties(leanmark-reader-browser-reduced-motion
+          PROPERTIES TIMEOUT 120)
       else()
         message(STATUS "No Chrome or Chromium found; skipping reader browser test")
       endif()

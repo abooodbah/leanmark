@@ -46,6 +46,11 @@ versioning.
 
 ### Fixed
 
+- With "show animations" turned off in the operating system, Mermaid could
+  lay a diagram out at the wrong size (a five-box flowchart came out square),
+  because the reduced-motion style made every property of every element
+  transition. Reduced motion now turns transitions off instead. The website
+  had the same rule and is fixed too.
 - Mermaid diagrams after the fiftieth showed the "Diagram limit reached"
   message but were still rendered behind it. They are now left unrendered.
 
