@@ -41,6 +41,10 @@ jobs:
         shell: pwsh
         run: ./tests/Test-LeanMark.ps1 -DistPath ./dist
 
+      - name: Exercise the reader in Edge
+        shell: pwsh
+        run: node ./tests/Invoke-ReaderBrowserSmoke.mjs --assets ./dist/assets
+
       - name: Verify launch site
         shell: pwsh
         run: ./tests/Test-Site.ps1 -SitePath ./site
@@ -338,6 +342,42 @@ jobs:
             --latest \
             --title "LeanMark $LEANMARK_TAG" \
             --notes-file "$notes"
+
+  winget:
+    name: Submit to winget
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - build
+      - release
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      # The submission opens a pull request on microsoft/winget-pkgs from a
+      # fork owned by the token's account, so it needs a personal access token
+      # with the public_repo scope. Without one the release still ships.
+      - name: Check for a winget token
+        id: token
+        shell: bash
+        env:
+          WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          if [[ -n "$WINGET_TOKEN" ]]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::WINGET_TOKEN is not set, so this release was not submitted to winget. See packaging/winget/README.md."
+          fi
+
+      - name: Update the abooodbah.LeanMark manifest
+        if: steps.token.outputs.present == 'true'
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: abooodbah.LeanMark
+          version: ${{ needs.build.outputs.version }}
+          release-tag: v${{ needs.build.outputs.version }}
+          installers-regex: '-windows-x64\.zip$'
+          token: ${{ secrets.WINGET_TOKEN }}
 
   pages:
     name: Deploy release website

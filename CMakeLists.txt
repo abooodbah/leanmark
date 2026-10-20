@@ -135,6 +135,32 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         ENVIRONMENT
           "LEANMARK_ASSETS_DIR=${LEANMARK_RUNTIME_ASSETS};WEBKIT_DISABLE_COMPOSITING_MODE=1"
         TIMEOUT 30)
+
+      # Diagrams and a local image: the smoke probe also expands a figure.
+      add_test(
+        NAME leanmark-linux-host-figures
+        COMMAND "${LEANMARK_XVFB_RUN_EXECUTABLE}" -a
+                "$<TARGET_FILE:leanmark>" --smoke-test
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/showcase.md")
+      set_tests_properties(leanmark-linux-host-figures PROPERTIES
+        ENVIRONMENT
+          "LEANMARK_ASSETS_DIR=${LEANMARK_RUNTIME_ASSETS};WEBKIT_DISABLE_COMPOSITING_MODE=1"
+        TIMEOUT 45)
+
+      find_program(LEANMARK_BROWSER_EXECUTABLE
+        NAMES google-chrome google-chrome-stable chromium chromium-browser
+              microsoft-edge)
+      if(LEANMARK_BROWSER_EXECUTABLE)
+        add_test(
+          NAME leanmark-reader-browser
+          COMMAND "${LEANMARK_NODE_EXECUTABLE}"
+                  "${CMAKE_CURRENT_SOURCE_DIR}/tests/Invoke-ReaderBrowserSmoke.mjs"
+                  --assets "${LEANMARK_RUNTIME_ASSETS}"
+                  --browser "${LEANMARK_BROWSER_EXECUTABLE}")
+        set_tests_properties(leanmark-reader-browser PROPERTIES TIMEOUT 120)
+      else()
+        message(STATUS "No Chrome or Chromium found; skipping reader browser test")
+      endif()
     endif()
   endif()
 

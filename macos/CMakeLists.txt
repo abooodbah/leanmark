@@ -150,6 +150,13 @@ if(BUILD_TESTING)
             --smoke-test
             "${LEANMARK_REPOSITORY_ROOT}/tests/fixtures/simple.md")
   set_tests_properties(LeanMarkMacWebKitSmoke PROPERTIES TIMEOUT 30)
+  # Diagrams and a local image: the smoke check also expands a figure.
+  add_test(
+    NAME LeanMarkMacWebKitFigures
+    COMMAND "$<TARGET_FILE:LeanMark>"
+            --smoke-test
+            "${LEANMARK_REPOSITORY_ROOT}/tests/fixtures/showcase.md")
+  set_tests_properties(LeanMarkMacWebKitFigures PROPERTIES TIMEOUT 45)
 endif()
 
 add_custom_target(package_macos

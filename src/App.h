@@ -96,19 +96,21 @@ private:
     void PollActiveTab();
     void UpdateTitle();
 
-    void PostJson(const std::string& json);
+    void PostJson(std::string json);
     void SendTabs();
     void SendEmpty();
-    void SendDocument(const Tab& tab, const leanmark::RenderedDocument& document);
+    void SendDocument(const Tab& tab, leanmark::RenderedDocument&& document);
     void SendError(const Tab& tab, std::wstring_view message);
     void SendStatus(std::wstring_view message, const char* tone = "info");
     void SendCopyResult(unsigned long requestId, bool ok);
+    void SendZoom();
+    void ApplyZoom(double zoom);
     void HandleWebMessage(ICoreWebView2WebMessageReceivedEventArgs* arguments);
     void HandleLink(const std::wstring& href, OpenMode mode);
     void HandleCopySource(const std::wstring& arguments);
 
-    void LoadTheme();
-    void SaveTheme();
+    void LoadSettings();
+    void SaveSettings();
     void ApplyWindowTheme();
     bool EffectiveDarkTheme() const;
     const char* ThemeName() const;
@@ -135,4 +137,5 @@ private:
     unsigned recoveriesInWindow_ = 0;
 
     ThemeMode theme_ = ThemeMode::System;
+    double zoom_ = 1.0;
 };

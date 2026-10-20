@@ -30,6 +30,9 @@ NSError *DocumentError(NSInteger code, NSString *description) {
 
 @interface LMDocument () {
     leanmark::core::FileRenderResult _rendered;
+    // Set once the HTML has been handed to the reader, which then holds the
+    // only copy. A later payload renders the file again.
+    BOOL _htmlDelivered;
     NSURL *_sourceURL;
     NSTimer *_pollTimer;
     NSDate *_loadedModificationDate;
@@ -93,6 +96,7 @@ NSError *DocumentError(NSInteger code, NSString *description) {
     _sourceURL = [URL URLByStandardizingPath].URLByResolvingSymlinksInPath;
     _rendered = leanmark::core::RenderMarkdownFile(
         std::filesystem::path(_sourceURL.fileSystemRepresentation));
+    _htmlDelivered = NO;
     [self captureCurrentFileStamp];
     _missingFileReported = NO;
     return YES;
@@ -125,6 +129,12 @@ NSError *DocumentError(NSInteger code, NSString *description) {
     if (path == nil) {
         path = @"";
     }
+    if (_rendered.ok && _htmlDelivered) {
+        // The reader reloaded (for example after its web process exited).
+        _rendered = leanmark::core::RenderMarkdownFile(
+            std::filesystem::path(_sourceURL.fileSystemRepresentation));
+        _htmlDelivered = NO;
+    }
     if (!_rendered.ok) {
         NSString *message = NSStringFromUTF8(_rendered.error);
         if (message.length == 0) {
@@ -139,12 +149,17 @@ NSError *DocumentError(NSInteger code, NSString *description) {
         };
     }
 
+    NSString *html = NSStringFromUTF8(_rendered.html);
+    // The payload now owns the document text; keeping the UTF-8 copy for the
+    // life of the window would only cost memory.
+    std::string().swap(_rendered.html);
+    _htmlDelivered = YES;
     return @{
         @"type" : @"document",
         @"theme" : theme,
         @"fileName" : fileName,
         @"path" : path,
-        @"html" : NSStringFromUTF8(_rendered.html),
+        @"html" : html,
         @"sourceBytes" : @(_rendered.sourceBytes),
         @"hasMermaid" : @(_rendered.hasMermaid),
         @"documentBaseUrl" : @"leanmark-doc://document/",
@@ -174,6 +189,7 @@ NSError *DocumentError(NSInteger code, NSString *description) {
     }
 
     _rendered = std::move(candidate);
+    _htmlDelivered = NO;
     for (NSWindowController *controller in self.windowControllers) {
         if ([controller isKindOfClass:LMDocumentWindowController.class]) {
             [(LMDocumentWindowController *)controller documentContentDidChange];
