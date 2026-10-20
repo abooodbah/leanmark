@@ -516,9 +516,14 @@ async function run() {
             rect: [rect.width, rect.height],
             maxWidth: getComputedStyle(svg).maxWidth,
             maxHeight: getComputedStyle(svg).maxHeight,
-            styleRules: Array.from(svg.querySelectorAll("style")).map(function (node) {
-              return (node.textContent.match(/[^{}]*max-(?:width|height)[^}]*}/g) || []).join(" ");
-            }).join(" ").slice(0, 400),
+            computed: ["width", "height", "display", "position", "transform", "zoom",
+              "box-sizing", "padding"].map(function (name) {
+              return name + "=" + getComputedStyle(svg).getPropertyValue(name);
+            }).join("; "),
+            canvasComputed: ["width", "height", "display", "flex", "margin"].map(function (name) {
+              return name + "=" + getComputedStyle(canvas).getPropertyValue(name);
+            }).join("; "),
+            outer: svg.outerHTML.replace(/<style>[\s\S]*?<\/style>/g, "<style/>").slice(0, 2500),
             canvas: [canvas.offsetWidth, canvas.offsetHeight, canvas.offsetLeft]
           } : null;
         }())];
