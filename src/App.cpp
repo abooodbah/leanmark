@@ -503,8 +503,21 @@ LRESULT LeanMarkApp::HandleWindowMessage(
                 }
             }
             return 0;
-        case WM_ERASEBKGND:
+        case WM_ERASEBKGND: {
+            // Until WebView2 draws its first frame, this is all the window
+            // shows. Returning without painting left the new window's surface
+            // white for a quarter second on a dark-themed launch, so fill it
+            // with the reader background. Once the reader covers the client
+            // area the fill is the same color it draws, so resizing shows no
+            // seam.
+            RECT client = {};
+            GetClientRect(window_, &client);
+            const HBRUSH brush = CreateSolidBrush(
+                EffectiveDarkTheme() ? RGB(14, 13, 11) : RGB(250, 249, 247));
+            FillRect(reinterpret_cast<HDC>(wParam), &client, brush);
+            DeleteObject(brush);
             return 1;
+        }
         case WM_DESTROY:
             KillTimer(window_, kFilePollTimer);
             if (controller_ != nullptr) {
@@ -549,6 +562,15 @@ void LeanMarkApp::InitializeWebView() {
     std::error_code ignored;
     std::filesystem::create_directories(userData, ignored);
 
+    // WebView2 paints white before put_DefaultBackgroundColor takes effect;
+    // Microsoft documents this flicker and says the environment variable,
+    // read when the controller is created, avoids it. It is cleared again
+    // once the controller exists so programs LeanMark opens do not inherit it.
+    // The API call in ConfigureWebView still handles later theme changes.
+    SetEnvironmentVariableW(
+        L"WEBVIEW2_DEFAULT_BACKGROUND_COLOR",
+        EffectiveDarkTheme() ? L"FF0E0D0B" : L"FFFAF9F7");
+
     auto options = Make<CoreWebView2EnvironmentOptions>();
     options->put_AdditionalBrowserArguments(LeanMarkBrowserArguments().c_str());
     // Tracking prevention exists to block third-party web content, which the
@@ -581,6 +603,8 @@ void LeanMarkApp::InitializeWebView() {
                         ICoreWebView2CreateCoreWebView2ControllerCompletedHandler>(
                         [this](HRESULT controllerResult,
                                ICoreWebView2Controller* controller) -> HRESULT {
+                            SetEnvironmentVariableW(
+                                L"WEBVIEW2_DEFAULT_BACKGROUND_COLOR", nullptr);
                             if (FAILED(controllerResult) || controller == nullptr) {
                                 MessageBoxW(
                                     window_,

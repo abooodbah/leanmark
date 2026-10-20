@@ -31,11 +31,11 @@ Create a deterministic local-testing archive, checksum, and trust metadata:
 cmake --build obj/macos --config Release --target package_macos
 ```
 
-For version `0.4.1`, the target writes these explicitly preview-labelled files:
+For version `0.4.2`, the target writes these explicitly preview-labelled files:
 
-- `LeanMark-v0.4.1-macos-universal-preview.zip`
-- `LeanMark-v0.4.1-macos-universal-preview.zip.sha256`
-- `LeanMark-v0.4.1-macos-universal-preview.zip.metadata.json`
+- `LeanMark-v0.4.2-macos-universal-preview.zip`
+- `LeanMark-v0.4.2-macos-universal-preview.zip.sha256`
+- `LeanMark-v0.4.2-macos-universal-preview.zip.metadata.json`
 
 The package target applies an ad-hoc signature with the hardened-runtime flag
 and no timestamp authority. It does **not** use Developer ID, contact Apple's
