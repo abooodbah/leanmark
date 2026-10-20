@@ -11,6 +11,12 @@ on:
         description: Version to release from main, without the v. It must match package.json.
         required: true
         type: string
+      move_to:
+        description: >-
+          Optional. Move the existing tag to this full commit hash instead, without
+          rebuilding, for after a history rewrite. Its files must be identical.
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -36,23 +42,41 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           LEANMARK_VERSION: ${{ inputs.version }}
+          LEANMARK_MOVE_TO: ${{ inputs.move_to }}
         run: |
           if [[ ! "$LEANMARK_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Not a version number: $LEANMARK_VERSION" >&2
             exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          tag="v$LEANMARK_VERSION"
+          if [[ -n "$LEANMARK_MOVE_TO" ]]; then
+            # The release and its packages stay as they are, so the new commit
+            # must hold exactly the files the tag pointed at.
+            if [[ ! "$LEANMARK_MOVE_TO" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "move_to must be a full commit hash." >&2
+              exit 1
+            fi
+            git fetch --quiet origin "+refs/tags/$tag:refs/tags/$tag" "$LEANMARK_MOVE_TO"
+            if [[ "$(git rev-parse "$tag^{tree}")" != "$(git rev-parse "$LEANMARK_MOVE_TO^{tree}")" ]]; then
+              echo "$LEANMARK_MOVE_TO does not hold the same files as $tag." >&2
+              exit 1
+            fi
+            git tag -f -a "$tag" -m "LeanMark $tag" "$LEANMARK_MOVE_TO"
+            git push --force origin "refs/tags/$tag"
+            echo "Moved $tag to $LEANMARK_MOVE_TO."
+            exit 0
           fi
           manifest=$(node -p "require('./package.json').version")
           if [[ "$manifest" != "$LEANMARK_VERSION" ]]; then
             echo "main's package.json says $manifest, not $LEANMARK_VERSION." >&2
             exit 1
           fi
-          tag="v$LEANMARK_VERSION"
           if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
             echo "$tag already exists." >&2
             exit 1
           fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git tag -a "$tag" -m "LeanMark $tag"
           git push origin "refs/tags/$tag"
           gh workflow run build.yml --ref "$tag"
