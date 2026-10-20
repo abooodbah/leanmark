@@ -4,6 +4,7 @@
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <string>
 
 namespace {
@@ -234,6 +235,108 @@ void TestJsonEscaping() {
         "AppendJsonString should extend the existing buffer");
 }
 
+// The byte-at-a-time escaper the word-at-a-time one must agree with.
+std::string ReferenceEscape(const std::string& value) {
+    static constexpr char kHex[] = "0123456789abcdef";
+    std::string output;
+    for (std::size_t index = 0; index < value.size(); ++index) {
+        const auto character = static_cast<unsigned char>(value[index]);
+        if (character == '"') {
+            output += "\\\"";
+        } else if (character == '\\') {
+            output += "\\\\";
+        } else if (character == '\b') {
+            output += "\\b";
+        } else if (character == '\f') {
+            output += "\\f";
+        } else if (character == '\n') {
+            output += "\\n";
+        } else if (character == '\r') {
+            output += "\\r";
+        } else if (character == '\t') {
+            output += "\\t";
+        } else if (character < 0x20) {
+            output += "\\u00";
+            output += kHex[character >> 4];
+            output += kHex[character & 0xF];
+        } else if (character == 0xE2 && index + 2 < value.size() &&
+                   static_cast<unsigned char>(value[index + 1]) == 0x80 &&
+                   (static_cast<unsigned char>(value[index + 2]) == 0xA8 ||
+                    static_cast<unsigned char>(value[index + 2]) == 0xA9)) {
+            output += static_cast<unsigned char>(value[index + 2]) == 0xA8
+                          ? "\\u2028"
+                          : "\\u2029";
+            index += 2;
+        } else {
+            output += static_cast<char>(character);
+        }
+    }
+    return output;
+}
+
+void TestWordAtATimeScans() {
+    // Every special sequence at every offset around two 8-byte words, so the
+    // fast paths are checked where a word starts, ends, and straddles one.
+    const std::string specials[] = {
+        "\"", "\\", "\n", std::string("\x01", 1), std::string("\x1F", 1),
+        "\xE2\x80\xA8", "\xE2\x80\xA9", "\xE2\x82\xAC", "\xC3\xA9", "\x7F"};
+    bool escapesAgree = true;
+    bool validAccepted = true;
+    for (const std::string& special : specials) {
+        for (std::size_t offset = 0; offset < 20; ++offset) {
+            const std::string text =
+                std::string(offset, 'a') + special + std::string(19, 'b');
+            escapesAgree = escapesAgree &&
+                           leanmark::core::EscapeJsonString(text) == ReferenceEscape(text);
+            validAccepted = validAccepted &&
+                            leanmark::core::RenderMarkdownUtf8(text).ok;
+        }
+    }
+    Expect(escapesAgree, "word-at-a-time JSON escaping must match the reference");
+    Expect(validAccepted, "valid UTF-8 after long ASCII runs must be accepted");
+
+    const std::string invalid[] = {
+        std::string("\x80", 1), std::string("\xC3", 1), std::string("\xC0\xAF", 2),
+        std::string("\xED\xA0\x80", 3), std::string("\xF5\x80\x80\x80", 4),
+        std::string("\xE2\x82", 2)};
+    bool invalidRejected = true;
+    for (const std::string& bad : invalid) {
+        for (std::size_t offset = 0; offset < 20; ++offset) {
+            const std::string text =
+                std::string(offset, 'a') + bad + std::string(offset % 3 == 0 ? 0 : 11, 'b');
+            invalidRejected = invalidRejected &&
+                              !leanmark::core::RenderMarkdownUtf8(text).ok;
+        }
+    }
+    Expect(invalidRejected, "malformed UTF-8 after long ASCII runs must be rejected");
+
+    const std::string large(300000, 'x');
+    const auto rendered = leanmark::core::RenderMarkdownUtf8(large);
+    Expect(
+        rendered.ok && rendered.html.capacity() <=
+                           rendered.html.size() + rendered.html.size() / 4 + 65536,
+        "rendered HTML should not keep a much larger buffer than it needs");
+}
+
+void TestZoomLevels() {
+    using leanmark::core::NormalizeZoom;
+    using leanmark::core::StepZoom;
+    Expect(StepZoom(1.0, 1) == 1.1 && StepZoom(1.0, -1) == 0.9,
+           "zoom should step to the neighbouring level");
+    Expect(StepZoom(1.25, 1) == 1.5 && StepZoom(0.67, -1) == 0.5,
+           "zoom should move through the shared ladder");
+    Expect(StepZoom(3.0, 1) == 3.0 && StepZoom(0.5, -1) == 0.5,
+           "zoom should stay at the ends of the range");
+    Expect(StepZoom(1.3, 1) == 1.5 && StepZoom(1.3, -1) == 1.25,
+           "a zoom between levels should step to the next level");
+    Expect(StepZoom(2.0, 0) == 1.0, "a zero direction should reset");
+    Expect(NormalizeZoom(1.2) == 1.25 && NormalizeZoom(0.66) == 0.67,
+           "a stored zoom should snap to the nearest level");
+    Expect(NormalizeZoom(9.0) == 1.0 && NormalizeZoom(0.0) == 1.0 &&
+               NormalizeZoom(std::numeric_limits<double>::quiet_NaN()) == 1.0,
+           "a corrupt stored zoom should give the default");
+}
+
 void TestFilesAndPaths() {
     TemporaryDirectory temporary;
     const auto notes = temporary.path / "notes";
@@ -296,6 +399,8 @@ int main() {
     TestRenderer();
     TestSections();
     TestJsonEscaping();
+    TestWordAtATimeScans();
+    TestZoomLevels();
     TestFilesAndPaths();
     if (failures != 0) {
         std::cerr << failures << " portable core assertion(s) failed.\n";
