@@ -79,7 +79,16 @@ function Measure-Launch {
     try {
         [void](Wait-LeanMarkWindow -Process $process -TimeoutSeconds $TimeoutSeconds)
         $windowMs = $clock.Elapsed.TotalMilliseconds
-        $page = Wait-CdpPageTarget -Port $port -Seconds $TimeoutSeconds
+        try {
+            $page = Wait-CdpPageTarget -Port $port -Seconds $TimeoutSeconds
+        } catch {
+            # Say what did start, so a runner without a usable WebView2 is
+            # told apart from a reader that never loaded.
+            $tree = @(Get-LeanMarkProcessTreeIds -RootProcessId $process.Id)
+            $details = @(Get-CimInstance Win32_Process | Where-Object { $tree -contains $_.ProcessId } |
+                ForEach-Object { '{0} {1}' -f $_.Name, $_.CommandLine })
+            throw ('{0} Process tree: {1}' -f $_.Exception.Message, ($details -join ' | '))
+        }
         $pageMs = $clock.Elapsed.TotalMilliseconds
         $result = Invoke-CdpExpression -WebSocketUrl $page.webSocketDebuggerUrl `
             -Expression $readyProbe -Seconds $TimeoutSeconds | ConvertFrom-Json
