@@ -1,0 +1,97 @@
+name: Compare launch time
+
+# Times published releases and this branch's build to a rendered document on
+# one Windows runner, taking turns launch by launch. Run it from the Actions
+# tab; the median table appears on the run's summary page.
+
+on:
+  # TEMPORARY: measure on every push while the 0.4.1 regression is open.
+  # Removed before release/v0.4.1 merges; dispatch stays.
+  push:
+    branches:
+      - release/v0.4.1
+  workflow_dispatch:
+    inputs:
+      releases:
+        description: Release tags to compare, separated by spaces
+        required: true
+        default: v0.3.0 v0.4.0
+        type: string
+      iterations:
+        description: Measured launches per build and document
+        required: true
+        default: '8'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Windows x64 launch time
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v3
+
+      - name: Build this branch
+        shell: pwsh
+        run: ./scripts/build.ps1 -Configuration Release -Platform x64
+
+      - name: Download the releases
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LEANMARK_RELEASES: ${{ inputs.releases || 'v0.3.0 v0.4.0' }}
+        run: |
+          foreach ($tag in ($env:LEANMARK_RELEASES -split '\s+' | Where-Object { $_ })) {
+            if ($tag -notmatch '^v\d+\.\d+\.\d+$') { throw "Not a release tag: $tag" }
+            $folder = Join-Path $env:RUNNER_TEMP $tag
+            gh release download $tag --repo $env:GITHUB_REPOSITORY --pattern '*-windows-x64.zip' --dir $folder
+            Get-ChildItem -LiteralPath $folder -Filter *.zip | ForEach-Object {
+              Expand-Archive -LiteralPath $_.FullName -DestinationPath $folder -Force
+            }
+          }
+
+      - name: Compare launch time
+        shell: pwsh
+        env:
+          LEANMARK_RELEASES: ${{ inputs.releases || 'v0.3.0 v0.4.0' }}
+          LEANMARK_ITERATIONS: ${{ inputs.iterations || '8' }}
+        run: |
+          $builds = @()
+          foreach ($tag in ($env:LEANMARK_RELEASES -split '\s+' | Where-Object { $_ })) {
+            $exe = Get-ChildItem -LiteralPath (Join-Path $env:RUNNER_TEMP $tag) -Recurse -Filter LeanMark.exe |
+              Select-Object -First 1
+            if (-not $exe) { throw "LeanMark.exe is missing from $tag" }
+            $builds += ('{0}={1}' -f $tag, $exe.FullName)
+          }
+          $builds += ('branch={0}' -f (Resolve-Path ./dist/LeanMark.exe).Path)
+          $iterations = [int]$env:LEANMARK_ITERATIONS
+          New-Item -ItemType Directory -Path launch-time -Force | Out-Null
+          foreach ($fixture in @('simple', 'showcase')) {
+            ./tests/Compare-LaunchTime.ps1 -Build $builds -Iterations $iterations `
+              -DocumentPath "./tests/fixtures/$fixture.md" `
+              -OutputPath "launch-time/$fixture.json" `
+              -MarkdownSummaryPath $env:GITHUB_STEP_SUMMARY
+          }
+
+      - name: Upload measurements
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: launch-time
+          path: launch-time/
+          if-no-files-found: ignore
+          retention-days: 30
