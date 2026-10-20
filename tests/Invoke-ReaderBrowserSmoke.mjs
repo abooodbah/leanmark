@@ -523,7 +523,11 @@ async function run() {
             canvasComputed: ["width", "height", "display", "flex", "margin"].map(function (name) {
               return name + "=" + getComputedStyle(canvas).getPropertyValue(name);
             }).join("; "),
-            outer: svg.outerHTML.replace(/<style>[\s\S]*?<\/style>/g, "<style/>").slice(0, 2500),
+            outer: (function () {
+              var copy = svg.cloneNode(true);
+              copy.querySelectorAll("style").forEach(function (node) { node.remove(); });
+              return copy.outerHTML.slice(0, 2500);
+            }()),
             canvas: [canvas.offsetWidth, canvas.offsetHeight, canvas.offsetLeft]
           } : null;
         }())];
