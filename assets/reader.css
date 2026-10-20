@@ -1014,6 +1014,7 @@ button {
 /* margin: auto centres a small figure and, unlike centring the flex line,
    still lets a figure larger than the window scroll to every edge. */
 .viewer-canvas {
+  box-sizing: border-box;
   flex: none;
   margin: auto;
 }

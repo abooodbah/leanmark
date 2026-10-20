@@ -1053,8 +1053,10 @@
 
   function viewerFitScale() {
     var state = viewerState;
-    var availableWidth = elements.viewerStage.clientWidth - viewerPadding * 2;
-    var availableHeight = elements.viewerStage.clientHeight - viewerPadding * 2;
+    // offsetWidth and offsetHeight include any scrollbars, which a zoomed
+    // figure shows and a fitted one does not.
+    var availableWidth = elements.viewerStage.offsetWidth - viewerPadding * 2;
+    var availableHeight = elements.viewerStage.offsetHeight - viewerPadding * 2;
     var fit = Math.min(
       availableWidth / state.width,
       availableHeight / state.height
@@ -1086,8 +1088,10 @@
 
     state.scale = scale;
     state.mode = mode;
-    state.content.style.width = state.width * scale + "px";
-    state.content.style.height = state.height * scale + "px";
+    // The canvas is a plain block sized here, and the figure fills it, so the
+    // scrollable area never depends on how an engine sizes an outer <svg>.
+    canvas.style.width = state.width * scale + viewerPadding * 2 + "px";
+    canvas.style.height = state.height * scale + viewerPadding * 2 + "px";
     stage.scrollLeft = pointX * scale + canvas.offsetLeft + viewerPadding - focusX;
     stage.scrollTop = pointY * scale + canvas.offsetTop + viewerPadding - focusY;
 
@@ -1163,13 +1167,12 @@
     content.replaceWith(placeholder);
     elements.viewerCanvas.style.padding = viewerPadding + "px";
     elements.viewerCanvas.appendChild(content);
-    // Inline, so no stylesheet rule (Mermaid's included) can clamp the
-    // zoomed size to the window. The saved style attribute is put back on close.
+    // The figure fills the canvas that setViewerScale sizes. The saved style
+    // attribute is put back on close.
     content.style.maxWidth = "none";
     content.style.maxHeight = "none";
-    content.style.minWidth = "0";
-    content.style.minHeight = "0";
-    content.style.flex = "none";
+    content.style.width = "100%";
+    content.style.height = "100%";
     content.style.margin = "0";
     elements.viewerTitle.textContent = isImage
       ? (content.getAttribute("alt") || "Image")
@@ -1185,6 +1188,8 @@
       return;
     }
     viewerState = null;
+    elements.viewerCanvas.style.width = "";
+    elements.viewerCanvas.style.height = "";
     var content = state.content;
     if (state.savedStyle === null) {
       content.removeAttribute("style");
