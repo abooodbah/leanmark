@@ -271,7 +271,10 @@ jobs:
 
   release:
     name: Publish one verified release
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # A pushed tag, or the build that tag-release.yml dispatches on one.
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs:
       - build
       - linux
@@ -345,7 +348,10 @@ jobs:
 
   winget:
     name: Submit to winget
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # A pushed tag, or the build that tag-release.yml dispatches on one.
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs:
       - build
       - release
@@ -381,7 +387,10 @@ jobs:
 
   pages:
     name: Deploy release website
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    # A pushed tag, or the build that tag-release.yml dispatches on one.
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs:
       - release
     runs-on: ubuntu-latest
