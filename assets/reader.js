@@ -1163,7 +1163,13 @@
     content.replaceWith(placeholder);
     elements.viewerCanvas.style.padding = viewerPadding + "px";
     elements.viewerCanvas.appendChild(content);
+    // Inline, so no stylesheet rule (Mermaid's included) can clamp the
+    // zoomed size to the window. The saved style attribute is put back on close.
     content.style.maxWidth = "none";
+    content.style.maxHeight = "none";
+    content.style.minWidth = "0";
+    content.style.minHeight = "0";
+    content.style.flex = "none";
     content.style.margin = "0";
     elements.viewerTitle.textContent = isImage
       ? (content.getAttribute("alt") || "Image")
