@@ -11,12 +11,6 @@ on:
         description: Version to release from main, without the v. It must match package.json.
         required: true
         type: string
-      replace_main_with:
-        description: >-
-          Optional. Replace main with this full commit hash (a history rewrite of
-          main holding exactly the same files), then stop.
-        required: false
-        type: string
       move_to:
         description: >-
           Optional. Move the existing tag to this full commit hash instead, without
@@ -49,22 +43,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           LEANMARK_VERSION: ${{ inputs.version }}
           LEANMARK_MOVE_TO: ${{ inputs.move_to }}
-          LEANMARK_REPLACE_MAIN: ${{ inputs.replace_main_with }}
         run: |
-          if [[ -n "$LEANMARK_REPLACE_MAIN" ]]; then
-            if [[ ! "$LEANMARK_REPLACE_MAIN" =~ ^[0-9a-f]{40}$ ]]; then
-              echo "replace_main_with must be a full commit hash." >&2
-              exit 1
-            fi
-            git fetch --quiet origin "$LEANMARK_REPLACE_MAIN" main
-            if [[ "$(git rev-parse origin/main^{tree})" != "$(git rev-parse "$LEANMARK_REPLACE_MAIN^{tree}")" ]]; then
-              echo "$LEANMARK_REPLACE_MAIN does not hold the same files as main." >&2
-              exit 1
-            fi
-            git push --force origin "$LEANMARK_REPLACE_MAIN:refs/heads/main"
-            echo "Replaced main with $LEANMARK_REPLACE_MAIN."
-            exit 0
-          fi
           if [[ ! "$LEANMARK_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "Not a version number: $LEANMARK_VERSION" >&2
             exit 1
