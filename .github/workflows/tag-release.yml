@@ -1,0 +1,59 @@
+name: Tag a release
+
+# Creates the release tag on main from the Actions tab, for when a tag cannot
+# be pushed directly. A tag pushed with this workflow's token starts no other
+# workflow, so the job asks for the release build on the new tag itself.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release from main, without the v. It must match package.json.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  tag:
+    name: Tag main and start the release build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: write
+
+    steps:
+      - name: Check out main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Create the tag and dispatch the build
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LEANMARK_VERSION: ${{ inputs.version }}
+        run: |
+          if [[ ! "$LEANMARK_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Not a version number: $LEANMARK_VERSION" >&2
+            exit 1
+          fi
+          manifest=$(node -p "require('./package.json').version")
+          if [[ "$manifest" != "$LEANMARK_VERSION" ]]; then
+            echo "main's package.json says $manifest, not $LEANMARK_VERSION." >&2
+            exit 1
+          fi
+          tag="v$LEANMARK_VERSION"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "$tag already exists." >&2
+            exit 1
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "LeanMark $tag"
+          git push origin "refs/tags/$tag"
+          gh workflow run build.yml --ref "$tag"
+          echo "Tagged $(git rev-parse --short HEAD) as $tag and started the release build."
