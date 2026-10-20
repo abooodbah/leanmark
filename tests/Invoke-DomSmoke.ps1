@@ -34,9 +34,13 @@ function Start-DebuggableLeanMark {
         $oldArguments + ' ' + $debugArguments
     }
     [Environment]::SetEnvironmentVariable('WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS', $combined, 'Process')
+    # WebView2 ignores the variable above when the app passes its own
+    # arguments, as LeanMark does; the host adds this port itself.
+    [Environment]::SetEnvironmentVariable('LEANMARK_TEST_DEVTOOLS_PORT', [string]$Port.Value, 'Process')
     try { Start-LeanMarkProcess -ExePath $ExePath -DocumentPaths @($DocumentPath) }
     finally {
         [Environment]::SetEnvironmentVariable('WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS', $oldArguments, 'Process')
+        [Environment]::SetEnvironmentVariable('LEANMARK_TEST_DEVTOOLS_PORT', $null, 'Process')
     }
 }
 

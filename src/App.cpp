@@ -517,6 +517,32 @@ LRESULT LeanMarkApp::HandleWindowMessage(
     }
 }
 
+// BEGIN test DevTools hook
+// Test harnesses attach over a loopback DevTools port. WebView2 ignores
+// WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS when an app sets its own arguments, so
+// LEANMARK_TEST_DEVTOOLS_PORT adds the switch here. Only a port number is
+// accepted; anything else is ignored.
+static std::wstring LeanMarkBrowserArguments() {
+    std::wstring arguments = kBrowserArguments;
+    wchar_t port[8] = {};
+    const DWORD length =
+        GetEnvironmentVariableW(L"LEANMARK_TEST_DEVTOOLS_PORT", port, 8);
+    if (length == 0 || length >= 6) {
+        return arguments;
+    }
+    for (DWORD index = 0; index < length; ++index) {
+        if (port[index] < L'0' || port[index] > L'9') {
+            return arguments;
+        }
+    }
+    // Current WebView2 builds also want the DevTools socket origins listed;
+    // the port is loopback-only and exists only while a test sets this.
+    arguments += L" --remote-allow-origins=* --remote-debugging-port=";
+    arguments += port;
+    return arguments;
+}
+// END test DevTools hook
+
 void LeanMarkApp::InitializeWebView() {
     const std::filesystem::path userData =
         std::filesystem::path(LocalAppDataDirectory()) / L"LeanMark" / L"WebView2";
@@ -524,7 +550,7 @@ void LeanMarkApp::InitializeWebView() {
     std::filesystem::create_directories(userData, ignored);
 
     auto options = Make<CoreWebView2EnvironmentOptions>();
-    options->put_AdditionalBrowserArguments(kBrowserArguments);
+    options->put_AdditionalBrowserArguments(LeanMarkBrowserArguments().c_str());
     // Tracking prevention exists to block third-party web content, which the
     // reader never loads, so skip loading and matching its lists.
     ComPtr<ICoreWebView2EnvironmentOptions5> options5;

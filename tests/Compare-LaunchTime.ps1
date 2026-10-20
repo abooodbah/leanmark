@@ -14,8 +14,9 @@ param(
 # splits it into WebView2 start-up and the reader's own work. Builds take turns
 # launch by launch so drift on the machine affects them equally.
 #
-# Each launch gets an ephemeral loopback DevTools port, the same way the DOM
-# smoke test does. That costs every build the same small amount.
+# Each launch gets an ephemeral loopback DevTools port through
+# LEANMARK_TEST_DEVTOOLS_PORT. That costs every build the same small amount;
+# release builds without the hook are rebuilt with it by the workflow.
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -67,14 +68,12 @@ new Promise(function (resolve) {
 function Measure-Launch {
     param([pscustomobject]$Target)
     $port = Get-FreeLoopbackPort
-    $saved = [Environment]::GetEnvironmentVariable('WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS', 'Process')
-    [Environment]::SetEnvironmentVariable('WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS',
-        "--remote-debugging-port=$port --remote-allow-origins=*", 'Process')
+    [Environment]::SetEnvironmentVariable('LEANMARK_TEST_DEVTOOLS_PORT', [string]$port, 'Process')
     $clock = [System.Diagnostics.Stopwatch]::StartNew()
     try {
         $process = Start-LeanMarkProcess -ExePath $Target.Exe -DocumentPaths $documents
     } finally {
-        [Environment]::SetEnvironmentVariable('WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS', $saved, 'Process')
+        [Environment]::SetEnvironmentVariable('LEANMARK_TEST_DEVTOOLS_PORT', $null, 'Process')
     }
     try {
         [void](Wait-LeanMarkWindow -Process $process -TimeoutSeconds $TimeoutSeconds)
