@@ -97,6 +97,74 @@
       </div>
     </main>
 
+    <div
+      id="figureViewer"
+      class="figure-viewer"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="viewerTitle"
+      hidden
+    >
+      <div class="viewer-toolbar">
+        <span id="viewerTitle" class="viewer-title">Diagram</span>
+        <div class="viewer-controls" role="group" aria-label="Zoom">
+          <button
+            class="viewer-button"
+            type="button"
+            data-action="out"
+            aria-label="Zoom out"
+            title="Zoom out (−)"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" /></svg>
+          </button>
+          <span id="viewerLevel" class="viewer-level">100%</span>
+          <button
+            class="viewer-button"
+            type="button"
+            data-action="in"
+            aria-label="Zoom in"
+            title="Zoom in (+)"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M8 3v10" /></svg>
+          </button>
+          <button
+            class="viewer-button viewer-text-button"
+            type="button"
+            data-action="fit"
+            title="Fit to window (0)"
+          >
+            Fit
+          </button>
+          <button
+            class="viewer-button viewer-text-button"
+            type="button"
+            data-action="actual"
+            title="Actual size (1)"
+          >
+            1:1
+          </button>
+        </div>
+        <button
+          class="viewer-button"
+          type="button"
+          data-action="close"
+          aria-label="Close"
+          title="Close (Esc)"
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+        </button>
+      </div>
+      <div
+        id="viewerStage"
+        class="viewer-stage"
+        tabindex="0"
+        aria-label="Use the arrow keys to pan, plus and minus to zoom, and Escape to close."
+      >
+        <div id="viewerCanvas" class="viewer-canvas"></div>
+      </div>
+    </div>
+
+    <div id="zoomIndicator" class="zoom-indicator" aria-hidden="true" hidden></div>
     <div id="statusToast" class="status-toast" role="status" hidden></div>
     <div id="liveStatus" class="visually-hidden" aria-live="polite"></div>
   </body>

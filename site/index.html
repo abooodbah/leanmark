@@ -29,7 +29,7 @@
     "name": "LeanMark",
     "applicationCategory": "UtilitiesApplication",
     "operatingSystem": "Windows 10, Windows 11, Ubuntu 24.04, macOS 12 or later",
-    "softwareVersion": "0.3.0",
+    "softwareVersion": "0.4.0",
     "license": "https://opensource.org/license/mit",
     "downloadUrl": "https://github.com/abooodbah/leanmark/releases/latest",
     "codeRepository": "https://github.com/abooodbah/leanmark",
@@ -83,7 +83,7 @@
             </a>
           </div>
           <p class="release-meta">
-            v0.3.0 · 3 desktop platforms · MIT licensed
+            v0.4.0 · 3 desktop platforms · MIT licensed
           </p>
           <p class="unsigned-note">
             <strong>Signing status:</strong> Windows is unsigned. The macOS
@@ -138,7 +138,8 @@
           </p>
           <ul class="check-list">
             <li>CommonMark plus GFM tables, tasks, autolinks, and strikethrough</li>
-            <li>Automatic outline, find, zoom, print, themes, and reading progress</li>
+            <li>Automatic outline, find, print, themes, and reading progress</li>
+            <li>Page zoom in fixed steps from 50% to 300%, remembered between launches</li>
             <li>Relative local images and Markdown links</li>
             <li>Live refresh after the file changes on disk</li>
           </ul>
@@ -203,6 +204,31 @@ flowchart LR
             system web runtime for selectable text, printing, images, and diagrams.
           </p>
         </div>
+      </div>
+    </section>
+
+    <section class="section feature-section" id="viewer">
+      <div class="container split-section">
+        <div class="section-copy">
+          <p class="eyebrow">New in 0.4.0</p>
+          <h2>Any diagram, as large as it needs to be.</h2>
+          <p class="section-lead">
+            A small button in the corner of every Mermaid diagram and image
+            opens it across the whole window, fitted and sharp.
+          </p>
+          <ul class="check-list">
+            <li>Zoom from 10% to 800% with + and -, or Ctrl+wheel at the pointer</li>
+            <li>0 fits the window, 1 shows actual size, arrows and drag pan</li>
+            <li>Escape returns to the exact place in the document</li>
+          </ul>
+        </div>
+        <figure class="product-shot feature-shot">
+          <img src="assets/leanmark-diagram-viewer.png"
+               width="1120"
+               height="820"
+               alt="LeanMark's figure viewer showing a Mermaid flowchart enlarged to fit the window, with zoom out, zoom level, zoom in, fit, actual size, and close controls.">
+          <figcaption>An expanded diagram in the Linux build.</figcaption>
+        </figure>
       </div>
     </section>
 
@@ -286,7 +312,7 @@ flowchart LR
           <div class="hero-actions">
             <a class="button button-large button-primary"
                href="https://github.com/abooodbah/leanmark/releases/latest">
-              View v0.3.0 downloads
+              View v0.4.0 downloads
             </a>
             <a class="button button-large button-secondary"
                href="https://github.com/abooodbah/leanmark/releases/latest">
@@ -297,11 +323,15 @@ flowchart LR
             Windows x64 · Ubuntu 24.04 / Debian-compatible x86-64 ·
             macOS Universal 2 preview
           </p>
+          <div class="install-command">
+            <span>On Windows, with winget</span>
+            <code>winget install abooodbah.LeanMark</code>
+          </div>
         </div>
         <ol class="install-steps">
           <li>
             <span>01</span>
-            <div><strong>Windows x64</strong><p>Portable ZIP with optional per-user Default Apps integration.</p></div>
+            <div><strong>Windows x64</strong><p>Portable ZIP with optional per-user Default Apps integration, also available through winget.</p></div>
           </li>
           <li>
             <span>02</span>

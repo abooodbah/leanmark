@@ -21,6 +21,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)printDocument;
 - (void)zoomBy:(NSInteger)direction;
 - (void)resetZoom;
+// Menu zoom: an expanded figure in the reader takes it, otherwise the page.
+- (void)zoomCommand:(NSString *)action;
 - (void)cycleTheme;
 
 - (void)runSmokeCheckWithCompletion:

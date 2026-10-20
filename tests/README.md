@@ -43,6 +43,20 @@ The browser smoke fails on page-level horizontal overflow, broken local assets
 or anchors, undersized buttons, missing focus indicators, unnamed interactive
 elements, browser exceptions, and failed local resources.
 
+Test the shared reader page itself on any platform: its expand buttons and
+figure viewer, zoom keys, search, and diagram limit. The script serves the
+staged reader assets on loopback, stands in for the native host through the
+WebView2 message bridge, and drives a test-owned headless Edge, Chrome, or
+Chromium. CI runs it with Edge on Windows and through CTest with Chrome on
+Linux:
+
+```powershell
+node .\tests\Invoke-ReaderBrowserSmoke.mjs --assets .\dist\assets
+```
+
+On Linux and macOS the WebKit smoke tests (`ctest`) also open the showcase
+fixture, expand a figure, and check that closing the viewer puts it back.
+
 After deliberately running the per-user installer, opt into read-only registry
 verification. The second command also requires that Windows currently resolves
 `.md` to the installed LeanMark executable:

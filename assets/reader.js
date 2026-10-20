@@ -27,7 +27,13 @@
     stateTitle: document.getElementById("stateTitle"),
     status: document.getElementById("statusToast"),
     tabStrip: document.getElementById("tabStrip"),
-    themeButton: document.getElementById("themeButton")
+    themeButton: document.getElementById("themeButton"),
+    viewer: document.getElementById("figureViewer"),
+    viewerCanvas: document.getElementById("viewerCanvas"),
+    viewerLevel: document.getElementById("viewerLevel"),
+    viewerStage: document.getElementById("viewerStage"),
+    viewerTitle: document.getElementById("viewerTitle"),
+    zoomIndicator: document.getElementById("zoomIndicator")
   };
 
   var currentPath = "";
@@ -51,6 +57,18 @@
   var savedScroll = new Map();
   var copyRequests = new Map();
   var nextCopyRequest = 0;
+  var renderedHeadingCount = 0;
+  var progressFrame = 0;
+  var searchTimer = 0;
+  var zoomIndicatorTimer = 0;
+  var wheelZoomDelta = 0;
+  var wheelZoomTime = 0;
+  // Zoom steps for an expanded figure, as fractions of its natural size. Page
+  // zoom uses the hosts' own ladder; these reach further because a diagram is
+  // often far larger or smaller than the window.
+  var viewerLevels = [0.1, 0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 3, 4, 6, 8];
+  var viewerPadding = 24;
+  var viewerState = null;
 
   function post(message) {
     if (webView2Bridge) {
@@ -154,6 +172,7 @@
 
   function showState(title, message, fileName) {
     rememberScroll();
+    closeViewer(false);
     clearSearch();
     currentPath = "";
     displayedTabId = 0;
@@ -179,6 +198,77 @@
     image.replaceWith(replacement);
   }
 
+  var expandIcon = "M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10";
+
+  // The frame holds a figure and its expand button side by side, so the button
+  // stays in the corner when a wide diagram scrolls inside its figure. The
+  // button shows once the figure has something to expand (data-expandable).
+  function createFigureFrame(content, kind) {
+    var frame = document.createElement(kind === "image" ? "span" : "div");
+    frame.className = "figure-frame figure-frame-" + kind;
+    content.replaceWith(frame);
+    frame.appendChild(content);
+
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "expand-figure";
+    button.title = "Expand";
+    button.setAttribute(
+      "aria-label",
+      kind === "image" ? "Expand image" : "Expand diagram"
+    );
+    var icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    icon.setAttribute("viewBox", "0 0 16 16");
+    icon.setAttribute("aria-hidden", "true");
+    var path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    path.setAttribute("d", expandIcon);
+    icon.appendChild(path);
+    button.appendChild(icon);
+    frame.appendChild(button);
+    return frame;
+  }
+
+  // Only an image that stands alone in its paragraph, optionally inside one
+  // link, is treated as a figure. Inline images such as badges keep their
+  // place in the line.
+  function standaloneImageBlock(image) {
+    var block = image;
+    if (block.parentElement && block.parentElement.tagName === "A" &&
+        block.parentElement.childNodes.length === 1) {
+      block = block.parentElement;
+    }
+    var paragraph = block.parentElement;
+    if (!paragraph || paragraph.tagName !== "P") {
+      return null;
+    }
+    for (var node = paragraph.firstChild; node; node = node.nextSibling) {
+      if (node !== block &&
+          !(node.nodeType === Node.TEXT_NODE && !node.nodeValue.trim())) {
+        return null;
+      }
+    }
+    return block;
+  }
+
+  function makeImageExpandable(image) {
+    var block = standaloneImageBlock(image);
+    if (!block) {
+      return;
+    }
+    var frame = createFigureFrame(block, "image");
+    function ready() {
+      // Icons and spacers are not worth a viewer.
+      if (image.isConnected && image.naturalWidth >= 48 && image.naturalHeight >= 24) {
+        frame.dataset.expandable = "";
+      }
+    }
+    if (image.complete && image.naturalWidth) {
+      ready();
+    } else {
+      image.addEventListener("load", ready, { once: true });
+    }
+  }
+
   function prepareImages() {
     elements.article.querySelectorAll("img").forEach(function (image) {
       var source = (image.getAttribute("src") || "").trim();
@@ -189,6 +279,7 @@
       }
 
       if (/^data:image\/(png|jpeg|gif|webp);base64,/i.test(source)) {
+        makeImageExpandable(image);
         return;
       }
       if (/^[a-z][a-z0-9+.-]*:/i.test(source) || source.indexOf("//") === 0) {
@@ -210,6 +301,7 @@
             replaceImageWithMessage(image, "Image unavailable — " + alt);
           }
         }, { once: true });
+        makeImageExpandable(image);
       } catch (_error) {
         replaceImageWithMessage(image, "Image path is invalid — " + alt);
       }
@@ -240,6 +332,14 @@
   }
 
   function handleArticleClick(event) {
+    var expand = event.target && event.target.closest
+      ? event.target.closest(".expand-figure")
+      : null;
+    if (expand && elements.article.contains(expand)) {
+      event.preventDefault();
+      openViewer(expand.parentElement);
+      return;
+    }
     var copy = event.target && event.target.closest
       ? event.target.closest(".copy-section")
       : null;
@@ -299,53 +399,52 @@
     return slug;
   }
 
-  function buildOutline() {
+  // One pass over the headings gives each an id, builds the outline from the
+  // second and third levels, and adds the copy buttons. The icon is drawn in
+  // CSS, so a button adds no text: outline labels, anchors, and search all see
+  // the heading unchanged.
+  function prepareHeadings() {
     var usedSlugs = new Set();
-    var headings = Array.from(elements.article.querySelectorAll(headingSelector));
-    headings.forEach(function (heading) {
-      heading.id = slugifyHeading(heading.textContent || "", usedSlugs);
+    var headings = elements.article.querySelectorAll(headingSelector);
+    var copyTitle = hostCopiesSource
+      ? "Copy this section as Markdown"
+      : "Copy this section";
+    var outline = document.createDocumentFragment();
+    var outlineCount = 0;
+    renderedHeadingCount = headings.length;
+
+    headings.forEach(function (heading, index) {
+      var text = heading.textContent || "";
+      heading.id = slugifyHeading(text, usedSlugs);
+      if (heading.tagName === "H2" || heading.tagName === "H3") {
+        var item = document.createElement("li");
+        var link = document.createElement("a");
+        link.href = "#" + heading.id;
+        link.dataset.level = heading.tagName.slice(1);
+        link.textContent = text;
+        item.appendChild(link);
+        outline.appendChild(item);
+        outlineCount += 1;
+      }
+      text = text.trim();
+      if (text) {
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "copy-section";
+        button.dataset.heading = String(index);
+        button.title = copyTitle;
+        button.setAttribute("aria-label", "Copy section: " + text);
+        heading.appendChild(button);
+      }
     });
 
-    var outlineHeadings = headings.filter(function (heading) {
-      return heading.tagName === "H2" || heading.tagName === "H3";
-    });
-    elements.outlineList.replaceChildren();
-    if (outlineHeadings.length < 2) {
+    if (outlineCount < 2) {
+      elements.outlineList.replaceChildren();
       elements.outline.hidden = true;
       return;
     }
-
-    outlineHeadings.forEach(function (heading) {
-      var item = document.createElement("li");
-      var link = document.createElement("a");
-      link.href = "#" + heading.id;
-      link.dataset.level = heading.tagName.slice(1);
-      link.textContent = heading.textContent;
-      item.appendChild(link);
-      elements.outlineList.appendChild(item);
-    });
+    elements.outlineList.replaceChildren(outline);
     elements.outline.hidden = false;
-  }
-
-  // One small button per heading. The icon is drawn in CSS, so the button adds
-  // no text: outline labels, anchors, and search all see the heading unchanged.
-  function addCopyButtons() {
-    var title = hostCopiesSource
-      ? "Copy this section as Markdown"
-      : "Copy this section";
-    elements.article.querySelectorAll(headingSelector).forEach(function (heading, index) {
-      var text = (heading.textContent || "").trim();
-      if (!text) {
-        return;
-      }
-      var button = document.createElement("button");
-      button.type = "button";
-      button.className = "copy-section";
-      button.dataset.heading = String(index);
-      button.title = title;
-      button.setAttribute("aria-label", "Copy section: " + text);
-      heading.appendChild(button);
-    });
   }
 
   function prepareDiagrams() {
@@ -356,17 +455,31 @@
       var pre = code.parentElement;
       var figure = document.createElement("figure");
       figure.className = "diagram";
-      figure._leanmarkSource = code.textContent || "";
       figure.setAttribute("aria-label", "Mermaid diagram");
       if (index >= 50) {
+        // No source is kept, so renderDiagrams leaves this message in place.
         renderDiagramError(
           figure,
           "Diagram limit reached",
           "LeanMark renders at most 50 diagrams in one document."
         );
+      } else {
+        figure._leanmarkSource = code.textContent || "";
       }
       pre.replaceWith(figure);
+      createFigureFrame(figure, "diagram");
     });
+  }
+
+  function setExpandable(figure, expandable) {
+    var frame = figure.parentElement;
+    if (frame && frame.classList.contains("figure-frame")) {
+      if (expandable) {
+        frame.dataset.expandable = "";
+      } else {
+        frame.removeAttribute("data-expandable");
+      }
+    }
   }
 
   function loadMermaid() {
@@ -396,6 +509,7 @@
   }
 
   function renderDiagramError(figure, title, detail) {
+    setExpandable(figure, false);
     figure.className = "diagram diagram-error";
     figure.replaceChildren();
     var heading = document.createElement("strong");
@@ -411,6 +525,7 @@
         return typeof figure._leanmarkSource === "string";
       });
     var generation = ++diagramGeneration;
+    closeViewer(false);
     if (!figures.length) {
       document.documentElement.dataset.renderState = "ready";
       return;
@@ -456,6 +571,7 @@
             svg.setAttribute("role", "img");
             svg.setAttribute("aria-label", "Mermaid diagram");
             svg.removeAttribute("height");
+            setExpandable(figure, true);
           }
           if (typeof rendered.bindFunctions === "function") {
             rendered.bindFunctions(figure);
@@ -498,6 +614,7 @@
     }
     // A followed link replaces the document in the same tab: start at the top.
 
+    closeViewer(false);
     clearSearch();
     diagramGeneration += 1;
     displayedTabId = tabId;
@@ -513,9 +630,8 @@
     prepareImages();
     prepareLinks();
     wrapTables();
-    buildOutline();
+    prepareHeadings();
     prepareDiagrams();
-    addCopyButtons();
     showReader();
     document.documentElement.dataset.renderState =
       data.hasMermaid ? "diagrams" : "ready";
@@ -537,10 +653,6 @@
         updateReadingProgress();
       });
     }
-  }
-
-  function headingCount() {
-    return elements.article.querySelectorAll(headingSelector).length;
   }
 
   // Rendered-text copy for hosts that cannot read the source file. It follows
@@ -625,7 +737,7 @@
       nextCopyRequest += 1;
       copyRequests.set(nextCopyRequest, { button: button, index: index });
       post("copy-source|" + nextCopyRequest + "|" + displayedTabId + "|" +
-        index + "|" + headingCount());
+        index + "|" + renderedHeadingCount);
       return;
     }
     writeClipboardText(renderedSectionText(index)).then(function () {
@@ -715,8 +827,9 @@
         return tab.id > 0;
       });
     activeTabId = nextActive;
+    var openIds = new Set(tabs.map(function (tab) { return tab.id; }));
     savedScroll.forEach(function (_ratio, id) {
-      if (!tabs.some(function (tab) { return tab.id === id; })) {
+      if (!openIds.has(id)) {
         savedScroll.delete(id);
       }
     });
@@ -833,6 +946,15 @@
   }
 
   function moveSearch(direction) {
+    if (searchTimer) {
+      window.clearTimeout(searchTimer);
+      searchTimer = 0;
+      updateSearch();
+      // The new search already selected its first match.
+      if (searchRanges.length && direction > 0) {
+        return;
+      }
+    }
     if (!elements.findInput.value.trim()) {
       elements.findInput.focus();
       return;
@@ -873,6 +995,353 @@
     elements.progress.setAttribute("aria-valuenow", String(Math.round(percent)));
   }
 
+  function showZoomLevel(percent) {
+    if (!Number.isFinite(percent) || percent <= 0) {
+      return;
+    }
+    var text = String(Math.round(percent)) + "%";
+    window.clearTimeout(zoomIndicatorTimer);
+    elements.zoomIndicator.textContent = "Zoom " + text;
+    elements.zoomIndicator.hidden = false;
+    announce("Zoom " + text);
+    zoomIndicatorTimer = window.setTimeout(function () {
+      elements.zoomIndicator.hidden = true;
+    }, 1200);
+  }
+
+  function zoomPage(action) {
+    post("zoom|" + action);
+  }
+
+  // Ctrl+wheel and trackpad pinch in the viewer arrive as many small wheel
+  // events. Collect them so one notch or a short pinch moves one zoom step.
+  // The page itself has no wheel listener: a blocking one would make every
+  // scroll wait for the main thread.
+  function wheelZoomDirection(event) {
+    var now = event.timeStamp || Date.now();
+    if (now - wheelZoomTime > 300) {
+      wheelZoomDelta = 0;
+    }
+    wheelZoomTime = now;
+    var scale = event.deltaMode === 1 ? 33 : event.deltaMode === 2 ? 400 : 1;
+    wheelZoomDelta += event.deltaY * scale;
+    if (Math.abs(wheelZoomDelta) < 50) {
+      return 0;
+    }
+    var direction = wheelZoomDelta < 0 ? 1 : -1;
+    wheelZoomDelta = 0;
+    return direction;
+  }
+
+  function figureNaturalSize(content) {
+    var rect = content.getBoundingClientRect();
+    var width = 0;
+    var height = 0;
+    if (content.tagName === "IMG") {
+      width = content.naturalWidth;
+      height = content.naturalHeight;
+    } else if (content.viewBox && content.viewBox.baseVal) {
+      width = content.viewBox.baseVal.width;
+      height = content.viewBox.baseVal.height;
+    }
+    if (!(width > 0 && height > 0)) {
+      width = rect.width;
+      height = rect.height;
+    }
+    return { width: Math.max(1, width), height: Math.max(1, height), rect: rect };
+  }
+
+  function viewerFitScale() {
+    var state = viewerState;
+    // offsetWidth and offsetHeight include any scrollbars, which a zoomed
+    // figure shows and a fitted one does not.
+    var availableWidth = elements.viewerStage.offsetWidth - viewerPadding * 2;
+    var availableHeight = elements.viewerStage.offsetHeight - viewerPadding * 2;
+    var fit = Math.min(
+      availableWidth / state.width,
+      availableHeight / state.height
+    );
+    // Vector figures stay sharp when enlarged; photos and screenshots are not
+    // blown up past their own pixels unless the reader zooms in on purpose.
+    fit = Math.min(fit, state.vector ? 4 : 1);
+    return Math.max(viewerLevels[0], fit);
+  }
+
+  function setViewerScale(scale, mode, focusX, focusY) {
+    var state = viewerState;
+    if (!state) {
+      return;
+    }
+    var stage = elements.viewerStage;
+    scale = Math.min(viewerLevels[viewerLevels.length - 1],
+      Math.max(viewerLevels[0], scale));
+    if (focusX === undefined) {
+      focusX = stage.clientWidth / 2;
+      focusY = stage.clientHeight / 2;
+    }
+    // Keep the point under the pointer (or the middle of the view) in place.
+    var canvas = elements.viewerCanvas;
+    var pointX = (stage.scrollLeft + focusX - canvas.offsetLeft - viewerPadding) /
+      state.scale;
+    var pointY = (stage.scrollTop + focusY - canvas.offsetTop - viewerPadding) /
+      state.scale;
+
+    state.scale = scale;
+    state.mode = mode;
+    // The canvas is a plain block sized here, and the figure fills it, so the
+    // scrollable area never depends on how an engine sizes an outer <svg>.
+    canvas.style.width = state.width * scale + viewerPadding * 2 + "px";
+    canvas.style.height = state.height * scale + viewerPadding * 2 + "px";
+    stage.scrollLeft = pointX * scale + canvas.offsetLeft + viewerPadding - focusX;
+    stage.scrollTop = pointY * scale + canvas.offsetTop + viewerPadding - focusY;
+
+    elements.viewerLevel.textContent = String(Math.round(scale * 100)) + "%";
+    elements.viewer.dataset.mode = mode;
+  }
+
+  function stepViewerZoom(direction, focusX, focusY) {
+    var state = viewerState;
+    if (!state) {
+      return;
+    }
+    var next = state.scale;
+    if (direction > 0) {
+      next = viewerLevels.find(function (level) {
+        return level > state.scale + 0.001;
+      }) || viewerLevels[viewerLevels.length - 1];
+    } else {
+      for (var index = viewerLevels.length - 1; index >= 0; index -= 1) {
+        if (viewerLevels[index] < state.scale - 0.001) {
+          next = viewerLevels[index];
+          break;
+        }
+      }
+    }
+    setViewerScale(next, "zoom", focusX, focusY);
+    announce("Zoom " + elements.viewerLevel.textContent);
+  }
+
+  function viewerAction(action, focusX, focusY) {
+    if (action === "in") {
+      stepViewerZoom(1, focusX, focusY);
+    } else if (action === "out") {
+      stepViewerZoom(-1, focusX, focusY);
+    } else if (action === "fit" || action === "reset") {
+      setViewerScale(viewerFitScale(), "fit");
+      announce("Fit to window");
+    } else if (action === "actual") {
+      setViewerScale(1, "actual", focusX, focusY);
+      announce("Actual size");
+    } else if (action === "close") {
+      closeViewer(true);
+    }
+  }
+
+  // The figure itself moves into the viewer and back, rather than a copy: a
+  // large diagram is not duplicated, and Mermaid's ids and styles stay unique.
+  function openViewer(frame) {
+    var content = frame.querySelector(".diagram > svg") ||
+      frame.querySelector("img");
+    if (!content || viewerState) {
+      return;
+    }
+    var size = figureNaturalSize(content);
+    var placeholder = document.createElement("span");
+    placeholder.className = "viewer-placeholder";
+    placeholder.style.width = size.rect.width + "px";
+    placeholder.style.height = size.rect.height + "px";
+    var isImage = content.tagName === "IMG";
+
+    viewerState = {
+      content: content,
+      placeholder: placeholder,
+      returnFocus: frame.querySelector(".expand-figure"),
+      savedStyle: content.getAttribute("style"),
+      width: size.width,
+      height: size.height,
+      vector: !isImage || /\.svg(?:[?#]|$)/i.test(content.getAttribute("src") || ""),
+      scale: 1,
+      mode: "fit",
+      drag: null
+    };
+    content.replaceWith(placeholder);
+    elements.viewerCanvas.style.padding = viewerPadding + "px";
+    elements.viewerCanvas.appendChild(content);
+    // The figure fills the canvas that setViewerScale sizes. The saved style
+    // attribute is put back on close.
+    content.style.maxWidth = "none";
+    content.style.maxHeight = "none";
+    content.style.width = "100%";
+    content.style.height = "100%";
+    content.style.margin = "0";
+    elements.viewerTitle.textContent = isImage
+      ? (content.getAttribute("alt") || "Image")
+      : "Diagram";
+    elements.viewer.hidden = false;
+    setViewerScale(viewerFitScale(), "fit");
+    elements.viewerStage.focus({ preventScroll: true });
+  }
+
+  function closeViewer(restoreFocus) {
+    var state = viewerState;
+    if (!state) {
+      return;
+    }
+    viewerState = null;
+    elements.viewerCanvas.style.width = "";
+    elements.viewerCanvas.style.height = "";
+    var content = state.content;
+    if (state.savedStyle === null) {
+      content.removeAttribute("style");
+    } else {
+      content.setAttribute("style", state.savedStyle);
+    }
+    if (state.placeholder.isConnected) {
+      state.placeholder.replaceWith(content);
+    } else {
+      content.remove();
+    }
+    elements.viewer.hidden = true;
+    if (restoreFocus && state.returnFocus && state.returnFocus.isConnected) {
+      state.returnFocus.focus({ preventScroll: true });
+    }
+  }
+
+  function viewerFocusables() {
+    return Array.from(elements.viewer.querySelectorAll("button"))
+      .concat([elements.viewerStage]);
+  }
+
+  function handleViewerKey(event) {
+    var key = event.key;
+    var pan = event.shiftKey ? 240 : 60;
+    var handled = true;
+    if (key === "Escape") {
+      closeViewer(true);
+    } else if (key === "+" || key === "=" || key === "Add") {
+      viewerAction("in");
+    } else if (key === "-" || key === "_" || key === "Subtract") {
+      viewerAction("out");
+    } else if (key === "0") {
+      viewerAction("fit");
+    } else if (key === "1" && !event.ctrlKey && !event.metaKey) {
+      viewerAction("actual");
+    } else if (key === "ArrowLeft") {
+      elements.viewerStage.scrollLeft -= pan;
+    } else if (key === "ArrowRight") {
+      elements.viewerStage.scrollLeft += pan;
+    } else if (key === "ArrowUp") {
+      elements.viewerStage.scrollTop -= pan;
+    } else if (key === "ArrowDown") {
+      elements.viewerStage.scrollTop += pan;
+    } else if (key === "Tab") {
+      // Keep focus inside the dialog.
+      var focusables = viewerFocusables();
+      var index = focusables.indexOf(document.activeElement);
+      var next = (index + (event.shiftKey ? -1 : 1) + focusables.length) %
+        focusables.length;
+      focusables[next].focus();
+    } else if ((key === "Enter" || key === " ") &&
+               document.activeElement && document.activeElement.tagName === "BUTTON") {
+      handled = false;
+    } else {
+      // Reader shortcuts such as find or tab switching wait until the viewer
+      // is closed; letting them act behind a modal view would be confusing.
+      handled = event.ctrlKey || event.metaKey || event.key === "F3";
+    }
+    if (handled) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }
+
+  function stagePoint(event) {
+    var rect = elements.viewerStage.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  }
+
+  elements.viewer.addEventListener("click", function (event) {
+    var button = event.target.closest ? event.target.closest("[data-action]") : null;
+    if (button) {
+      viewerAction(button.dataset.action);
+    }
+  });
+  // The stage contains its own scrolling (overscroll-behavior); a wheel over
+  // the toolbar must not scroll the hidden page either. This listener exists
+  // only on the viewer, so it never delays scrolling the page itself.
+  elements.viewer.addEventListener("wheel", function (event) {
+    if (!elements.viewerStage.contains(event.target)) {
+      event.preventDefault();
+    }
+  }, { passive: false });
+  elements.viewerStage.addEventListener("wheel", function (event) {
+    if (!viewerState || !(event.ctrlKey || event.metaKey)) {
+      return;
+    }
+    event.preventDefault();
+    var direction = wheelZoomDirection(event);
+    if (direction) {
+      var point = stagePoint(event);
+      stepViewerZoom(direction, point.x, point.y);
+    }
+  }, { passive: false });
+  elements.viewerStage.addEventListener("pointerdown", function (event) {
+    if (!viewerState || event.button !== 0) {
+      return;
+    }
+    viewerState.drag = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      moved: false,
+      onBackdrop: event.target === elements.viewerStage ||
+        event.target === elements.viewerCanvas
+    };
+    elements.viewerStage.setPointerCapture(event.pointerId);
+  });
+  elements.viewerStage.addEventListener("pointermove", function (event) {
+    var drag = viewerState && viewerState.drag;
+    if (!drag || drag.id !== event.pointerId) {
+      return;
+    }
+    var dx = event.clientX - drag.x;
+    var dy = event.clientY - drag.y;
+    if (!drag.moved && Math.abs(dx) + Math.abs(dy) < 4) {
+      return;
+    }
+    drag.moved = true;
+    elements.viewer.setAttribute("data-dragging", "");
+    elements.viewerStage.scrollLeft -= dx;
+    elements.viewerStage.scrollTop -= dy;
+    drag.x = event.clientX;
+    drag.y = event.clientY;
+  });
+  function endViewerDrag(event) {
+    var drag = viewerState && viewerState.drag;
+    if (!drag || drag.id !== event.pointerId) {
+      return;
+    }
+    viewerState.drag = null;
+    elements.viewer.removeAttribute("data-dragging");
+    // A plain click on the dark backdrop closes the viewer, like a lightbox.
+    if (event.type === "pointerup" && !drag.moved && drag.onBackdrop) {
+      closeViewer(true);
+    }
+  }
+  // An expanded figure has left the document, so put it back before printing.
+  window.addEventListener("beforeprint", function () {
+    closeViewer(false);
+  });
+  elements.viewerStage.addEventListener("pointerup", endViewerDrag);
+  elements.viewerStage.addEventListener("pointercancel", endViewerDrag);
+  elements.viewerStage.addEventListener("dblclick", function (event) {
+    if (!viewerState || event.target === elements.viewerStage) {
+      return;
+    }
+    var point = stagePoint(event);
+    viewerAction(viewerState.mode === "fit" ? "actual" : "fit", point.x, point.y);
+  });
+
   function handleNativeMessage(event) {
     var data = event.data || {};
     if (data.type === "document") {
@@ -910,6 +1379,18 @@
       showStatus(data.message || "", data.tone || "info");
     } else if (data.type === "theme") {
       applyTheme(data.value || "system", true);
+    } else if (data.type === "zoom") {
+      showZoomLevel(Number(data.percent));
+    } else if (data.type === "zoom-command") {
+      // A native menu command (macOS View menu) zooms whatever is in front.
+      var action = data.action === "in" || data.action === "out"
+        ? data.action
+        : "reset";
+      if (viewerState) {
+        viewerAction(action);
+      } else {
+        zoomPage(action);
+      }
     }
   }
 
@@ -975,7 +1456,15 @@
       selectTab(tabs[next].id, true);
     }
   });
-  elements.findInput.addEventListener("input", updateSearch);
+  // Each search walks the whole article, so wait for a pause in typing.
+  // Enter and F3 run a pending search at once.
+  elements.findInput.addEventListener("input", function () {
+    window.clearTimeout(searchTimer);
+    searchTimer = window.setTimeout(function () {
+      searchTimer = 0;
+      updateSearch();
+    }, 120);
+  });
   elements.findInput.addEventListener("keydown", function (event) {
     if (event.key === "Enter") {
       event.preventDefault();
@@ -989,6 +1478,10 @@
   });
 
   document.addEventListener("keydown", function (event) {
+    if (viewerState) {
+      handleViewerKey(event);
+      return;
+    }
     var control = event.ctrlKey || event.metaKey;
     // Chromium sends keydown without a key for autofill; ignore those.
     var key = typeof event.key === "string" ? event.key.toLocaleLowerCase() : "";
@@ -1031,17 +1524,36 @@
       if (target) {
         selectTab(target.id, false);
       }
-    } else if (control &&
-               (event.key === "+" || event.key === "=" ||
-                event.key === "-" || event.key === "0")) {
+    } else if (control && !event.altKey &&
+               (event.key === "+" || event.key === "=" || event.key === "Add" ||
+                event.key === "-" || event.key === "_" || event.key === "Subtract" ||
+                event.key === "0")) {
       event.preventDefault();
-      post("zoom|" + (event.key === "-" ? "out" :
-        event.key === "0" ? "reset" : "in"));
+      zoomPage(event.key === "-" || event.key === "_" || event.key === "Subtract"
+        ? "out"
+        : event.key === "0" ? "reset" : "in");
     }
   });
 
-  window.addEventListener("scroll", updateReadingProgress, { passive: true });
-  window.addEventListener("resize", updateReadingProgress);
+
+  // Reading scrollHeight forces layout, so measure at most once per frame
+  // rather than once per scroll event.
+  function scheduleReadingProgress() {
+    if (!progressFrame) {
+      progressFrame = requestAnimationFrame(function () {
+        progressFrame = 0;
+        updateReadingProgress();
+      });
+    }
+  }
+
+  window.addEventListener("scroll", scheduleReadingProgress, { passive: true });
+  window.addEventListener("resize", function () {
+    scheduleReadingProgress();
+    if (viewerState && viewerState.mode === "fit") {
+      setViewerScale(viewerFitScale(), "fit");
+    }
+  });
   systemTheme.addEventListener("change", function () {
     if (currentTheme === "system") {
       applyTheme("system", true);
@@ -1068,7 +1580,19 @@
         ""
       );
     },
-    sectionText: renderedSectionText
+    sectionText: renderedSectionText,
+    openViewer: function (index) {
+      var frames = elements.article.querySelectorAll(".figure-frame[data-expandable]");
+      if (frames[index || 0]) {
+        openViewer(frames[index || 0]);
+      }
+      return !!viewerState;
+    },
+    viewerState: function () {
+      return viewerState
+        ? { scale: viewerState.scale, mode: viewerState.mode }
+        : null;
+    }
   });
 
   applyTheme("system", false);
