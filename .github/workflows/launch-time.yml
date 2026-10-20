@@ -7,11 +7,6 @@ name: Compare launch time
 # run's summary page.
 
 on:
-  # TEMPORARY: measure on every push while the 0.4.1 regression is open.
-  # Removed before release/v0.4.1 merges; dispatch stays.
-  push:
-    branches:
-      - release/v0.4.1
   workflow_dispatch:
     inputs:
       releases:
