@@ -523,6 +523,27 @@ async function run() {
             canvasComputed: ["width", "height", "display", "flex", "margin"].map(function (name) {
               return name + "=" + getComputedStyle(canvas).getPropertyValue(name);
             }).join("; "),
+            sizeRules: (function () {
+              var found = [];
+              Array.from(document.styleSheets).forEach(function (sheet) {
+                var rules;
+                try { rules = sheet.cssRules; } catch (_error) { return; }
+                (function walk(list) {
+                  Array.from(list || []).forEach(function (rule) {
+                    if (rule.cssRules && !rule.selectorText) { walk(rule.cssRules); return; }
+                    if (!rule.selectorText || !rule.style) { return; }
+                    var matches = false;
+                    try { matches = svg.matches(rule.selectorText); } catch (_error) { }
+                    if (matches && /width|height|zoom|scale|transform/.test(rule.style.cssText)) {
+                      found.push(rule.selectorText + " {" + rule.style.cssText + "}");
+                    }
+                  });
+                }(rules));
+              });
+              return found;
+            }()),
+            inlineWidthPriority: svg.style.getPropertyPriority("width"),
+            attrs: Array.from(svg.attributes).map(function (a) { return a.name; }).join(","),
             outer: (function () {
               var copy = svg.cloneNode(true);
               copy.querySelectorAll("style").forEach(function (node) { node.remove(); });
