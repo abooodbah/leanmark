@@ -7,7 +7,16 @@ param(
     [ValidateRange(0, 10)][int]$WarmupIterations = 1,
     [ValidateRange(5, 120)][int]$TimeoutSeconds = 45,
     [string]$OutputPath,
-    [string]$MarkdownSummaryPath
+    [string]$MarkdownSummaryPath,
+    # Copy each build and mark every file as downloaded from the internet, as
+    # a browser download extracted with Explorer is.
+    [switch]$MarkOfTheWeb,
+    # Start through the shell, as a double-click in Explorer does.
+    [switch]$ShellExecute,
+    # Keep this LeanMark running, minimized, while the builds are measured, as
+    # when an older version is still open.
+    [string]$BesideRunning,
+    [string]$Scenario = 'Plain launch'
 )
 
 # Times each launch to a rendered document, not just to a visible window, and
@@ -32,7 +41,29 @@ $builds = foreach ($entry in $Build) {
     Assert-True ($parts.Count -eq 2 -and $parts[0] -and $parts[1]) "Use label=path for -Build: $entry"
     $exe = [System.IO.Path]::GetFullPath($parts[1])
     Assert-True (Test-Path -LiteralPath $exe -PathType Leaf) "LeanMark executable is missing: $exe"
+    if ($MarkOfTheWeb) {
+        $copy = Join-Path ([System.IO.Path]::GetTempPath()) ('leanmark-motw-' + $parts[0])
+        Remove-Item -LiteralPath $copy -Recurse -Force -ErrorAction SilentlyContinue
+        Copy-Item -LiteralPath (Split-Path -Parent $exe) -Destination $copy -Recurse
+        Get-ChildItem -LiteralPath $copy -Recurse -File | ForEach-Object {
+            Set-Content -LiteralPath $_.FullName -Stream Zone.Identifier `
+                -Value "[ZoneTransfer]`r`nZoneId=3`r`nHostUrl=https://github.com/"
+        }
+        $exe = Join-Path $copy (Split-Path -Leaf $exe)
+    }
     [pscustomobject]@{ Label = $parts[0]; Exe = $exe }
+}
+
+$background = $null
+if ($BesideRunning) {
+    $background = Start-LeanMarkProcess -ExePath $BesideRunning -DocumentPaths $documents
+    $handle = Wait-LeanMarkWindow -Process $background -TimeoutSeconds $TimeoutSeconds
+    Start-Sleep -Seconds 3
+    # SW_MINIMIZE: LeanMark suspends a minimized reader, as a user's would be.
+    Add-Type -Namespace LeanMarkCompare -Name Window -MemberDefinition `
+        '[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);'
+    [void][LeanMarkCompare.Window]::ShowWindow($handle, 6)
+    Start-Sleep -Seconds 3
 }
 
 # Resolves in the page once the document has rendered (diagrams included) and
@@ -71,7 +102,12 @@ function Measure-Launch {
     [Environment]::SetEnvironmentVariable('LEANMARK_TEST_DEVTOOLS_PORT', [string]$port, 'Process')
     $clock = [System.Diagnostics.Stopwatch]::StartNew()
     try {
-        $process = Start-LeanMarkProcess -ExePath $Target.Exe -DocumentPaths $documents
+        if ($ShellExecute) {
+            $quoted = @($documents | ForEach-Object { '"{0}"' -f $_ }) -join ' '
+            $process = Start-Process -FilePath $Target.Exe -ArgumentList ('-- ' + $quoted) -PassThru
+        } else {
+            $process = Start-LeanMarkProcess -ExePath $Target.Exe -DocumentPaths $documents
+        }
     } finally {
         [Environment]::SetEnvironmentVariable('LEANMARK_TEST_DEVTOOLS_PORT', $null, 'Process')
     }
@@ -149,6 +185,10 @@ $summary = foreach ($target in $builds) {
     [pscustomobject]$row
 }
 
+if ($null -ne $background) {
+    Stop-LeanMarkTestProcessTree -RootProcess $background
+}
+
 $summary | Format-Table -AutoSize | Out-String | Write-Host
 
 $report = [ordered]@{
@@ -167,7 +207,7 @@ if ($OutputPath) {
 }
 if ($MarkdownSummaryPath) {
     $lines = [System.Collections.Generic.List[string]]::new()
-    $lines.Add(('### Launch time, median of {0} launches: {1}' -f $Iterations,
+    $lines.Add(('### {0}: median of {1} launches, {2}' -f $Scenario, $Iterations,
         (($documents | ForEach-Object { Split-Path -Leaf $_ }) -join ', ')))
     $lines.Add('')
     $lines.Add('| Build | Window visible | Host + WebView2 | Page loaded | Page to ready | Mermaid load | Document ready |')
