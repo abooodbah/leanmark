@@ -1,6 +1,9 @@
 #include "MarkdownCore.h"
 
 #include <algorithm>
+#include <iterator>
+#include <cmath>
+#include <cstring>
 #include <fstream>
 #include <limits>
 #include <utility>
@@ -30,9 +33,27 @@ bool IsContinuationByte(unsigned char value) {
     return (value & 0xC0) == 0x80;
 }
 
+constexpr std::uint64_t kHighBits = 0x8080808080808080ull;
+constexpr std::uint64_t kLowBits = 0x0101010101010101ull;
+
+std::uint64_t LoadWord(const char* bytes) {
+    std::uint64_t word = 0;
+    std::memcpy(&word, bytes, sizeof(word));
+    return word;
+}
+
 bool IsValidUtf8(std::string_view value) {
     std::size_t index = 0;
     while (index < value.size()) {
+        // Markdown is mostly ASCII, so skip eight ASCII bytes at a time before
+        // decoding anything by hand.
+        while (index + sizeof(std::uint64_t) <= value.size() &&
+               (LoadWord(value.data() + index) & kHighBits) == 0) {
+            index += sizeof(std::uint64_t);
+        }
+        if (index >= value.size()) {
+            break;
+        }
         const auto first = static_cast<unsigned char>(value[index]);
         if (first <= 0x7F) {
             ++index;
@@ -189,6 +210,10 @@ RenderResult RenderMarkdownUtf8(std::string_view markdown) {
         return result;
     }
 
+    // Rendered HTML runs a little larger than its source. Reserving for that up
+    // front avoids growing by doubling, which left a large document's HTML in
+    // a buffer nearly twice its size that the WebKit hosts keep.
+    result.html.reserve(markdown.size() + markdown.size() / 2 + 4096);
     const int renderStatus = md_html(
         markdown.data(),
         static_cast<MD_SIZE>(markdown.size()),
@@ -200,6 +225,10 @@ RenderResult RenderMarkdownUtf8(std::string_view markdown) {
         result.error = "LeanMark could not parse this Markdown document.";
         result.html.clear();
         return result;
+    }
+
+    if (result.html.capacity() - result.html.size() > result.html.size() / 4 + 65536) {
+        result.html.shrink_to_fit();
     }
 
     result.hasMermaid =
@@ -317,13 +346,14 @@ SectionResult ExtractSection(std::string_view markdown, long long headingIndex) 
         return result;
     }
 
-    const auto headings = FindHeadings(markdown);
-    result.headingCount = headings.size();
     if (headingIndex < 0) {
+        // The whole document needs no heading positions, so skip the parse.
         result.markdown = std::string(TrimTrailingWhitespace(markdown));
         result.ok = true;
         return result;
     }
+    const auto headings = FindHeadings(markdown);
+    result.headingCount = headings.size();
     if (static_cast<unsigned long long>(headingIndex) >= headings.size()) {
         result.error = "That section is no longer in the file.";
         return result;
@@ -356,6 +386,42 @@ SectionResult ExtractSection(std::string_view markdown, long long headingIndex) 
     return result;
 }
 
+double StepZoom(double current, int direction) {
+    constexpr double kTolerance = 0.001;
+    if (direction == 0 || !std::isfinite(current)) {
+        return kDefaultZoom;
+    }
+    if (direction > 0) {
+        for (const double level : kZoomLevels) {
+            if (level > current + kTolerance) {
+                return level;
+            }
+        }
+        return std::end(kZoomLevels)[-1];
+    }
+    for (auto level = std::rbegin(kZoomLevels); level != std::rend(kZoomLevels);
+         ++level) {
+        if (*level < current - kTolerance) {
+            return *level;
+        }
+    }
+    return kZoomLevels[0];
+}
+
+double NormalizeZoom(double value) {
+    if (!std::isfinite(value) || value < kZoomLevels[0] - 0.01 ||
+        value > std::end(kZoomLevels)[-1] + 0.01) {
+        return kDefaultZoom;
+    }
+    double nearest = kDefaultZoom;
+    for (const double level : kZoomLevels) {
+        if (std::fabs(level - value) < std::fabs(nearest - value)) {
+            nearest = level;
+        }
+    }
+    return nearest;
+}
+
 bool IsPathWithin(
     const std::filesystem::path& root,
     const std::filesystem::path& candidate) {
@@ -379,12 +445,37 @@ bool IsPathWithin(
     return true;
 }
 
+namespace {
+
+// True when any byte of word equals byte.
+constexpr bool HasByte(std::uint64_t word, unsigned char byte) {
+    const std::uint64_t matches = word ^ (kLowBits * byte);
+    return ((matches - kLowBits) & ~matches & kHighBits) != 0;
+}
+
+// True when any byte of word may need a JSON escape: a control character, a
+// quote, a backslash, or the 0xE2 lead byte of U+2028 and U+2029.
+constexpr bool MayNeedEscape(std::uint64_t word) {
+    return ((word - kLowBits * 0x20) & ~word & kHighBits) != 0 ||
+           HasByte(word, '"') || HasByte(word, '\\') || HasByte(word, 0xE2);
+}
+
+}  // namespace
+
 void AppendJsonString(std::string& output, std::string_view value) {
     static constexpr char kHex[] = "0123456789abcdef";
     // Characters that need no escaping are copied a run at a time rather than
-    // one push_back each; rendered HTML is almost entirely such runs.
+    // one push_back each; rendered HTML is almost entirely such runs. Eight
+    // bytes are tested at once to find the end of a run.
     std::size_t runStart = 0;
     for (std::size_t index = 0; index < value.size(); ++index) {
+        while (index + sizeof(std::uint64_t) <= value.size() &&
+               !MayNeedEscape(LoadWord(value.data() + index))) {
+            index += sizeof(std::uint64_t);
+        }
+        if (index >= value.size()) {
+            break;
+        }
         const auto character = static_cast<unsigned char>(value[index]);
         char control[] = "\\u0000";
         const char* replacement = nullptr;

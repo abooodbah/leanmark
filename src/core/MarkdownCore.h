@@ -80,6 +80,21 @@ bool IsPathWithin(
     const std::filesystem::path& root,
     const std::filesystem::path& candidate);
 
+// Page zoom levels shared by every host, as fractions of actual size. They are
+// the familiar browser steps, so repeated zooming always lands on round values
+// instead of drifting by 0.1 at a time.
+constexpr double kZoomLevels[] = {
+    0.5, 0.67, 0.75, 0.8, 0.9, 1.0, 1.1, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0};
+constexpr double kDefaultZoom = 1.0;
+
+// Returns the next level above (direction > 0) or below (direction < 0) the
+// current zoom, staying at the ends of the range. A zero direction resets.
+double StepZoom(double current, int direction);
+
+// Snaps a saved or host-reported zoom to the nearest level. Values that are not
+// finite or are out of range give the default.
+double NormalizeZoom(double value);
+
 // Appends value to output as the inside of a JSON string literal. Building a
 // message in place avoids a temporary copy per field, which matters for the
 // rendered HTML of a large document.
