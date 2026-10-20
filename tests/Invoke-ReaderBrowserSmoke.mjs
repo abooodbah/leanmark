@@ -500,10 +500,15 @@ async function run() {
     }())`);
     await press(client, "ArrowRight");
     await press(client, "ArrowDown");
-    const afterPan = await client.evaluate(
-      '[document.getElementById("viewerStage").scrollLeft, ' +
-      'document.getElementById("viewerStage").scrollTop]');
-    check(afterPan[0] > panned && afterPan[1] > 0, "arrow keys pan a zoomed diagram");
+    const afterPan = await client.evaluate(`(function () {
+      var stage = document.getElementById("viewerStage");
+      return [stage.scrollLeft, stage.scrollTop, stage.scrollWidth, stage.clientWidth,
+        stage.scrollHeight, stage.clientHeight, window.LeanMarkTest.viewerState().scale,
+        document.activeElement && document.activeElement.id];
+    }())`);
+    check(afterPan[0] > panned && afterPan[1] > 0,
+      "arrow keys pan a zoomed diagram (before " + panned + ", after " +
+      JSON.stringify(afterPan) + ")");
 
     const pageScroll = await client.evaluate("window.scrollY");
     for (const y of [40, 500]) {
