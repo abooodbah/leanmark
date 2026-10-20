@@ -8,6 +8,11 @@ offline, with no Electron and no telemetry.**
 *A Mermaid flowchart and a GFM table rendered offline, with a second document
 open in a tab.*
 
+![LeanMark's diagram viewer showing a Mermaid flowchart enlarged to fit the window, with zoom controls](docs/images/leanmark-diagram-viewer.png)
+
+*New in 0.4.0: the expand button in a diagram's corner opens it full-window,
+fitted and zoomable. Captured from the Linux build.*
+
 Most Markdown tools are editors. VS Code, Typora, Obsidian, and MarkText are
 built for writing, and most of them run on Electron. LeanMark is for reading.
 
@@ -26,22 +31,32 @@ winget install abooodbah.LeanMark
 ```
 
 This installs the portable Windows build. The optional installer inside the ZIP
-adds Start menu and Open With entries; see [Windows x64](#windows-x64).
+adds Start menu and Open With entries; see [Windows x64](#windows-x64). To move
+an existing winget installation to the newest release:
+
+```powershell
+winget upgrade abooodbah.LeanMark
+```
+
+A new version reaches winget once the community repository has accepted its
+manifest, which can take a few days after the GitHub release.
 
 Windows, Linux (.deb), and macOS builds are also on the
 [Releases](https://github.com/abooodbah/leanmark/releases) page.
 
 ## Platform releases
 
-| Operating system | Architecture | v0.3.0 artifact | Runtime and verification |
+| Operating system | Architecture | v0.4.0 artifact | Runtime and verification |
 | --- | --- | --- | --- |
-| Windows 10 / 11 | x64 | [ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.3.0/LeanMark-v0.3.0-windows-x64.zip) | Evergreen WebView2; Windows 11 runtime-verified |
-| Ubuntu 24.04 / compatible Debian-based systems | x86-64 | [DEB](https://github.com/abooodbah/leanmark/releases/download/v0.3.0/LeanMark-v0.3.0-linux-x86_64.deb) | GTK 4 + WebKitGTK 6.0; package and WebKit smoke-verified in CI |
-| macOS 12 or later | Intel + Apple silicon | [Universal app preview ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.3.0/LeanMark-v0.3.0-macos-universal-preview.zip) | Preview: system WKWebView; CI verifies both Mach-O slices and a real WebKit smoke test |
+| Windows 10 / 11 | x64 | [ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.4.0/LeanMark-v0.4.0-windows-x64.zip) | Evergreen WebView2; CI-built, with source checks and the reader page tested in Edge |
+| Ubuntu 24.04 / compatible Debian-based systems | x86-64 | [DEB](https://github.com/abooodbah/leanmark/releases/download/v0.4.0/LeanMark-v0.4.0-linux-x86_64.deb) | GTK 4 + WebKitGTK 6.0; package and WebKit smoke-verified in CI |
+| macOS 12 or later | Intel + Apple silicon | [Universal app preview ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.4.0/LeanMark-v0.4.0-macos-universal-preview.zip) | Preview: system WKWebView; CI verifies both Mach-O slices and a real WebKit smoke test |
 
 Each artifact has an adjacent <code>.sha256</code> sidecar on the
-[v0.3.0 release](https://github.com/abooodbah/leanmark/releases/tag/v0.3.0).
-Runtime-verified records tested coverage; it does not imply publisher signing.
+[v0.4.0 release](https://github.com/abooodbah/leanmark/releases/tag/v0.4.0).
+The verification column records tested coverage; it does not imply publisher
+signing. The Windows column for 0.4.0 reflects CI only: the WebView2 window
+itself was runtime-verified on Windows 11 for 0.3.0.
 Windows ARM64, Linux ARM64, and distro-independent Linux packages are not part
 of this release.
 
@@ -83,7 +98,7 @@ The Debian package declares its GTK 4 and WebKitGTK 6.0 dependencies. A local
 download can be installed through APT:
 
 ~~~sh
-sudo apt install ./LeanMark-v0.3.0-linux-x86_64.deb
+sudo apt install ./LeanMark-v0.4.0-linux-x86_64.deb
 ~~~
 
 The package installs <code>/usr/bin/leanmark</code>, desktop and AppStream
@@ -98,7 +113,7 @@ slices. The application bundle may be placed in <code>/Applications</code> or
 another application directory. Finder recognizes the four supported Markdown
 extensions and offers LeanMark as a viewer.
 
-Because the v0.3.0 preview is not notarized, Gatekeeper may block the first launch.
+Because the v0.4.0 preview is not notarized, Gatekeeper may block the first launch.
 macOS records any explicit approval under **System Settings > Privacy &
 Security**. Environments that require a Developer ID/notarized application are
 not supported by this release.
@@ -120,8 +135,15 @@ browser-free renderer, or a claim to the lowest possible RAM use.
 - CommonMark plus GFM tables, task lists, autolinks, and strikethrough.
 - Lazy, offline Mermaid rendering with strict mode and bounded diagram input.
 - Relative local images and relative Markdown document links.
-- Automatic outline, find, reading progress, zoom, printing, and system/light/
-  dark themes.
+- Automatic outline, find, reading progress, printing, and system/light/dark
+  themes.
+- Page zoom in fixed steps (50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200,
+  250, and 300%). The new level shows briefly, and LeanMark remembers it for
+  the next launch.
+- An expand button in the bottom-right corner of every Mermaid diagram and
+  standalone image. It opens the figure full-window, fitted to the window,
+  with its own zoom from 10% to 800%, panning, and keyboard control. Inline
+  images such as badges and very small images get no button.
 - A copy button on every heading that copies that section's Markdown, and a
   toolbar button that copies the whole file. The copy comes from the file, not
   the rendered page.
@@ -139,7 +161,7 @@ browser-free renderer, or a claim to the lowest possible RAM use.
 | Find | Ctrl+F | Command+F |
 | Next / previous match | Enter / Shift+Enter or F3 / Shift+F3 | Enter / Shift+Enter |
 | Reload from disk | Ctrl+R | Command+R |
-| Zoom in / out / reset | Ctrl++ / Ctrl+- / Ctrl+0 | Command++ / Command+- / Command+0 |
+| Zoom in / out / reset | Ctrl++ (or Ctrl+=) / Ctrl+- / Ctrl+0 | Command++ / Command+- / Command+0 |
 | Cycle reader theme | Ctrl+Shift+T | Command+Shift+T |
 | Copy the whole document | Ctrl+Shift+C | Command+Shift+C |
 | Next / previous tab (Windows) | Ctrl+Tab / Ctrl+Shift+Tab | Window menu |
@@ -148,6 +170,15 @@ browser-free renderer, or a claim to the lowest possible RAM use.
 | Open a link in a new tab (Windows) | Ctrl+click or middle-click | Not available |
 | Print | Ctrl+P | Command+P |
 | Leave find | Escape | Escape |
+
+In the figure viewer, opened with a figure's expand button:
+
+| Action | Keys and pointer |
+| --- | --- |
+| Zoom in / out | + or = / - (with or without Ctrl or Command), or Ctrl+wheel at the pointer |
+| Fit to the window / actual size | 0 / 1, or double-click to switch between them |
+| Pan | Arrow keys (Shift for larger steps), drag, or the scroll wheel |
+| Close | Escape, the close button, or a click on the empty background |
 
 Mermaid uses its familiar fenced syntax:
 
@@ -210,6 +241,24 @@ Environment: Windows 11 Pro build 26200, Intel Core i7-13620H, 16 logical
 processors, 15.6 GiB RAM, and WebView2 Runtime 153.0.4234.48. Hardware, system
 state, runtime version, and document complexity affect results.
 
+The Windows process-tree figures have not been re-measured for 0.4.0. Its
+efficiency work is in the shared parser core, which every host uses, and in
+how each host hands a document to its reader. The core was timed on a 22.8 MiB
+generated document (this README and the showcase fixture repeated), best of
+five runs, on Linux x86-64 with GCC 13 at -O2:
+
+| Core step, 22.8 MiB document | 0.3.0 | 0.4.0 |
+| --- | ---: | ---: |
+| Validate and render to HTML | 177.7 ms | 135.4 ms |
+| Escape the HTML for the reader message | 88.3 ms | 38.8 ms |
+| Copy the whole document as Markdown | 105.2 ms | 3.7 ms |
+| Memory held by the rendered HTML (27.9 MiB of text) | 53.0 MiB | 34.3 MiB |
+
+In 0.3.0 the Linux and macOS hosts kept that HTML for as long as the window was
+open; 0.4.0 releases it once the reader has the page. Windows already released
+it, and now does so before the message is converted for WebView2, so one fewer
+document-sized buffer is alive at the peak.
+
 The measurement helper and method are documented in
 [tests/README.md](https://github.com/abooodbah/leanmark/blob/main/tests/README.md).
 No unmeasured comparison against VS Code or
@@ -262,7 +311,7 @@ WebView2 Runtime, and Node.js.
 ~~~powershell
 .\scripts\build.ps1 -Configuration Release -Platform x64
 .\tests\Test-LeanMark.ps1 -DistPath .\dist
-.\scripts\package-release.ps1 -Version 0.3.0
+.\scripts\package-release.ps1 -Version 0.4.0
 ~~~
 
 ### Linux
@@ -273,7 +322,7 @@ WebKitGTK 6.0, Node.js, and Debian packaging tools. Ubuntu 24.04 build packages:
 ~~~sh
 sudo apt install build-essential cmake ninja-build pkg-config \
   libgtk-4-dev libwebkitgtk-6.0-dev
-./scripts/package-linux.sh --version 0.3.0
+./scripts/package-linux.sh --version 0.4.0
 ~~~
 
 ### macOS
