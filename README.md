@@ -365,6 +365,14 @@ automation and are not simulated by the public CI build.
   package checks, and performance helpers.
 - <code>site/</code>: dependency-free GitHub Pages product site.
 
+## Related tools
+
+LeanMark is for reading Markdown.
+[LeanDoc](https://github.com/abooodbah/leandoc) is for reading Word documents
+(`.docx`) without opening an office suite, and
+[LeanRows](https://github.com/abooodbah/leanrows) is for viewing large CSV and
+log files. All three are read-only, work offline, and are MIT licensed.
+
 ## Contributing
 
 Compatibility reports based on real, non-private Markdown documents are
