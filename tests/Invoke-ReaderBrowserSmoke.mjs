@@ -504,7 +504,20 @@ async function run() {
       var stage = document.getElementById("viewerStage");
       return [stage.scrollLeft, stage.scrollTop, stage.scrollWidth, stage.clientWidth,
         stage.scrollHeight, stage.clientHeight, window.LeanMarkTest.viewerState().scale,
-        document.activeElement && document.activeElement.id];
+        document.activeElement && document.activeElement.id,
+        (function () {
+          var svg = document.querySelector("#viewerCanvas > svg");
+          var canvas = document.getElementById("viewerCanvas");
+          var rect = svg ? svg.getBoundingClientRect() : null;
+          return svg ? {
+            style: svg.getAttribute("style"),
+            viewBox: svg.getAttribute("viewBox"),
+            width: svg.getAttribute("width"),
+            rect: [rect.width, rect.height],
+            maxWidth: getComputedStyle(svg).maxWidth,
+            canvas: [canvas.offsetWidth, canvas.offsetHeight, canvas.offsetLeft]
+          } : null;
+        }())];
     }())`);
     check(afterPan[0] > panned && afterPan[1] > 0,
       "arrow keys pan a zoomed diagram (before " + panned + ", after " +
