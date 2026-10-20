@@ -1317,6 +1317,10 @@
       closeViewer(true);
     }
   }
+  // An expanded figure has left the document, so put it back before printing.
+  window.addEventListener("beforeprint", function () {
+    closeViewer(false);
+  });
   elements.viewerStage.addEventListener("pointerup", endViewerDrag);
   elements.viewerStage.addEventListener("pointercancel", endViewerDrag);
   elements.viewerStage.addEventListener("dblclick", function (event) {
