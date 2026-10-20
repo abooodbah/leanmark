@@ -438,7 +438,9 @@ async function run() {
         moved: !!svg && !document.querySelector("#article figure.diagram svg"),
         placeholder: !!document.querySelector("#article .viewer-placeholder"),
         width: svg ? svg.getBoundingClientRect().width : 0,
+        height: svg ? svg.getBoundingClientRect().height : 0,
         stage: document.getElementById("viewerStage").clientWidth,
+        stageHeight: document.getElementById("viewerStage").clientHeight,
         focused: document.activeElement === document.getElementById("viewerStage"),
         state: window.LeanMarkTest.viewerState(),
         level: document.getElementById("viewerLevel").textContent,
@@ -447,9 +449,14 @@ async function run() {
     }())`);
     check(opened.visible && opened.moved && opened.placeholder,
       "the expand button opens the viewer with the diagram moved, not copied");
-    check(opened.state.mode === "fit" && opened.state.scale > 1 &&
-      opened.width > opened.stage * 0.6,
-      "the expanded diagram is scaled up to fit the window");
+    // Fitted means one dimension fills the stage, less its padding, unless
+    // the 4x enlargement cap was reached first.
+    const fills = Math.abs(opened.width - (opened.stage - 48)) < 2 ||
+      Math.abs(opened.height - (opened.stageHeight - 48)) < 2 ||
+      Math.abs(opened.state.scale - 4) < 0.001;
+    check(opened.state.mode === "fit" && fills,
+      "the expanded diagram is scaled to fit the window (" +
+      JSON.stringify(opened) + ")");
     check(opened.focused, "the viewer takes keyboard focus");
     check(opened.level === Math.round(opened.state.scale * 100) + "%",
       "the viewer shows its zoom level");
@@ -547,7 +554,8 @@ async function run() {
     check(image.open && image.title === "Wide figure",
       "a standalone image opens in the viewer under its alt text");
     check(image.state.mode === "fit" && image.state.scale > 1,
-      "an SVG image is enlarged to fit like a diagram");
+      "an SVG image is enlarged to fit like a diagram (" +
+      JSON.stringify(image.state) + ")");
     for (const type of ["mousePressed", "mouseReleased"]) {
       await client.send("Input.dispatchMouseEvent", {
         type, x: 20, y: 880, button: "left", clickCount: 1,
