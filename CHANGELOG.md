@@ -3,6 +3,52 @@
 All notable LeanMark changes are recorded here. The project follows semantic
 versioning.
 
+## [0.4.0] - 2026-10-20
+
+### Added
+
+- An expand button in the bottom-right corner of every rendered Mermaid
+  diagram and every standalone image. It is semi-transparent until hovered or
+  focused. It opens the figure in a full-window viewer that follows the reader
+  theme and fits the figure to the window. The viewer zooms from 10% to 800%
+  with + and -, fits with 0, shows actual size with 1, pans with the arrow keys
+  or a drag, zooms at the pointer with Ctrl+wheel, and closes with Escape or a
+  click on the background. Inline images such as badges, and images smaller
+  than 48 by 24 pixels, get no button.
+- Page zoom steps through fixed levels (50% to 300%, the familiar browser
+  steps) on all three hosts instead of adding or removing 10% at a time. The
+  new level shows briefly at the bottom of the window and is remembered for
+  the next launch. Ctrl+= now zooms in as well as Ctrl++.
+- On macOS the View menu's zoom commands zoom an expanded figure when one is
+  open.
+- A browser test for the reader page (`tests/Invoke-ReaderBrowserSmoke.mjs`),
+  run in CI with Chrome on Linux and Edge on Windows. The Linux and macOS
+  WebKit smoke tests now also expand and restore a figure.
+- `packaging/winget/README.md` and a release job that submits each new
+  version to winget when a `WINGET_TOKEN` secret is configured.
+
+### Changed
+
+- Faster parser core: UTF-8 validation and JSON escaping test eight bytes at
+  a time, and rendered HTML is reserved up front instead of grown by doubling.
+  On a 22.8 MiB document, rendering went from 177.7 to 135.4 ms, escaping from
+  88.3 to 38.8 ms, and the HTML buffer from 53.0 to 34.3 MiB.
+- Copying the whole document no longer parses it for headings first (105.2 to
+  3.7 ms on the same document).
+- The Linux and macOS hosts release their copy of the rendered HTML once the
+  reader has it, and render the file again if the page reloads. The Linux host
+  builds its reader message in place instead of copying it.
+- The Windows host releases the HTML and the UTF-8 message before WebView2
+  copies the UTF-16 one, so one fewer document-sized buffer is alive at once.
+- The reader measures reading progress at most once per frame, runs a search
+  after a short pause in typing (Enter and F3 run it at once), and builds the
+  outline and section-copy buttons in one pass over the headings.
+
+### Fixed
+
+- Mermaid diagrams after the fiftieth showed the "Diagram limit reached"
+  message but were still rendered behind it. They are now left unrendered.
+
 ## [0.3.0] - 2026-09-23
 
 ### Added
@@ -102,6 +148,7 @@ versioning.
 - WebView2 keeps the package small but uses a browser-process memory footprint.
 - LeanMark reads Markdown; it does not edit or manage a document vault.
 
+[0.4.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.4.0
 [0.3.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.3.0
 [0.2.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.2.0
 [0.1.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.1.0

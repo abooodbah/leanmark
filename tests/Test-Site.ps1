@@ -41,6 +41,7 @@ $requiredFiles = @(
     '.nojekyll',
     'assets/leanmark-icon.png',
     'assets/leanmark-window.png',
+    'assets/leanmark-diagram-viewer.png',
     'assets/social-preview.png',
     'assets/fonts/ibm-plex-mono-latin-400-normal.woff2',
     'assets/fonts/ibm-plex-sans-latin-400-normal.woff2',
@@ -122,6 +123,9 @@ Assert-Equal $social.Width 1280 'Social preview width must match GitHub recommen
 Assert-Equal $social.Height 640 'Social preview height must remain 2:1.'
 Assert-Equal $window.Width 1226 'Product screenshot width changed without updating its markup.'
 Assert-Equal $window.Height 853 'Product screenshot height changed without updating its markup.'
+$viewer = Get-PngDimensions (Join-Path $resolvedSite 'assets/leanmark-diagram-viewer.png')
+Assert-Equal $viewer.Width 1120 'Diagram viewer screenshot width changed without updating its markup.'
+Assert-Equal $viewer.Height 820 'Diagram viewer screenshot height changed without updating its markup.'
 Write-TestPass 'brand, social-preview, and real-product image dimensions'
 
 try {
