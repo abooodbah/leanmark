@@ -6,6 +6,7 @@
 #include <array>
 #include <cctype>
 #include <charconv>
+#include <cmath>
 #include <optional>
 #include <string_view>
 #include <utility>
@@ -307,7 +308,7 @@ LinuxApp::~LinuxApp() {
 }
 
 void LinuxApp::Initialize() {
-    LoadTheme();
+    LoadSettings();
     window_ = gtk_application_window_new(application_);
     gtk_window_set_default_size(GTK_WINDOW(window_), 1120, 820);
     gtk_widget_set_size_request(window_, 640, 480);
@@ -373,6 +374,7 @@ void LinuxApp::Initialize() {
     g_object_unref(settings);
 
     ConfigureWebView();
+    webkit_web_view_set_zoom_level(webView_, zoom_);
     gtk_window_set_child(GTK_WINDOW(window_), GTK_WIDGET(webView_));
     NavigateToReader();
     gtk_window_present(GTK_WINDOW(window_));
@@ -439,6 +441,7 @@ void LinuxApp::OpenDocument(
 
     const auto previousDirectory = document_.directory;
     document_ = std::move(rendered);
+    htmlReleased_ = false;
     directOpenError_ = !document_.ok;
     WatchDocument();
     UpdateTitle();
@@ -520,6 +523,15 @@ void LinuxApp::SendCurrentView() {
         return;
     }
 
+    if (document_.ok && htmlReleased_) {
+        // The page reloaded after the HTML was handed over, so read the file
+        // again. A failure shows as an error like any other open.
+        const std::filesystem::path path = document_.path;
+        document_ = core::RenderMarkdownFile(path);
+        directOpenError_ = !document_.ok;
+        htmlReleased_ = false;
+    }
+
     const std::string theme = core::EscapeJsonString(ThemeName());
     if (document_.path.empty() && !directOpenError_) {
         SendJson("{\"type\":\"empty\",\"theme\":\"" + theme + "\"}");
@@ -539,7 +551,8 @@ void LinuxApp::SendCurrentView() {
     }
 
     // One buffer, escaped in place: the HTML is not copied into a separate
-    // escaped string and then again into the joined message.
+    // escaped string and then again into the joined message. SendJson wraps
+    // it in the same buffer, so the reserve covers that too.
     std::string json;
     json.reserve(document_.html.size() + document_.html.size() / 8 + 1024);
     json += "{\"type\":\"document\",\"theme\":\"";
@@ -556,7 +569,11 @@ void LinuxApp::SendCurrentView() {
     json += ",\"html\":\"";
     core::AppendJsonString(json, document_.html);
     json += "\"}";
-    SendJson(json);
+    // The page keeps the document from here on; holding a second copy of a
+    // large document's HTML for the life of the window would only cost memory.
+    std::string().swap(document_.html);
+    htmlReleased_ = true;
+    SendJson(std::move(json));
 }
 
 void LinuxApp::SendStatus(
@@ -571,13 +588,12 @@ void LinuxApp::SendStatus(
         core::EscapeJsonString(message) + "\"}");
 }
 
-void LinuxApp::SendJson(const std::string& json) {
+void LinuxApp::SendJson(std::string script) {
     static constexpr std::string_view kPrefix =
         "window.LeanMarkHost && window.LeanMarkHost.receive(";
-    std::string script;
-    script.reserve(kPrefix.size() + json.size() + 2);
-    script += kPrefix;
-    script += json;
+    // Wrap the message in place rather than copying it into a second string;
+    // for a document that is the size of its HTML again.
+    script.insert(0, kPrefix);
     script += ");";
     webkit_web_view_evaluate_javascript(
         webView_,
@@ -627,16 +643,11 @@ void LinuxApp::HandleMessage(std::string_view message) {
         return;
     }
     if (StartsWithInsensitive(message, "zoom|")) {
-        double zoom = webkit_web_view_get_zoom_level(webView_);
         const std::string action = LowercaseAscii(std::string(message.substr(5)));
-        if (action == "reset") {
-            zoom = 1.0;
-        } else if (action == "in") {
-            zoom = std::min(3.0, zoom + 0.1);
-        } else if (action == "out") {
-            zoom = std::max(0.5, zoom - 0.1);
+        const int direction = action == "in" ? 1 : action == "out" ? -1 : 0;
+        if (direction != 0 || action == "reset") {
+            ApplyZoom(core::StepZoom(zoom_, direction), true);
         }
-        webkit_web_view_set_zoom_level(webView_, zoom);
         return;
     }
     if (StartsWithInsensitive(message, "theme|")) {
@@ -649,10 +660,30 @@ void LinuxApp::HandleMessage(std::string_view message) {
         } else {
             theme_ = ThemeMode::System;
         }
-        SaveTheme();
+        SaveSettings();
         SendJson(
             "{\"type\":\"theme\",\"value\":\"" + ThemeName() + "\"}");
     }
+}
+
+void LinuxApp::ApplyZoom(double zoom, bool announce) {
+    zoom_ = core::NormalizeZoom(zoom);
+    webkit_web_view_set_zoom_level(webView_, zoom_);
+    SaveSettings();
+    if (announce) {
+        SendZoom();
+    }
+}
+
+void LinuxApp::SendZoom() {
+    if (webView_ == nullptr || !readerReady_) {
+        return;
+    }
+    // An integer percentage: std::to_string(double) follows the C locale, which
+    // GTK sets from the environment and may write a decimal comma.
+    SendJson(
+        "{\"type\":\"zoom\",\"percent\":" +
+        std::to_string(std::lround(zoom_ * 100.0)) + "}");
 }
 
 void LinuxApp::SendCopyResult(long long requestId, bool ok) {
@@ -784,39 +815,40 @@ void LinuxApp::HandleLink(std::string_view hrefView) {
     OpenDocument(resolved);
 }
 
-void LinuxApp::LoadTheme() {
+void LinuxApp::LoadSettings() {
+    theme_ = ThemeMode::System;
+    zoom_ = core::kDefaultZoom;
     GKeyFile* settings = g_key_file_new();
-    GError* error = nullptr;
     if (!g_key_file_load_from_file(
             settings,
             SettingsFilePath().c_str(),
             G_KEY_FILE_NONE,
-            &error)) {
-        g_clear_error(&error);
+            nullptr)) {
         g_key_file_unref(settings);
-        theme_ = ThemeMode::System;
         return;
     }
 
-    char* value = g_key_file_get_string(settings, "Reader", "Theme", &error);
+    char* value = g_key_file_get_string(settings, "Reader", "Theme", nullptr);
+    if (value != nullptr) {
+        const std::string saved = LowercaseAscii(value);
+        g_free(value);
+        if (saved == "light") {
+            theme_ = ThemeMode::Light;
+        } else if (saved == "dark") {
+            theme_ = ThemeMode::Dark;
+        }
+    }
+
+    GError* error = nullptr;
+    const double zoom = g_key_file_get_double(settings, "Reader", "Zoom", &error);
+    if (error == nullptr) {
+        zoom_ = core::NormalizeZoom(zoom);
+    }
+    g_clear_error(&error);
     g_key_file_unref(settings);
-    if (value == nullptr) {
-        g_clear_error(&error);
-        theme_ = ThemeMode::System;
-        return;
-    }
-    const std::string saved = LowercaseAscii(value);
-    g_free(value);
-    if (saved == "light") {
-        theme_ = ThemeMode::Light;
-    } else if (saved == "dark") {
-        theme_ = ThemeMode::Dark;
-    } else {
-        theme_ = ThemeMode::System;
-    }
 }
 
-void LinuxApp::SaveTheme() const {
+void LinuxApp::SaveSettings() const {
     const auto settingsPath = SettingsFilePath();
     if (g_mkdir_with_parents(settingsPath.parent_path().c_str(), 0700) != 0) {
         return;
@@ -824,6 +856,7 @@ void LinuxApp::SaveTheme() const {
 
     GKeyFile* settings = g_key_file_new();
     g_key_file_set_string(settings, "Reader", "Theme", ThemeName().c_str());
+    g_key_file_set_double(settings, "Reader", "Zoom", zoom_);
     gsize length = 0;
     char* data = g_key_file_to_data(settings, &length, nullptr);
     g_key_file_unref(settings);
@@ -859,11 +892,30 @@ void LinuxApp::StartSmokeProbe() {
     static constexpr char kProbe[] = R"JS(
 (function () {
   var attempts = 0;
+  // When the document has a figure, expand it and close it again: the viewer
+  // must fit it and put it back where it was.
+  function viewerWorks() {
+    if (!document.querySelector("#article .figure-frame[data-expandable]")) {
+      return true;
+    }
+    if (!window.LeanMarkTest.openViewer(0)) {
+      return false;
+    }
+    var state = window.LeanMarkTest.viewerState();
+    var moved = !!document.querySelector("#viewerCanvas > svg, #viewerCanvas > img");
+    document.dispatchEvent(new KeyboardEvent("keydown", {
+      key: "Escape", bubbles: true, cancelable: true
+    }));
+    return !!state && state.mode === "fit" && state.scale > 0 && moved &&
+      document.getElementById("figureViewer").hidden &&
+      !document.querySelector(".viewer-placeholder");
+  }
   function inspect() {
     attempts += 1;
     var ready = document.documentElement.dataset.renderState === "ready";
     if (ready && document.querySelector("#article h1")) {
-      window.webkit.messageHandlers.leanmark.postMessage("smoke-ok");
+      window.webkit.messageHandlers.leanmark.postMessage(
+        viewerWorks() ? "smoke-ok" : "smoke-failed");
       return;
     }
     if (attempts >= 100) {

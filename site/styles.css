@@ -766,6 +766,33 @@ a:hover {
   font-size: 0.875rem;
 }
 
+/* The screenshot's offset frame reaches past the column, as in the hero. */
+.feature-section {
+  overflow: hidden;
+}
+
+.install-command {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+  padding: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.install-command span {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.install-command code {
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: 0.9375rem;
+  user-select: all;
+}
+
 .install-steps {
   margin: 0;
   padding: 0;
@@ -1034,7 +1061,11 @@ a:hover {
   *::before,
   *::after {
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+    /* Turn transitions off. Shortening their duration instead made every
+       property of every element transition (transition-property defaults to
+       all), so script read stale sizes until the next frame. In a window that
+       is not painting that was never, and Mermaid measured its labels wrong. */
+    transition: none !important;
   }
 }
 

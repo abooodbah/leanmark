@@ -671,6 +671,17 @@ button {
   .copy-section {
     opacity: 0.6;
   }
+
+  .expand-figure {
+    opacity: 0.85;
+  }
+}
+
+@media (max-width: 760px) {
+  .figure-frame-diagram {
+    margin-right: 0;
+    margin-left: 0;
+  }
 }
 
 .article p,
@@ -835,6 +846,204 @@ button {
   margin: 0 auto;
 }
 
+/* A frame pairs a figure with its expand button. The button sits outside the
+   figure's own scroll box, so it stays in the corner of a wide diagram. */
+.figure-frame {
+  position: relative;
+}
+
+.figure-frame-diagram {
+  margin: 0 40px var(--space-5);
+}
+
+.article .figure-frame-diagram > .diagram {
+  margin: 0;
+}
+
+.figure-frame-image {
+  display: block;
+  width: fit-content;
+  max-width: 100%;
+  margin: var(--space-6) auto;
+}
+
+.article .figure-frame-image img {
+  margin: 0;
+}
+
+.expand-figure {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-2);
+  display: none;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  border: 1px solid rgb(255 255 255 / 18%);
+  border-radius: var(--radius-md);
+  background: rgb(26 25 23 / 52%);
+  color: #ffffff;
+  cursor: zoom-in;
+  opacity: 0.55;
+  transition:
+    opacity var(--duration-short) var(--ease-standard),
+    background-color var(--duration-short) var(--ease-standard);
+}
+
+.figure-frame[data-expandable] > .expand-figure {
+  display: grid;
+}
+
+.figure-frame:hover > .expand-figure,
+.expand-figure:focus-visible {
+  opacity: 0.9;
+}
+
+.expand-figure:hover {
+  background: rgb(26 25 23 / 78%);
+  opacity: 1;
+}
+
+.expand-figure svg,
+.viewer-button svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.6;
+}
+
+.viewer-placeholder {
+  display: block;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* The viewer covers the reader completely and follows its theme, so an
+   expanded diagram keeps the colours it was drawn with. */
+.figure-viewer {
+  position: fixed;
+  z-index: 50;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+  color: var(--text-primary);
+}
+
+.viewer-toolbar {
+  display: flex;
+  min-height: var(--chrome-height);
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.viewer-title {
+  overflow: hidden;
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.viewer-controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.viewer-button {
+  display: inline-grid;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 var(--space-2);
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.viewer-button:hover {
+  background: var(--surface-muted);
+}
+
+.figure-viewer[data-mode="fit"] [data-action="fit"],
+.figure-viewer[data-mode="actual"] [data-action="actual"] {
+  border-color: var(--border);
+  background: var(--surface-muted);
+}
+
+.viewer-level {
+  min-width: 52px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.viewer-stage {
+  position: relative;
+  display: flex;
+  overflow: auto;
+  flex: 1 1 auto;
+  cursor: grab;
+  overscroll-behavior: contain;
+  touch-action: none;
+}
+
+.viewer-stage:focus-visible {
+  outline-offset: -4px;
+}
+
+.figure-viewer[data-dragging] .viewer-stage {
+  cursor: grabbing;
+}
+
+/* margin: auto centres a small figure and, unlike centring the flex line,
+   still lets a figure larger than the window scroll to every edge. */
+.viewer-canvas {
+  box-sizing: border-box;
+  flex: none;
+  margin: auto;
+}
+
+.viewer-canvas > svg,
+.viewer-canvas > img {
+  display: block;
+  max-width: none;
+  max-height: none;
+  border-radius: var(--radius-md);
+  user-select: none;
+}
+
+.zoom-indicator {
+  position: fixed;
+  z-index: 45;
+  bottom: var(--space-6);
+  left: 50%;
+  padding: var(--space-2) var(--space-4);
+  border-radius: 999px;
+  background: rgb(26 25 23 / 82%);
+  color: #ffffff;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
 .diagram-error {
   padding: var(--space-4);
   border-left: 4px solid var(--danger-500);
@@ -989,7 +1198,11 @@ button {
   *::before,
   *::after {
     scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+    /* Turn transitions off. Shortening their duration instead made every
+       property of every element transition (transition-property defaults to
+       all), so script read stale sizes until the next frame. In a window that
+       is not painting that was never, and Mermaid measured its labels wrong. */
+    transition: none !important;
   }
 }
 
@@ -1011,11 +1224,22 @@ button {
   .copy-section::after {
     background: Canvas;
   }
+
+  .expand-figure,
+  .zoom-indicator,
+  .figure-viewer {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
 }
 
 @media print {
   .chrome,
   .copy-section,
+  .expand-figure,
+  .figure-viewer,
+  .zoom-indicator,
   .outline,
   .layout-balance,
   .status-toast {

@@ -275,17 +275,17 @@ NSMenuItem *MenuItem(NSString *title, SEL action, NSString *keyEquivalent,
 
 - (void)resetZoom:(id)sender {
     (void)sender;
-    [[self activeReader] resetZoom];
+    [[self activeReader] zoomCommand:@"reset"];
 }
 
 - (void)zoomIn:(id)sender {
     (void)sender;
-    [[self activeReader] zoomBy:1];
+    [[self activeReader] zoomCommand:@"in"];
 }
 
 - (void)zoomOut:(id)sender {
     (void)sender;
-    [[self activeReader] zoomBy:-1];
+    [[self activeReader] zoomCommand:@"out"];
 }
 
 - (void)cycleTheme:(id)sender {
