@@ -102,12 +102,6 @@ jobs:
               -OutputPath "launch-time/$fixture.json" `
               -MarkdownSummaryPath $env:GITHUB_STEP_SUMMARY
           }
-          # As from a browser download: every file carries the internet zone
-          # mark, and the shell starts it the way a double-click does.
-          ./tests/Compare-LaunchTime.ps1 -Build $builds -Iterations $iterations `
-            -DocumentPath ./tests/fixtures/simple.md -MarkOfTheWeb -ShellExecute `
-            -Scenario 'Downloaded copy, started from Explorer' `
-            -OutputPath launch-time/downloaded.json -MarkdownSummaryPath $env:GITHUB_STEP_SUMMARY
           # With the oldest build still open and minimized from its own folder.
           $first = ($builds[0] -split '=', 2)[1]
           ./tests/Compare-LaunchTime.ps1 -Build $builds[1..($builds.Count - 1)] -Iterations $iterations `

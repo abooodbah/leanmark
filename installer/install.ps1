@@ -212,6 +212,16 @@ if (-not (Test-Path -LiteralPath $UninstallSource -PathType Leaf)) {
 Copy-Item -LiteralPath $UninstallSource -Destination (Join-Path $InstallDir 'uninstall.ps1') -Force
 $OwnedFiles.Add('uninstall.ps1')
 
+# Explorer marks every file extracted from a downloaded ZIP as coming from the
+# internet, and Copy-Item carries that mark along. On the unsigned executable it
+# makes Windows check the file before every launch from a file association or
+# the Start menu, which slows each one down. Running this installer is the
+# decision to trust the package, so the installed copies drop the mark; the
+# downloaded folder keeps it.
+foreach ($Name in $OwnedFiles) {
+    Unblock-File -LiteralPath (Join-Path $InstallDir $Name)
+}
+
 # This allow-list lets uninstall remove app-owned files without deleting an
 # unknown file that the user later places in LeanMark's directory.
 $Manifest = [ordered]@{

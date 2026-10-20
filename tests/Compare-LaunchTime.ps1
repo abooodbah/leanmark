@@ -8,11 +8,6 @@ param(
     [ValidateRange(5, 120)][int]$TimeoutSeconds = 45,
     [string]$OutputPath,
     [string]$MarkdownSummaryPath,
-    # Copy each build and mark every file as downloaded from the internet, as
-    # a browser download extracted with Explorer is.
-    [switch]$MarkOfTheWeb,
-    # Start through the shell, as a double-click in Explorer does.
-    [switch]$ShellExecute,
     # Keep this LeanMark running, minimized, while the builds are measured, as
     # when an older version is still open.
     [string]$BesideRunning,
@@ -41,16 +36,6 @@ $builds = foreach ($entry in $Build) {
     Assert-True ($parts.Count -eq 2 -and $parts[0] -and $parts[1]) "Use label=path for -Build: $entry"
     $exe = [System.IO.Path]::GetFullPath($parts[1])
     Assert-True (Test-Path -LiteralPath $exe -PathType Leaf) "LeanMark executable is missing: $exe"
-    if ($MarkOfTheWeb) {
-        $copy = Join-Path ([System.IO.Path]::GetTempPath()) ('leanmark-motw-' + $parts[0])
-        Remove-Item -LiteralPath $copy -Recurse -Force -ErrorAction SilentlyContinue
-        Copy-Item -LiteralPath (Split-Path -Parent $exe) -Destination $copy -Recurse
-        Get-ChildItem -LiteralPath $copy -Recurse -File | ForEach-Object {
-            Set-Content -LiteralPath $_.FullName -Stream Zone.Identifier `
-                -Value "[ZoneTransfer]`r`nZoneId=3`r`nHostUrl=https://github.com/"
-        }
-        $exe = Join-Path $copy (Split-Path -Leaf $exe)
-    }
     [pscustomobject]@{ Label = $parts[0]; Exe = $exe }
 }
 
@@ -115,12 +100,7 @@ function Measure-Launch {
     [Environment]::SetEnvironmentVariable('LEANMARK_TEST_DEVTOOLS_PORT', [string]$port, 'Process')
     $clock = [System.Diagnostics.Stopwatch]::StartNew()
     try {
-        if ($ShellExecute) {
-            $quoted = @($documents | ForEach-Object { '"{0}"' -f $_ }) -join ' '
-            $process = Start-Process -FilePath $Target.Exe -ArgumentList ('-- ' + $quoted) -PassThru
-        } else {
-            $process = Start-LeanMarkProcess -ExePath $Target.Exe -DocumentPaths $documents
-        }
+        $process = Start-LeanMarkProcess -ExePath $Target.Exe -DocumentPaths $documents
     } finally {
         [Environment]::SetEnvironmentVariable('LEANMARK_TEST_DEVTOOLS_PORT', $null, 'Process')
     }

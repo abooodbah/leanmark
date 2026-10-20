@@ -195,6 +195,7 @@ function Test-StaticInvariants {
     Assert-Match $installer 'Stop-InstalledLeanMark\r?\n\$Payload' 'The installer must close LeanMark before copying files.'
     Assert-True ($uninstaller.IndexOf('Stop-InstalledLeanMark', $uninstaller.IndexOf('function Stop-InstalledLeanMark') + 30) -lt
         $uninstaller.IndexOf('Remove-ItemProperty')) 'The uninstaller must close LeanMark before changing anything.'
+    Assert-Match $installer '(?s)foreach \(\$Name in \$OwnedFiles\) \{\s*Unblock-File' 'The installed copy must not keep the internet zone mark of a downloaded package.'
     Write-TestPass 'per-user installer and bounded, consent-preserving uninstaller invariants'
 }
 

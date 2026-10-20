@@ -3,6 +3,32 @@
 All notable LeanMark changes are recorded here. The project follows semantic
 versioning.
 
+## [0.4.1] - 2026-10-20
+
+### Fixed
+
+- An installed LeanMark was slow to start from a file association or the Start
+  menu when it was installed from a downloaded ZIP. Explorer marks files
+  extracted from a download as coming from the internet, the installer copied
+  that mark onto the installed files, and Windows then checked the unsigned
+  executable before every launch. The installer now clears the mark on the
+  installed copy. Running the 0.4.1 installer over an existing installation
+  fixes it. Launches without the mark measure the same in 0.3.0, 0.4.0, and
+  0.4.1.
+- Installing over, or uninstalling, a LeanMark that is open from the install
+  directory stopped with a file-in-use error. Both now ask it to close first,
+  wait up to ten seconds, and otherwise stop with a clear message before
+  changing anything.
+
+### Added
+
+- `tests/Compare-LaunchTime.ps1` and a Compare launch time workflow that time
+  releases and the current branch to a rendered document on Windows.
+- `tests/Test-DownloadedInstall.ps1`, run in CI, installs a package marked as
+  downloaded and starts the installed copy through the shell.
+- The README and the package's INSTALL.txt explain how to clear the mark on a
+  portable copy.
+
 ## [0.4.0] - 2026-10-20
 
 ### Added
@@ -153,6 +179,7 @@ versioning.
 - WebView2 keeps the package small but uses a browser-process memory footprint.
 - LeanMark reads Markdown; it does not edit or manage a document vault.
 
+[0.4.1]: https://github.com/abooodbah/leanmark/releases/tag/v0.4.1
 [0.4.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.4.0
 [0.3.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.3.0
 [0.2.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.2.0

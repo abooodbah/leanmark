@@ -77,6 +77,17 @@ The extracted ZIP is portable. <code>LeanMark.exe</code>,
 remain together. Markdown paths may be opened from the application or passed
 as command-line arguments.
 
+Windows marks files extracted from a downloaded ZIP as coming from the
+internet and, because the executable is unsigned, checks
+<code>LeanMark.exe</code> before every launch started from Explorer or a file
+association, which makes each one slower. The installer below clears that mark
+on the installed copy. For a portable copy, clear it once from the extracted
+folder:
+
+~~~powershell
+Get-ChildItem -Recurse | Unblock-File
+~~~
+
 The optional current-user integration entry point is:
 
 ~~~powershell
