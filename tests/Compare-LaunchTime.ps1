@@ -55,9 +55,22 @@ $builds = foreach ($entry in $Build) {
 }
 
 $background = $null
+$sharedPort = 0
+$backgroundPages = @()
 if ($BesideRunning) {
-    $background = Start-LeanMarkProcess -ExePath $BesideRunning -DocumentPaths $documents
+    # Every copy shares one WebView2 profile, and a copy can only join the
+    # browser that is already running with the same arguments. So the open
+    # reader gets the DevTools port too, the measured launches reuse it, and
+    # its own page is skipped.
+    $sharedPort = Get-FreeLoopbackPort
+    [Environment]::SetEnvironmentVariable('LEANMARK_TEST_DEVTOOLS_PORT', [string]$sharedPort, 'Process')
+    try {
+        $background = Start-LeanMarkProcess -ExePath $BesideRunning -DocumentPaths $documents
+    } finally {
+        [Environment]::SetEnvironmentVariable('LEANMARK_TEST_DEVTOOLS_PORT', $null, 'Process')
+    }
     $handle = Wait-LeanMarkWindow -Process $background -TimeoutSeconds $TimeoutSeconds
+    $backgroundPages = @((Wait-CdpPageTarget -Port $sharedPort -Seconds $TimeoutSeconds).id)
     Start-Sleep -Seconds 3
     # SW_MINIMIZE: LeanMark suspends a minimized reader, as a user's would be.
     Add-Type -Namespace LeanMarkCompare -Name Window -MemberDefinition `
@@ -98,7 +111,7 @@ new Promise(function (resolve) {
 
 function Measure-Launch {
     param([pscustomobject]$Target)
-    $port = Get-FreeLoopbackPort
+    $port = if ($sharedPort) { $sharedPort } else { Get-FreeLoopbackPort }
     [Environment]::SetEnvironmentVariable('LEANMARK_TEST_DEVTOOLS_PORT', [string]$port, 'Process')
     $clock = [System.Diagnostics.Stopwatch]::StartNew()
     try {
@@ -115,7 +128,7 @@ function Measure-Launch {
         [void](Wait-LeanMarkWindow -Process $process -TimeoutSeconds $TimeoutSeconds)
         $windowMs = $clock.Elapsed.TotalMilliseconds
         try {
-            $page = Wait-CdpPageTarget -Port $port -Seconds $TimeoutSeconds
+            $page = Wait-CdpPageTarget -Port $port -Seconds $TimeoutSeconds -ExcludeId $backgroundPages
         } catch {
             # Say what did start, so a runner without a usable WebView2 is
             # told apart from a reader that never loaded.

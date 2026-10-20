@@ -299,7 +299,9 @@ function Get-FreeLoopbackPort {
 }
 
 function Wait-CdpPageTarget {
-    param([int]$Port, [int]$Seconds)
+    # ExcludeId skips pages that were already open, such as another reader
+    # sharing the same WebView2 browser process.
+    param([int]$Port, [int]$Seconds, [string[]]$ExcludeId = @())
     $deadline = [DateTime]::UtcNow.AddSeconds($Seconds)
     $lastUrls = @()
     do {
@@ -311,7 +313,8 @@ function Wait-CdpPageTarget {
             $targets = if ($null -ne $wrappedValue) { @($wrappedValue.Value) } else { @($response) }
             $lastUrls = @($targets | ForEach-Object { $_.url })
             $target = $targets | Where-Object {
-                $_.type -eq 'page' -and $_.url -like 'https://app.leanmark.invalid/*'
+                $_.type -eq 'page' -and $_.url -like 'https://app.leanmark.invalid/*' -and
+                    $ExcludeId -notcontains $_.id
             } | Select-Object -First 1
             if ($null -ne $target -and -not [string]::IsNullOrWhiteSpace($target.webSocketDebuggerUrl)) {
                 return $target
