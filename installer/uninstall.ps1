@@ -16,6 +16,27 @@ $LocalData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalAppl
 $InstallDir = [IO.Path]::GetFullPath((Join-Path $LocalData 'Programs\LeanMark')).TrimEnd('\')
 $InstalledExe = Join-Path $InstallDir $ExeName
 
+# A running LeanMark holds its executable open, so it cannot be replaced or
+# removed. Ask any copy started from the install directory to close; a
+# reader has no unsaved work to lose. Copies started elsewhere are left alone.
+function Stop-InstalledLeanMark {
+    $Running = @(Get-Process -Name 'LeanMark' -ErrorAction SilentlyContinue | Where-Object {
+        $Path = $null
+        try { $Path = $_.Path } catch { }
+        $Path -and [IO.Path]::GetFullPath($Path).Equals($InstalledExe, [StringComparison]::OrdinalIgnoreCase)
+    })
+    if ($Running.Count -eq 0) { return }
+    if (-not $Quiet) { Write-Host 'Closing the running LeanMark so it can be replaced...' }
+    foreach ($Process in $Running) { [void]$Process.CloseMainWindow() }
+    $Deadline = [DateTime]::UtcNow.AddSeconds(10)
+    foreach ($Process in $Running) {
+        $Remaining = [Math]::Max(0, ($Deadline - [DateTime]::UtcNow).TotalMilliseconds)
+        if (-not $Process.WaitForExit([int]$Remaining)) {
+            throw ('LeanMark is still running from {0}. Close it, then run this script again.' -f $InstallDir)
+        }
+    }
+}
+
 function Get-RegString {
     param([string]$Path, [string]$Name)
     if (-not (Test-Path -LiteralPath $Path)) { return $null }
@@ -58,6 +79,9 @@ if ($Recorded) {
         throw ('Refusing unexpected install path: {0}' -f $Resolved)
     }
 }
+
+# Before any change, so a running reader cannot leave a half-removed install.
+Stop-InstalledLeanMark
 if (Test-Path -LiteralPath $InstallDir) {
     $Attributes = (Get-Item -LiteralPath $InstallDir -Force).Attributes
     if ($Attributes -band [IO.FileAttributes]::ReparsePoint) {

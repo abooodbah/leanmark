@@ -1,0 +1,114 @@
+name: Compare launch time
+
+# Times release tags and this branch to a rendered document on one Windows
+# runner, taking turns launch by launch. Each tag is rebuilt from source with
+# this branch's test DevTools hook, the only change, so every build is timed
+# the same way. Run it from the Actions tab; the median table appears on the
+# run's summary page.
+
+on:
+  workflow_dispatch:
+    inputs:
+      releases:
+        description: Release tags to compare, separated by spaces
+        required: true
+        default: v0.3.0 v0.4.0
+        type: string
+      iterations:
+        description: Measured launches per build and document
+        required: true
+        default: '8'
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Windows x64 launch time
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Install Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v3
+
+      - name: Build this branch
+        shell: pwsh
+        run: ./scripts/build.ps1 -Configuration Release -Platform x64
+
+      - name: Build the release tags with the test hook
+        shell: pwsh
+        env:
+          LEANMARK_RELEASES: ${{ inputs.releases || 'v0.3.0 v0.4.0' }}
+        run: |
+          $app = Get-Content -Raw ./src/App.cpp
+          $begin = $app.IndexOf('// BEGIN test DevTools hook')
+          $end = $app.IndexOf('// END test DevTools hook')
+          if ($begin -lt 0 -or $end -lt 0) { throw 'The test DevTools hook is missing from src/App.cpp.' }
+          $hook = $app.Substring($begin, $end - $begin) + "// END test DevTools hook`r`n`r`n"
+          foreach ($tag in ($env:LEANMARK_RELEASES -split '\s+' | Where-Object { $_ })) {
+            if ($tag -notmatch '^v\d+\.\d+\.\d+$') { throw "Not a release tag: $tag" }
+            $tree = Join-Path $env:RUNNER_TEMP $tag
+            git worktree add --detach $tree $tag
+            $source = Join-Path $tree 'src/App.cpp'
+            $text = Get-Content -Raw $source
+            if ($text -notmatch 'options->put_AdditionalBrowserArguments\(kBrowserArguments\);') {
+              throw "$tag does not set its browser arguments where the hook expects."
+            }
+            $text = $text.Replace('void LeanMarkApp::InitializeWebView() {', $hook + 'void LeanMarkApp::InitializeWebView() {')
+            $text = $text.Replace('options->put_AdditionalBrowserArguments(kBrowserArguments);',
+              'options->put_AdditionalBrowserArguments(LeanMarkBrowserArguments().c_str());')
+            Set-Content -LiteralPath $source -Value $text -NoNewline
+            Push-Location $tree
+            try { ./scripts/build.ps1 -Configuration Release -Platform x64 }
+            finally { Pop-Location }
+          }
+
+      - name: Compare launch time
+        shell: pwsh
+        env:
+          LEANMARK_RELEASES: ${{ inputs.releases || 'v0.3.0 v0.4.0' }}
+          LEANMARK_ITERATIONS: ${{ inputs.iterations || '8' }}
+        run: |
+          $builds = @()
+          foreach ($tag in ($env:LEANMARK_RELEASES -split '\s+' | Where-Object { $_ })) {
+            $exe = Join-Path $env:RUNNER_TEMP "$tag/dist/LeanMark.exe"
+            if (-not (Test-Path -LiteralPath $exe)) { throw "LeanMark.exe is missing from $tag" }
+            $builds += ('{0}={1}' -f $tag, $exe)
+          }
+          $builds += ('branch={0}' -f (Resolve-Path ./dist/LeanMark.exe).Path)
+          $iterations = [int]$env:LEANMARK_ITERATIONS
+          New-Item -ItemType Directory -Path launch-time -Force | Out-Null
+          foreach ($fixture in @('simple', 'showcase')) {
+            ./tests/Compare-LaunchTime.ps1 -Build $builds -Iterations $iterations `
+              -DocumentPath "./tests/fixtures/$fixture.md" `
+              -OutputPath "launch-time/$fixture.json" `
+              -MarkdownSummaryPath $env:GITHUB_STEP_SUMMARY
+          }
+          # With the oldest build still open and minimized from its own folder.
+          $first = ($builds[0] -split '=', 2)[1]
+          ./tests/Compare-LaunchTime.ps1 -Build $builds[1..($builds.Count - 1)] -Iterations $iterations `
+            -DocumentPath ./tests/fixtures/simple.md -BesideRunning $first `
+            -Scenario ('Beside a running, minimized ' + ($builds[0] -split '=', 2)[0]) `
+            -OutputPath launch-time/beside.json -MarkdownSummaryPath $env:GITHUB_STEP_SUMMARY
+
+      - name: Upload measurements
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: launch-time
+          path: launch-time/
+          if-no-files-found: ignore
+          retention-days: 30

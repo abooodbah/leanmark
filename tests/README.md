@@ -104,6 +104,31 @@ not claimed as browser first-contentful-paint. Memory figures include every samp
 WebView2 descendant; the separately installed Evergreen runtime is not counted in
 LeanMark's distribution size.
 
+## Launch time across builds
+
+`Compare-LaunchTime.ps1` times several builds, taking turns launch by launch,
+to the reader's rendered state rather than to a visible window. Each launch is
+split into host and WebView2 start-up, page load, and the reader's own work.
+It attaches through a loopback DevTools port that the host opens only while
+`LEANMARK_TEST_DEVTOOLS_PORT` holds a port number, so older releases need that
+hook added; the Compare launch time workflow rebuilds each release tag with it.
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\tests\Compare-LaunchTime.ps1 `
+  -Build 'old=C:\old\LeanMark.exe', 'new=.\dist\LeanMark.exe' -Iterations 8
+```
+
+`-BesideRunning <exe>` keeps another copy open and minimized while measuring,
+as when an older version is still running.
+
+## Installing a downloaded package
+
+`Test-DownloadedInstall.ps1` marks a package as downloaded from the internet,
+installs it, checks that no installed file keeps that mark, starts the installed
+copy through the shell, and uninstalls it. It replaces the current user's
+installation, so it refuses to run where LeanMark is installed; CI runs it on a
+fresh runner.
+
 ## Automated coverage
 
 - MD4C GFM dialect, raw-HTML disablement, UTF-8 BOM path, and 32 MiB guard.

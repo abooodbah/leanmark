@@ -41,6 +41,10 @@ jobs:
         shell: pwsh
         run: ./tests/Test-LeanMark.ps1 -DistPath ./dist
 
+      - name: Install a downloaded package and start it from the shell
+        shell: pwsh
+        run: ./tests/Test-DownloadedInstall.ps1 -DistPath ./dist
+
       - name: Exercise the reader in Edge
         shell: pwsh
         run: node ./tests/Invoke-ReaderBrowserSmoke.mjs --assets ./dist/assets

@@ -19,6 +19,27 @@ $Classes = 'HKCU:\Software\Classes'
 $LocalData = [Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)
 $InstallDir = [IO.Path]::GetFullPath((Join-Path $LocalData 'Programs\LeanMark')).TrimEnd('\')
 $InstalledExe = Join-Path $InstallDir $ExeName
+
+# A running LeanMark holds its executable open, so it cannot be replaced or
+# removed. Ask any copy started from the install directory to close; a
+# reader has no unsaved work to lose. Copies started elsewhere are left alone.
+function Stop-InstalledLeanMark {
+    $Running = @(Get-Process -Name 'LeanMark' -ErrorAction SilentlyContinue | Where-Object {
+        $Path = $null
+        try { $Path = $_.Path } catch { }
+        $Path -and [IO.Path]::GetFullPath($Path).Equals($InstalledExe, [StringComparison]::OrdinalIgnoreCase)
+    })
+    if ($Running.Count -eq 0) { return }
+    if (-not $Quiet) { Write-Host 'Closing the running LeanMark so it can be replaced...' }
+    foreach ($Process in $Running) { [void]$Process.CloseMainWindow() }
+    $Deadline = [DateTime]::UtcNow.AddSeconds(10)
+    foreach ($Process in $Running) {
+        $Remaining = [Math]::Max(0, ($Deadline - [DateTime]::UtcNow).TotalMilliseconds)
+        if (-not $Process.WaitForExit([int]$Remaining)) {
+            throw ('LeanMark is still running from {0}. Close it, then run this script again.' -f $InstallDir)
+        }
+    }
+}
 $ManifestPath = Join-Path $InstallDir 'install-manifest.json'
 $ExistingInstall = Test-Path -LiteralPath $ManifestPath -PathType Leaf
 
@@ -150,6 +171,7 @@ function Get-EffectiveExe {
     return $null
 }
 
+Stop-InstalledLeanMark
 $Payload = Resolve-Payload $SourceDirectory
 New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
 $OwnedFiles = [Collections.Generic.List[string]]::new()
@@ -189,6 +211,16 @@ if (-not (Test-Path -LiteralPath $UninstallSource -PathType Leaf)) {
 }
 Copy-Item -LiteralPath $UninstallSource -Destination (Join-Path $InstallDir 'uninstall.ps1') -Force
 $OwnedFiles.Add('uninstall.ps1')
+
+# Explorer marks every file extracted from a downloaded ZIP as coming from the
+# internet, and Copy-Item carries that mark along. On the unsigned executable it
+# makes Windows check the file before every launch from a file association or
+# the Start menu, which slows each one down. Running this installer is the
+# decision to trust the package, so the installed copies drop the mark; the
+# downloaded folder keeps it.
+foreach ($Name in $OwnedFiles) {
+    Unblock-File -LiteralPath (Join-Path $InstallDir $Name)
+}
 
 # This allow-list lets uninstall remove app-owned files without deleting an
 # unknown file that the user later places in LeanMark's directory.
@@ -255,7 +287,7 @@ $InstalledUninstaller = Join-Path $InstallDir 'uninstall.ps1'
 $UninstallCommand = $Quote + (Join-Path $PSHOME 'powershell.exe') + $Quote +
     ' -NoProfile -ExecutionPolicy Bypass -File ' + $Quote + $InstalledUninstaller + $Quote
 $Version = [Diagnostics.FileVersionInfo]::GetVersionInfo($InstalledExe).ProductVersion
-if (-not $Version) { $Version = '0.4.0' }
+if (-not $Version) { $Version = '0.4.1' }
 Set-RegString $UninstallKey 'DisplayName' $AppName
 Set-RegString $UninstallKey 'DisplayVersion' $Version
 Set-RegString $UninstallKey 'DisplayIcon' ($InstalledExe + ',0')
