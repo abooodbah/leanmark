@@ -553,7 +553,11 @@ async function run() {
           } : null;
         }())];
     }())`);
-    check(afterPan[0] > panned && afterPan[1] > 0,
+    // Each axis that overflows must have moved; at least one must overflow.
+    const overflowsX = afterPan[2] > afterPan[3];
+    const overflowsY = afterPan[4] > afterPan[5];
+    check((overflowsX || overflowsY) &&
+      (!overflowsX || afterPan[0] > panned) && (!overflowsY || afterPan[1] > 0),
       "arrow keys pan a zoomed diagram (before " + panned + ", after " +
       JSON.stringify(afterPan) + ")");
 
