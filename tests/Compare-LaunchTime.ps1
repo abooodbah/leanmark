@@ -85,8 +85,11 @@ function Measure-Launch {
             # Say what did start, so a runner without a usable WebView2 is
             # told apart from a reader that never loaded.
             $tree = @(Get-LeanMarkProcessTreeIds -RootProcessId $process.Id)
-            $details = @(Get-CimInstance Win32_Process | Where-Object { $tree -contains $_.ProcessId } |
-                ForEach-Object { '{0} {1}' -f $_.Name, $_.CommandLine })
+            # The browser process is the one without a --type switch; its
+            # arguments show whether the debugging port reached WebView2.
+            $details = @(Get-CimInstance Win32_Process | Where-Object {
+                $tree -contains $_.ProcessId -and $_.CommandLine -notmatch '--type='
+            } | ForEach-Object { '{0} {1}' -f $_.Name, $_.CommandLine })
             throw ('{0} Process tree: {1}' -f $_.Exception.Message, ($details -join ' | '))
         }
         $pageMs = $clock.Elapsed.TotalMilliseconds
