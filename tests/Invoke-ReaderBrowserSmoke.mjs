@@ -515,6 +515,10 @@ async function run() {
             width: svg.getAttribute("width"),
             rect: [rect.width, rect.height],
             maxWidth: getComputedStyle(svg).maxWidth,
+            maxHeight: getComputedStyle(svg).maxHeight,
+            styleRules: Array.from(svg.querySelectorAll("style")).map(function (node) {
+              return (node.textContent.match(/[^{}]*max-(?:width|height)[^}]*}/g) || []).join(" ");
+            }).join(" ").slice(0, 400),
             canvas: [canvas.offsetWidth, canvas.offsetHeight, canvas.offsetLeft]
           } : null;
         }())];
