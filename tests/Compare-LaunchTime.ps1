@@ -69,9 +69,11 @@ if ($BesideRunning) {
 $readyProbe = @'
 new Promise(function (resolve) {
   function done() {
+    // A page joining a running browser can be probed before its document
+    // exists, so wait for that too.
     var root = document.documentElement;
     var article = document.getElementById("article");
-    return root.dataset.renderState === "ready" && article &&
+    return root !== null && root.dataset.renderState === "ready" && article &&
       article.textContent.trim().length > 0;
   }
   function report() {
