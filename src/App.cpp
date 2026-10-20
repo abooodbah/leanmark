@@ -11,6 +11,7 @@
 
 #include <algorithm>
 #include <climits>
+#include <cmath>
 #include <cstring>
 #include <cwctype>
 #include <filesystem>
@@ -329,7 +330,7 @@ LeanMarkApp::LeanMarkApp(std::vector<std::wstring> initialPaths)
 
 int LeanMarkApp::Run(HINSTANCE instance, int showCommand) {
     instance_ = instance;
-    LoadTheme();
+    LoadSettings();
 
     const HRESULT comResult =
         CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -604,7 +605,10 @@ void LeanMarkApp::ConfigureWebView() {
     settings->put_IsStatusBarEnabled(FALSE);
     settings->put_AreDevToolsEnabled(FALSE);
     settings->put_AreDefaultContextMenusEnabled(TRUE);
+    // Ctrl+wheel and pinch would zoom outside the shared levels; the reader
+    // sends zoom commands instead and the saved level is applied here.
     settings->put_IsZoomControlEnabled(FALSE);
+    controller_->put_ZoomFactor(zoom_);
     settings->put_IsBuiltInErrorPageEnabled(FALSE);
 
     ComPtr<ICoreWebView2Settings3> settings3;
@@ -1003,7 +1007,7 @@ void LeanMarkApp::LoadTab(Tab& tab, bool automaticReload) {
     // The stamp is taken before the read, so an edit that lands mid-read shows
     // up as a newer stamp on the next poll rather than being missed.
     const FileStamp stamp = ReadStamp(tab.path);
-    const leanmark::RenderedDocument document = leanmark::RenderMarkdownFile(tab.path);
+    leanmark::RenderedDocument document = leanmark::RenderMarkdownFile(tab.path);
     if (!document.ok && automaticReload) {
         SendStatus(
             L"The file is still changing or cannot be read. Keeping the last "
@@ -1025,7 +1029,7 @@ void LeanMarkApp::LoadTab(Tab& tab, bool automaticReload) {
         return;
     }
     AssignDocumentHost(tab);
-    SendDocument(tab, document);
+    SendDocument(tab, std::move(document));
 }
 
 void LeanMarkApp::AssignDocumentHost(Tab& tab) {
@@ -1238,11 +1242,13 @@ void LeanMarkApp::UpdateTitle() {
     SetWindowTextW(window_, title.c_str());
 }
 
-void LeanMarkApp::PostJson(const std::string& json) {
+void LeanMarkApp::PostJson(std::string json) {
     if (webView_ == nullptr || !readerReady_) {
         return;
     }
     const std::wstring wide = leanmark::Utf8ToWide(json);
+    // WebView2 takes UTF-16, so the UTF-8 message can go before it is posted.
+    std::string().swap(json);
     if (!wide.empty()) {
         webView_->PostWebMessageAsJson(wide.c_str());
     }
@@ -1263,18 +1269,18 @@ void LeanMarkApp::SendTabs() {
         json += "\"}";
     }
     json += "]}";
-    PostJson(json);
+    PostJson(std::move(json));
 }
 
 void LeanMarkApp::SendEmpty() {
     std::string json = "{\"type\":\"empty\",\"theme\":\"";
     json += ThemeName();
     json += "\"}";
-    PostJson(json);
+    PostJson(std::move(json));
 }
 
 void LeanMarkApp::SendDocument(
-    const Tab& tab, const leanmark::RenderedDocument& document) {
+    const Tab& tab, leanmark::RenderedDocument&& document) {
     if (webView_ == nullptr || !readerReady_) {
         return;
     }
@@ -1303,7 +1309,10 @@ void LeanMarkApp::SendDocument(
     json += ",\"html\":\"";
     leanmark::core::AppendJsonString(json, document.html);
     json += "\"}";
-    PostJson(json);
+    // The escaped copy is all that is needed now. Dropping the HTML before the
+    // message is widened keeps one fewer document-sized buffer alive at the peak.
+    std::string().swap(document.html);
+    PostJson(std::move(json));
 }
 
 void LeanMarkApp::SendError(const Tab& tab, std::wstring_view message) {
@@ -1318,7 +1327,7 @@ void LeanMarkApp::SendError(const Tab& tab, std::wstring_view message) {
     json += "\",\"message\":\"";
     AppendJson(json, message);
     json += "\"}";
-    PostJson(json);
+    PostJson(std::move(json));
 }
 
 void LeanMarkApp::SendStatus(std::wstring_view message, const char* tone) {
@@ -1327,7 +1336,7 @@ void LeanMarkApp::SendStatus(std::wstring_view message, const char* tone) {
     json += "\",\"message\":\"";
     AppendJson(json, message);
     json += "\"}";
-    PostJson(json);
+    PostJson(std::move(json));
 }
 
 void LeanMarkApp::SendCopyResult(unsigned long requestId, bool ok) {
@@ -1336,7 +1345,23 @@ void LeanMarkApp::SendCopyResult(unsigned long requestId, bool ok) {
     json += ",\"ok\":";
     json += ok ? "true" : "false";
     json += '}';
-    PostJson(json);
+    PostJson(std::move(json));
+}
+
+void LeanMarkApp::ApplyZoom(double zoom) {
+    zoom_ = leanmark::core::NormalizeZoom(zoom);
+    if (controller_ != nullptr) {
+        controller_->put_ZoomFactor(zoom_);
+    }
+    SaveSettings();
+    SendZoom();
+}
+
+void LeanMarkApp::SendZoom() {
+    std::string json = "{\"type\":\"zoom\",\"percent\":";
+    json += std::to_string(std::lround(zoom_ * 100.0));
+    json += '}';
+    PostJson(std::move(json));
 }
 
 void LeanMarkApp::HandleWebMessage(
@@ -1394,18 +1419,12 @@ void LeanMarkApp::HandleWebMessage(
         HandleCopySource(message.substr(12));
         return;
     }
-    if (StartsWithInsensitive(message, L"zoom|") && controller_ != nullptr) {
-        double zoom = 1.0;
-        controller_->get_ZoomFactor(&zoom);
+    if (StartsWithInsensitive(message, L"zoom|")) {
         const std::wstring action = Lowercase(message.substr(5));
-        if (action == L"reset") {
-            zoom = 1.0;
-        } else if (action == L"in") {
-            zoom = std::min(3.0, zoom + 0.1);
-        } else if (action == L"out") {
-            zoom = std::max(0.5, zoom - 0.1);
+        const int direction = action == L"in" ? 1 : action == L"out" ? -1 : 0;
+        if (direction != 0 || action == L"reset") {
+            ApplyZoom(leanmark::core::StepZoom(zoom_, direction));
         }
-        controller_->put_ZoomFactor(zoom);
         return;
     }
     if (StartsWithInsensitive(message, L"theme|")) {
@@ -1417,7 +1436,7 @@ void LeanMarkApp::HandleWebMessage(
         } else {
             theme_ = ThemeMode::System;
         }
-        SaveTheme();
+        SaveSettings();
         ApplyWindowTheme();
     }
 }
@@ -1552,7 +1571,8 @@ void LeanMarkApp::HandleCopySource(const std::wstring& arguments) {
     SendCopyResult(request, true);
 }
 
-void LeanMarkApp::LoadTheme() {
+void LeanMarkApp::LoadSettings() {
+    theme_ = ThemeMode::System;
     wchar_t value[16] = {};
     DWORD valueBytes = sizeof(value);
     if (RegGetValueW(
@@ -1562,22 +1582,33 @@ void LeanMarkApp::LoadTheme() {
             RRF_RT_REG_SZ,
             nullptr,
             value,
-            &valueBytes) != ERROR_SUCCESS) {
-        theme_ = ThemeMode::System;
-        return;
+            &valueBytes) == ERROR_SUCCESS) {
+        const std::wstring saved = Lowercase(value);
+        if (saved == L"light") {
+            theme_ = ThemeMode::Light;
+        } else if (saved == L"dark") {
+            theme_ = ThemeMode::Dark;
+        }
     }
 
-    const std::wstring saved = Lowercase(value);
-    if (saved == L"light") {
-        theme_ = ThemeMode::Light;
-    } else if (saved == L"dark") {
-        theme_ = ThemeMode::Dark;
-    } else {
-        theme_ = ThemeMode::System;
+    // Stored as a whole percentage; anything off the shared levels snaps to
+    // the nearest one, and anything unreadable gives actual size.
+    DWORD percent = 100;
+    DWORD percentBytes = sizeof(percent);
+    if (RegGetValueW(
+            HKEY_CURRENT_USER,
+            kSettingsKey,
+            L"ZoomPercent",
+            RRF_RT_REG_DWORD,
+            nullptr,
+            &percent,
+            &percentBytes) != ERROR_SUCCESS) {
+        percent = 100;
     }
+    zoom_ = leanmark::core::NormalizeZoom(static_cast<double>(percent) / 100.0);
 }
 
-void LeanMarkApp::SaveTheme() {
+void LeanMarkApp::SaveSettings() {
     HKEY key = nullptr;
     if (RegCreateKeyExW(
             HKEY_CURRENT_USER,
@@ -1599,6 +1630,14 @@ void LeanMarkApp::SaveTheme() {
         REG_SZ,
         reinterpret_cast<const BYTE*>(value.c_str()),
         static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t)));
+    const DWORD percent = static_cast<DWORD>(std::lround(zoom_ * 100.0));
+    RegSetValueExW(
+        key,
+        L"ZoomPercent",
+        0,
+        REG_DWORD,
+        reinterpret_cast<const BYTE*>(&percent),
+        sizeof(percent));
     RegCloseKey(key);
 }
 

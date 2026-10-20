@@ -9,6 +9,7 @@
 
 #include <algorithm>
 #include <charconv>
+#include <cmath>
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -17,11 +18,20 @@
 namespace {
 
 NSString *const LMThemePreferenceKey = @"LeanMarkTheme";
+NSString *const LMZoomPreferenceKey = @"LeanMarkZoom";
 
 BOOL StringContainsNUL(NSString *value) {
     const unichar nul = 0;
     NSString *needle = [NSString stringWithCharacters:&nul length:1];
     return [value rangeOfString:needle].location != NSNotFound;
+}
+
+double SavedZoom(void) {
+    NSNumber *zoom = [NSUserDefaults.standardUserDefaults
+        objectForKey:LMZoomPreferenceKey];
+    return [zoom isKindOfClass:NSNumber.class]
+        ? leanmark::core::NormalizeZoom(zoom.doubleValue)
+        : leanmark::core::kDefaultZoom;
 }
 
 NSString *CurrentTheme(void) {
@@ -148,6 +158,7 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
     _webView.navigationDelegate = self;
     _webView.UIDelegate = self;
     _webView.allowsMagnification = NO;
+    _webView.pageZoom = SavedZoom();
     if (@available(macOS 13.3, *)) {
         _webView.inspectable = NO;
     }
@@ -468,13 +479,38 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
                               contextInfo:nullptr];
 }
 
+- (void)applyZoom:(double)zoom {
+    const double level = leanmark::core::NormalizeZoom(zoom);
+    _webView.pageZoom = level;
+    [NSUserDefaults.standardUserDefaults setDouble:level forKey:LMZoomPreferenceKey];
+    [self deliverPayload:@{
+        @"type" : @"zoom",
+        @"percent" : @(std::lround(level * 100.0)),
+    }];
+}
+
 - (void)zoomBy:(NSInteger)direction {
-    _webView.pageZoom = std::clamp(
-        _webView.pageZoom + (direction > 0 ? 0.1 : -0.1), 0.5, 3.0);
+    [self applyZoom:leanmark::core::StepZoom(
+                        _webView.pageZoom, direction > 0 ? 1 : -1)];
 }
 
 - (void)resetZoom {
-    _webView.pageZoom = 1.0;
+    [self applyZoom:leanmark::core::kDefaultZoom];
+}
+
+- (void)zoomCommand:(NSString *)action {
+    if (!_readerReady) {
+        if ([action isEqualToString:@"in"]) {
+            [self zoomBy:1];
+        } else if ([action isEqualToString:@"out"]) {
+            [self zoomBy:-1];
+        } else {
+            [self resetZoom];
+        }
+        return;
+    }
+    // The reader answers with zoom|<action> when no figure is expanded.
+    [self deliverPayload:@{ @"type" : @"zoom-command", @"action" : action }];
 }
 
 - (void)cycleTheme {
@@ -512,18 +548,35 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
 
 - (void)pollSmokeUntil:(NSTimeInterval)deadline
             completion:(void (^)(BOOL success, NSString *detail))completion {
+    // Once the page is ready, a document with a figure also has it expanded
+    // and closed again: the viewer must fit it and put it back.
     NSString *script =
         @"(function(){var root=document.documentElement;var article=document.getElementById('article');"
+         @"var ready=root.dataset.renderState==='ready';var viewer='none';"
+         @"if(ready&&document.querySelector('#article .figure-frame[data-expandable]')){"
+         @"var opened=window.LeanMarkTest.openViewer(0);var s=window.LeanMarkTest.viewerState();"
+         @"var moved=!!document.querySelector('#viewerCanvas > svg, #viewerCanvas > img');"
+         @"document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));"
+         @"viewer=(opened&&s&&s.mode==='fit'&&s.scale>0&&moved&&document.getElementById('figureViewer').hidden&&"
+         @"!document.querySelector('.viewer-placeholder'))?'ok':'failed';}"
          @"return {state:root.dataset.renderState||'', bridge:!!(window.LeanMarkHost&&window.LeanMarkHost.receive),"
-         @"content:!!(article&&article.textContent.trim().length), remote:Array.from(document.images).some(function(i){return /^https?:/i.test(i.src);})};}())";
+         @"content:!!(article&&article.textContent.trim().length), remote:Array.from(document.images).some(function(i){return /^https?:/i.test(i.src);}),"
+         @"viewer:viewer};}())";
     [_webView evaluateJavaScript:script completionHandler:^(id result, NSError *error) {
       NSDictionary *values = [result isKindOfClass:NSDictionary.class] ? result : nil;
       BOOL ready = [values[@"state"] isEqualToString:@"ready"];
       BOOL bridge = [values[@"bridge"] boolValue];
       BOOL content = [values[@"content"] boolValue];
       BOOL remote = [values[@"remote"] boolValue];
+      NSString *viewer = values[@"viewer"];
+      if ([viewer isEqualToString:@"failed"]) {
+          completion(NO, @"the figure viewer did not open, fit, and restore a figure");
+          return;
+      }
       if (error == nil && ready && bridge && content && !remote) {
-          completion(YES, @"reader ready, bridge active, content rendered, remote images absent");
+          completion(YES, [viewer isEqualToString:@"ok"]
+              ? @"reader ready, bridge active, content rendered, remote images absent, figure viewer works"
+              : @"reader ready, bridge active, content rendered, remote images absent");
           return;
       }
       if (NSProcessInfo.processInfo.systemUptime >= deadline) {

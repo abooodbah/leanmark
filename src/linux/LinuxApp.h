@@ -45,14 +45,16 @@ private:
     void SendStatus(
         std::string_view message,
         std::string_view tone = "info");
-    void SendJson(const std::string& json);
+    void SendJson(std::string json);
+    void SendZoom();
+    void ApplyZoom(double zoom, bool announce);
     void HandleMessage(std::string_view message);
     void HandleLink(std::string_view href);
     void CopySource(std::string_view arguments);
     void SendCopyResult(long long requestId, bool ok);
 
-    void LoadTheme();
-    void SaveTheme() const;
+    void LoadSettings();
+    void SaveSettings() const;
     std::string ThemeName() const;
     void UpdateTitle();
 
@@ -134,6 +136,10 @@ private:
     guint reloadTimer_ = 0;
 
     ThemeMode theme_ = ThemeMode::System;
+    double zoom_ = core::kDefaultZoom;
+    // The page holds the rendered document once it is sent, so the host drops
+    // its copy of the HTML and renders the file again if the page reloads.
+    bool htmlReleased_ = false;
     bool readerReady_ = false;
     bool directOpenError_ = false;
     bool smokeTest_ = false;
