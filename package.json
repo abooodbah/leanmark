@@ -1,6 +1,6 @@
 {
   "name": "leanmark-runtime-assets",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "private": true,
   "description": "Pinned build-time packages used to create LeanMark's offline runtime assets.",
   "license": "MIT",

@@ -3,6 +3,17 @@
 All notable LeanMark changes are recorded here. The project follows semantic
 versioning.
 
+## [0.4.2] - 2026-10-20
+
+### Fixed
+
+- On Windows, LeanMark showed a white window for about a quarter second when
+  it opened with the dark theme, before the reader appeared. The window now
+  paints the reader background straight away, and WebView2 starts with the
+  theme background instead of white. In five timed launches of each build,
+  0.4.1 showed a fully white window in all five, for 0.2 to 0.5 seconds; 0.4.2
+  showed none.
+
 ## [0.4.1] - 2026-10-20
 
 ### Fixed
@@ -179,6 +190,7 @@ versioning.
 - WebView2 keeps the package small but uses a browser-process memory footprint.
 - LeanMark reads Markdown; it does not edit or manage a document vault.
 
+[0.4.2]: https://github.com/abooodbah/leanmark/releases/tag/v0.4.2
 [0.4.1]: https://github.com/abooodbah/leanmark/releases/tag/v0.4.1
 [0.4.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.4.0
 [0.3.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.3.0
