@@ -109,6 +109,12 @@ Either route runs the full build on the tag, publishes the GitHub Release,
 redeploys the website, and submits the Windows package to winget when the
 `WINGET_TOKEN` secret is set (see `packaging/winget/README.md`).
 
+Bump the version resource in `src/LeanMark.rc` with `package.json`; CI fails
+when they differ. Once SignPath signing is configured, the tag build waits for
+the signing request to be approved (see `docs/code-signing.md`), and every
+release page gets the code signing policy from
+`docs/releases/code-signing-policy.md`.
+
 ## Submit a pull request
 
 Keep the change focused, explain its user-visible effect, and link the related
