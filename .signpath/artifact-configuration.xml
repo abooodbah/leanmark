@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SignPath artifact configuration for LeanMark.
+
+  SignPath does not read this file from the repository. Paste its contents into
+  the SignPath project "leanmark" (Artifact configurations) and keep the two
+  copies identical. See docs/code-signing.md.
+
+  The Windows job in .github/workflows/build.yml uploads one GitHub Actions
+  artifact that holds only LeanMark.exe. GitHub stores every artifact as a ZIP
+  file, so the root element is zip-file. Only LeanMark.exe is signed; the
+  third-party WebView2Loader.dll is not part of the uploaded artifact.
+
+  The build passes the release version as the "version" parameter, and SignPath
+  refuses to sign unless the executable's version resource says ProductName
+  "LeanMark" and ProductVersion equal to that version (src/LeanMark.rc).
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" required="true" />
+  </parameters>
+  <zip-file>
+    <pe-file path="LeanMark.exe" product-name="LeanMark" product-version="${version}">
+      <authenticode-sign />
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

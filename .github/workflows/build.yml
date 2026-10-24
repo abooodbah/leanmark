@@ -16,9 +16,16 @@ jobs:
   build:
     name: Windows x64
     runs-on: windows-latest
-    timeout-minutes: 25
+    # A signed tag build waits for the approver in SignPath, so it gets longer.
+    timeout-minutes: ${{ (vars.SIGNPATH_ORGANIZATION_ID != '' && startsWith(github.ref, 'refs/tags/v')) && 90 || 25 }}
+    # actions: read lets the SignPath action read this job and download the
+    # unsigned artifact with the job's own token.
+    permissions:
+      contents: read
+      actions: read
     outputs:
       version: ${{ steps.package.outputs.version }}
+      signed: ${{ steps.use-signed.outputs.signed || 'false' }}
 
     steps:
       - name: Check out source
@@ -76,6 +83,68 @@ jobs:
             }
           }
           ('version={0}' -f $version) | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      # SignPath signs only when ProductName and ProductVersion match, so the
+      # version resource in src/LeanMark.rc must follow package.json.
+      - name: Check the executable's version resource
+        shell: pwsh
+        env:
+          LEANMARK_VERSION: ${{ steps.package.outputs.version }}
+        run: |
+          $info = (Get-Item -LiteralPath ./dist/LeanMark.exe).VersionInfo
+          if ($info.ProductName -cne 'LeanMark') {
+            throw ('LeanMark.exe ProductName is {0}, expected LeanMark.' -f $info.ProductName)
+          }
+          if ($info.ProductVersion -cne $env:LEANMARK_VERSION) {
+            throw ('LeanMark.exe ProductVersion is {0}, expected {1}. Update src/LeanMark.rc.' -f $info.ProductVersion, $env:LEANMARK_VERSION)
+          }
+          Write-Host ('LeanMark.exe ProductName {0}, ProductVersion {1}' -f $info.ProductName, $info.ProductVersion)
+
+      # Code signing through SignPath Foundation. Every step below is skipped
+      # until the repository variable SIGNPATH_ORGANIZATION_ID is set, and runs
+      # only for release tags, because each request waits for manual approval.
+      # See docs/code-signing.md and .signpath/artifact-configuration.xml.
+      - name: Upload unsigned executable for signing
+        id: upload-unsigned
+        if: vars.SIGNPATH_ORGANIZATION_ID != '' && startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-LeanMark-exe-v${{ steps.package.outputs.version }}
+          path: dist/LeanMark.exe
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Sign the executable with SignPath
+        if: vars.SIGNPATH_ORGANIZATION_ID != '' && startsWith(github.ref, 'refs/tags/v')
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: leanmark
+          signing-policy-slug: release-signing
+          github-artifact-id: ${{ steps.upload-unsigned.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed
+          parameters: |
+            version: "${{ steps.package.outputs.version }}"
+
+      - name: Use the signed executable
+        id: use-signed
+        if: vars.SIGNPATH_ORGANIZATION_ID != '' && startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        run: |
+          $signedExe = './signed/LeanMark.exe'
+          if (-not (Test-Path -LiteralPath $signedExe -PathType Leaf)) {
+            throw 'SignPath returned no signed/LeanMark.exe.'
+          }
+          $signature = Get-AuthenticodeSignature -LiteralPath $signedExe
+          if ($signature.Status -ne 'Valid') {
+            throw ('The signed LeanMark.exe has signature status {0}.' -f $signature.Status)
+          }
+          Write-Host ('Signed by {0}' -f $signature.SignerCertificate.Subject)
+          Copy-Item -LiteralPath $signedExe -Destination ./dist/LeanMark.exe -Force
+          'signed=true' | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Create Windows release package
         shell: pwsh
@@ -340,9 +409,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           LEANMARK_TAG: ${{ github.ref_name }}
+          LEANMARK_SIGNED: ${{ needs.build.outputs.signed }}
         run: |
-          notes="docs/releases/${LEANMARK_TAG}.md"
-          test -f "$notes"
+          release_notes="docs/releases/${LEANMARK_TAG}.md"
+          policy="docs/releases/code-signing-policy.md"
+          test -f "$release_notes"
+          test -f "$policy"
+          # Every release page carries the code signing policy, with a line
+          # that says whether this release's Windows executable was signed.
+          if [[ "$LEANMARK_SIGNED" == "true" ]]; then
+            status='In this release, `LeanMark.exe` is signed through SignPath.'
+          else
+            status='In this release, `LeanMark.exe` is not signed.'
+          fi
+          grep -q '^<!-- signing-status' "$policy"
+          notes="${RUNNER_TEMP}/release-notes.md"
+          {
+            cat "$release_notes"
+            printf '\n'
+            STATUS="$status" awk '/^<!-- signing-status/ { print ENVIRON["STATUS"]; next } { print }' "$policy"
+          } > "$notes"
           gh release create "$LEANMARK_TAG" \
             release-assets/* \
             --verify-tag \
