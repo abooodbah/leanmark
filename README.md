@@ -41,6 +41,21 @@ winget upgrade abooodbah.LeanMark
 A new version reaches winget once the community repository has accepted its
 manifest, which can take a few days after the GitHub release.
 
+### Microsoft Store
+
+<a href="https://apps.microsoft.com/detail/9MSS4WKJ22ZV"><img src="https://get.microsoft.com/images/en-us%20dark.svg" width="200" alt="Download from the Microsoft Store"></a>
+
+LeanMark is also in the [Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV).
+The Store build is signed by Microsoft, so Windows installs it without the
+SmartScreen warning that the unsigned GitHub ZIP can show. It can also be
+installed from the Store with winget:
+
+```powershell
+winget install --id 9MSS4WKJ22ZV --source msstore
+```
+
+### GitHub Releases
+
 Windows, Linux (.deb), and macOS builds are also on the
 [Releases](https://github.com/abooodbah/leanmark/releases) page.
 
@@ -61,7 +76,9 @@ Windows ARM64, Linux ARM64, and distro-independent Linux packages are not part
 of this release.
 
 > [!IMPORTANT]
-> The Windows executable is unsigned. The macOS preview bundle is ad-hoc signed with
+> The Windows executable on GitHub Releases is unsigned; the
+> [Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) build is signed by
+> Microsoft. The macOS preview bundle is ad-hoc signed with
 > the hardened-runtime flag but is not Developer ID signed or notarized.
 > Windows SmartScreen or macOS Gatekeeper may therefore require an explicit
 > trust decision. Official project binaries are limited to assets attached to

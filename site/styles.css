@@ -820,6 +820,12 @@ a:hover {
   user-select: all;
 }
 
+.store-note {
+  margin-top: var(--space-3);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
 .install-steps {
   margin: 0;
   padding: 0;

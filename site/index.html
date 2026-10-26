@@ -304,7 +304,9 @@ flowchart LR
           </p>
           <div class="inline-alert" role="note">
             <strong>Transparent trust status.</strong>
-            Windows may show an unknown-publisher warning. The macOS preview is
+            The GitHub Windows ZIP is unsigned, so Windows may show an
+            unknown-publisher warning; the Microsoft Store build is signed by
+            Microsoft. The macOS preview is
             ad-hoc signed and not notarized. Each package has a SHA-256 sidecar
             that verifies a byte-for-byte match; it does not establish publisher
             identity. The release notes document platform requirements.
@@ -327,6 +329,16 @@ flowchart LR
             <span>On Windows, with winget</span>
             <code>winget install abooodbah.LeanMark</code>
           </div>
+          <div class="install-command">
+            <span>From the Microsoft Store, with winget</span>
+            <code>winget install --id 9MSS4WKJ22ZV --source msstore</code>
+          </div>
+          <p class="store-note">
+            LeanMark is also in the
+            <a href="https://apps.microsoft.com/detail/9MSS4WKJ22ZV">Microsoft Store</a>.
+            The Store build is signed by Microsoft, so Windows installs it
+            without the SmartScreen warning that the GitHub ZIP can show.
+          </p>
         </div>
         <ol class="install-steps">
           <li>
