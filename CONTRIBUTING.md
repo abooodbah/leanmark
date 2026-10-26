@@ -110,10 +110,9 @@ redeploys the website, and submits the Windows package to winget when the
 `WINGET_TOKEN` secret is set (see `packaging/winget/README.md`).
 
 Bump the version resource in `src/LeanMark.rc` with `package.json`; CI fails
-when they differ. Once SignPath signing is configured, the tag build waits for
-the signing request to be approved (see `docs/code-signing.md`), and every
-release page gets the code signing policy from
-`docs/releases/code-signing-policy.md`.
+when they differ. Every release page gets the signing and privacy notes from
+`docs/releases/code-signing-policy.md`. Code signing of the GitHub build is off;
+see `docs/code-signing.md`.
 
 ## Submit a pull request
 

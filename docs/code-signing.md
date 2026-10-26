@@ -1,18 +1,24 @@
 # Code signing for the Windows build
 
-LeanMark's Windows executable can be signed for free through
-[SignPath Foundation](https://signpath.org/). The repository already carries
-what the foundation asks for: the code signing policy in `README.md`, on the
-website, and on every release page; the privacy policy; uninstall
-instructions; and a version resource in `LeanMark.exe` with ProductName
-`LeanMark` and ProductVersion equal to the release version, which CI checks on
-every build.
+## Status: signing is off
 
-The signing steps in `.github/workflows/build.yml` do nothing until the
-repository variable `SIGNPATH_ORGANIZATION_ID` is set. After that they run
-only for release tags.
+LeanMark applied to [SignPath Foundation](https://signpath.org/) for free code
+signing. The application was declined in October 2026, so signing is off.
 
-## What the owner does
+- The Windows ZIP on GitHub Releases, and the copy winget installs from it, is
+  unsigned. Windows SmartScreen may ask for an explicit trust decision.
+- The Microsoft Store build is signed by Microsoft when the Store publishes it.
+
+The signing steps in `.github/workflows/build.yml` and
+`.signpath/artifact-configuration.xml` are kept, but they do nothing: every
+step is skipped unless the repository variable `SIGNPATH_ORGANIZATION_ID` is
+set, and it is not set. The rest of this page describes how the setup would
+work if a SignPath Foundation application were accepted later.
+
+The version resource in `LeanMark.exe` (ProductName `LeanMark`, ProductVersion
+equal to the release version) is still checked by CI on every build.
+
+## What the owner would do
 
 1. Turn on two-factor authentication for the GitHub account `abooodbah`, if it
    is not on already. SignPath Foundation requires it for everyone with commit
@@ -34,7 +40,7 @@ only for release tags.
      ID.
    - Add the secret `SIGNPATH_API_TOKEN` with the API token.
 
-## What happens at each release
+## What would happen at each release
 
 When a `v*` tag is built, the Windows job uploads the unsigned `LeanMark.exe`
 as a workflow artifact and submits it to SignPath. The job then waits up to

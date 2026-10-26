@@ -1,18 +1,6 @@
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/)
-
-The policy covers the Windows executable, `LeanMark.exe`. Only the project's
-own executable is signed; third-party files in the package, such as
-Microsoft's `WebView2Loader.dll`, are not. The Linux package and the macOS
-preview are not covered.
+## Signing and privacy
 
 <!-- signing-status: the release job replaces this line. -->
-
-LeanMark is a one-person project, so one person holds every role.
-
-- Committers and reviewers: [abooodbah](https://github.com/abooodbah)
-- Approvers: [abooodbah](https://github.com/abooodbah)
 
 ### Privacy policy
 

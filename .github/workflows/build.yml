@@ -415,7 +415,7 @@ jobs:
           policy="docs/releases/code-signing-policy.md"
           test -f "$release_notes"
           test -f "$policy"
-          # Every release page carries the code signing policy, with a line
+          # Every release page carries the signing and privacy notes, with a line
           # that says whether this release's Windows executable was signed.
           if [[ "$LEANMARK_SIGNED" == "true" ]]; then
             status='In this release, `LeanMark.exe` is signed through SignPath.'
