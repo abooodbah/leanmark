@@ -54,6 +54,23 @@ installed from the Store with winget:
 winget install --id 9MSS4WKJ22ZV --source msstore
 ```
 
+### Scoop
+
+```powershell
+scoop bucket add lean https://github.com/abooodbah/scoop-bucket
+scoop install lean/leanmark
+```
+
+### Homebrew (macOS)
+
+```bash
+brew install --cask abooodbah/tap/leanmark
+```
+
+The macOS build is not notarized by Apple, so macOS blocks the first launch.
+Open LeanMark once, then choose **Open Anyway** under System Settings > Privacy &
+Security. Later launches open normally.
+
 ### GitHub Releases
 
 Windows, Linux (.deb), and macOS builds are also on the
