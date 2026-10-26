@@ -309,25 +309,7 @@ real-WebKit checks.
 Private vulnerability reports follow
 [SECURITY.md](https://github.com/abooodbah/leanmark/blob/main/SECURITY.md).
 
-## Code signing policy
-
-Free code signing provided by [SignPath.io](https://about.signpath.io/), certificate by [SignPath Foundation](https://signpath.org/)
-
-This applies to the Windows executable, <code>LeanMark.exe</code>. Signing is
-being set up, and LeanMark 0.4.2 and earlier releases are unsigned. Only the
-project's own executable is signed. Third-party files in the package, such as Microsoft's
-<code>WebView2Loader.dll</code>, are not signed by this project. The Linux
-package and the macOS preview are not covered by this policy.
-
-LeanMark is a one-person project, so one person holds every role:
-
-- Committers and reviewers: [abooodbah](https://github.com/abooodbah)
-- Approvers: [abooodbah](https://github.com/abooodbah)
-
-Every signed release is built from this repository by GitHub Actions and is
-signed only after the approver confirms the signing request.
-
-### Privacy policy
+## Privacy policy
 
 This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it.
 
@@ -341,7 +323,7 @@ document; details are under [Privacy and security](#privacy-and-security).
 The runtime's own network use is governed by the
 [Microsoft Privacy Statement](https://privacy.microsoft.com/privacystatement).
 
-### Uninstall
+## Uninstall
 
 - Windows, installed copy: Settings > Apps > Installed apps > LeanMark, or the
   installed <code>uninstall.ps1</code> shown under [Windows x64](#windows-x64).
