@@ -73,6 +73,8 @@ Assert-Match $html '<link\s+rel="canonical"\s+href="https://abooodbah\.github\.i
 Assert-Match $html '<meta\s+property="og:image"\s+content="https://abooodbah\.github\.io/leanmark/assets/social-preview\.png"' 'The public social preview URL is missing.'
 Assert-Match $html ([regex]::Escape(('v{0}' -f $version))) 'The landing-page version does not match package.json.'
 Assert-Match $html 'https://github\.com/abooodbah/leanmark/releases/latest' 'The landing-page release CTA must resolve across platforms.'
+Assert-Match $html '<a href="https://apps\.microsoft\.com/detail/9MSS4WKJ22ZV">\s*<img src="https://get\.microsoft\.com/images/en-us%20dark\.svg"[^>]*alt="Download from the Microsoft Store">' 'The install section must link the Microsoft Store listing with the official badge.'
+Assert-Match $html '<code>winget install --id 9MSS4WKJ22ZV --source msstore</code>' 'The install section must give the Microsoft Store winget command.'
 foreach ($platform in @('Windows', 'Linux', 'macOS')) {
     Assert-Match $html $platform ("The landing page does not name the {0} release." -f $platform)
 }

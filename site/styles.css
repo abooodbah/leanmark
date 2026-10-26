@@ -820,6 +820,25 @@ a:hover {
   user-select: all;
 }
 
+.store-install {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  margin-top: var(--space-6);
+}
+
+.store-install img {
+  display: block;
+  width: 200px;
+  height: auto;
+}
+
+.store-install p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
 .install-steps {
   margin: 0;
   padding: 0;
