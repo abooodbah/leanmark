@@ -422,6 +422,84 @@ double NormalizeZoom(double value) {
     return nearest;
 }
 
+Theme ParseTheme(std::string_view name) {
+    constexpr Theme kThemes[] = {
+        Theme::System, Theme::Light, Theme::Dark, Theme::Dim, Theme::Dusk};
+    for (const Theme theme : kThemes) {
+        const std::string_view candidate = ThemeName(theme);
+        if (name.size() == candidate.size() &&
+            std::equal(name.begin(), name.end(), candidate.begin(),
+                       [](char left, char right) {
+                           const char lower =
+                               left >= 'A' && left <= 'Z'
+                                   ? static_cast<char>(left - 'A' + 'a')
+                                   : left;
+                           return lower == right;
+                       })) {
+            return theme;
+        }
+    }
+    return Theme::System;
+}
+
+const char* ThemeName(Theme theme) {
+    switch (theme) {
+        case Theme::Light:
+            return "light";
+        case Theme::Dark:
+            return "dark";
+        case Theme::Dim:
+            return "dim";
+        case Theme::Dusk:
+            return "dusk";
+        default:
+            return "system";
+    }
+}
+
+Theme NextTheme(Theme theme) {
+    switch (theme) {
+        case Theme::System:
+            return Theme::Light;
+        case Theme::Light:
+            return Theme::Dark;
+        case Theme::Dark:
+            return Theme::Dim;
+        case Theme::Dim:
+            return Theme::Dusk;
+        default:
+            return Theme::System;
+    }
+}
+
+bool IsDarkTheme(Theme theme, bool systemDark) {
+    switch (theme) {
+        case Theme::Light:
+            return false;
+        case Theme::System:
+            return systemDark;
+        default:
+            return true;
+    }
+}
+
+ThemeColor ThemeCanvas(Theme theme, bool systemDark) {
+    if (theme == Theme::System) {
+        theme = systemDark ? Theme::Dark : Theme::Light;
+    }
+    switch (theme) {
+        case Theme::Dark:
+            return {0x0e, 0x0d, 0x0b};
+        case Theme::Dim:
+            return {0x1e, 0x20, 0x23};
+        case Theme::Dusk:
+            return {0x22, 0x1e, 0x19};
+        default:
+        case Theme::Light:
+            return {0xfa, 0xf9, 0xf7};
+    }
+}
+
 bool IsPathWithin(
     const std::filesystem::path& root,
     const std::filesystem::path& candidate) {

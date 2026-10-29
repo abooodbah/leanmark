@@ -180,8 +180,11 @@ browser-free renderer, or a claim to the lowest possible RAM use.
 - CommonMark plus GFM tables, task lists, autolinks, and strikethrough.
 - Lazy, offline Mermaid rendering with strict mode and bounded diagram input.
 - Relative local images and relative Markdown document links.
-- Automatic outline, find, reading progress, printing, and system/light/dark
-  themes.
+- Automatic outline, find, reading progress, and printing.
+- Five reader themes: System, Light, Dark, and two softer dark themes, Dim
+  (neutral grey) and Dusk (warm), with less contrast than Dark for long
+  reading. The theme button in the toolbar, or Ctrl+Shift+T, steps through
+  them, and LeanMark remembers the choice.
 - Page zoom in fixed steps (50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200,
   250, and 300%). The new level shows briefly, and LeanMark remembers it for
   the next launch.
