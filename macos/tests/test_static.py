@@ -88,6 +88,16 @@ def main() -> int:
     ], "WKWebView host")
     require("self.document = document;" not in window,
             "NSDocument must attach its window controller through addWindowController")
+    # Saved and requested themes, the theme cycle, and the window appearance
+    # follow the shared core, so dim and dusk work here as on Windows and Linux.
+    require(window.count("leanmark::core::ParseTheme(") >= 2,
+            "saved and requested themes must go through the shared parser")
+    contains_all(window, [
+        "leanmark::core::NextTheme(",
+        "leanmark::core::IsDarkTheme(",
+    ], "shared theme rules")
+    require('isEqualToString:@"dark"' not in window,
+            "theme names must not be compared by hand; unknown values fall back in the core")
 
     document_source = (mac / "src" / "LMDocument.mm").read_text("utf-8")
     contains_all(document_source, [

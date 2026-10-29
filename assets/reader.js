@@ -99,13 +99,52 @@
     return "";
   }
 
+  // The theme button's order. Dim and Dusk are the softer dark themes.
+  var themeCycle = ["system", "light", "dark", "dim", "dusk"];
+
   function effectiveDarkTheme() {
     return currentTheme === "dark" ||
       (currentTheme === "system" && systemTheme.matches);
   }
 
+  // Dim and Dusk draw diagrams with their own tokens, so a diagram's boxes
+  // and labels are as soft as the page around it. Mermaid's base theme needs
+  // plain hex colours, which these tokens are.
+  function diagramTheme() {
+    if (currentTheme !== "dim" && currentTheme !== "dusk") {
+      return { theme: effectiveDarkTheme() ? "dark" : "neutral" };
+    }
+    var style = getComputedStyle(document.documentElement);
+    var token = function (name) {
+      return style.getPropertyValue(name).trim();
+    };
+    return {
+      theme: "base",
+      themeVariables: {
+        darkMode: true,
+        background: token("--canvas"),
+        mainBkg: token("--surface-muted"),
+        primaryColor: token("--surface-muted"),
+        primaryTextColor: token("--text-primary"),
+        primaryBorderColor: token("--text-disabled"),
+        nodeBorder: token("--text-disabled"),
+        secondaryColor: token("--surface"),
+        tertiaryColor: token("--code-canvas"),
+        lineColor: token("--text-secondary"),
+        textColor: token("--text-primary"),
+        titleColor: token("--text-primary"),
+        clusterBkg: token("--surface"),
+        clusterBorder: token("--border"),
+        edgeLabelBackground: token("--canvas"),
+        noteBkgColor: token("--surface"),
+        noteTextColor: token("--text-primary"),
+        noteBorderColor: token("--border")
+      }
+    };
+  }
+
   function applyTheme(theme, rerenderDiagrams) {
-    currentTheme = theme === "light" || theme === "dark" ? theme : "system";
+    currentTheme = themeCycle.indexOf(theme) > 0 ? theme : "system";
     if (currentTheme === "system") {
       document.documentElement.removeAttribute("data-theme");
     } else {
@@ -127,11 +166,7 @@
   }
 
   function cycleTheme() {
-    var next = currentTheme === "system"
-      ? "light"
-      : currentTheme === "light"
-        ? "dark"
-        : "system";
+    var next = themeCycle[(themeCycle.indexOf(currentTheme) + 1) % themeCycle.length];
     applyTheme(next, true);
     post("theme|" + next);
   }
@@ -537,13 +572,18 @@
       if (generation !== diagramGeneration) {
         return;
       }
-      mermaid.initialize({
+      var diagramLook = diagramTheme();
+      var diagramConfig = {
         startOnLoad: false,
         securityLevel: "strict",
         suppressErrorRendering: true,
-        theme: effectiveDarkTheme() ? "dark" : "neutral",
+        theme: diagramLook.theme,
         fontFamily: "IBM Plex Sans, Segoe UI, sans-serif"
-      });
+      };
+      if (diagramLook.themeVariables) {
+        diagramConfig.themeVariables = diagramLook.themeVariables;
+      }
+      mermaid.initialize(diagramConfig);
 
       for (var index = 0; index < figures.length; index += 1) {
         var figure = figures[index];

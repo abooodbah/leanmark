@@ -80,6 +80,8 @@
   --selection: #cbdcff;
   --find: #f8d66d;
   --find-current: #ef9f27;
+  --find-text: var(--neutral-950);
+  --quote-rule: var(--neutral-300);
 
   --space-1: 0.25rem;
   --space-2: 0.5rem;
@@ -141,6 +143,50 @@
   --selection: #23468c;
   --find: #735d1e;
   --find-current: #b45309;
+}
+
+/* Dim and Dusk are softer dark themes for long reading (issue #6). Body text
+   stays near 10:1 against the page, above WCAG AA's 4.5:1 but well below the
+   18:1 of Dark. Each block sets every token the dark blocks set, so it wins
+   over the system-dark block above whatever the system setting is. */
+:root[data-theme="dim"] {
+  color-scheme: dark;
+  --canvas: #1e2023;
+  --surface: #25282c;
+  --surface-muted: #2d3035;
+  --border: #393d43;
+  --text-primary: #c8ccd2;
+  --text-secondary: #9ea4ac;
+  --text-disabled: #6c727a;
+  --ring: #6c9be0;
+  --link: #86aee6;
+  --link-hover: #a6c4ee;
+  --code-canvas: #282b30;
+  --selection: #34486a;
+  --find: #5c4d1f;
+  --find-current: #7a5317;
+  --find-text: #e8e4dc;
+  --quote-rule: #4a4f56;
+}
+
+:root[data-theme="dusk"] {
+  color-scheme: dark;
+  --canvas: #221e19;
+  --surface: #29241e;
+  --surface-muted: #322c25;
+  --border: #3f3830;
+  --text-primary: #d4c8b4;
+  --text-secondary: #a99c87;
+  --text-disabled: #776c5c;
+  --ring: #c99a62;
+  --link: #e0a86e;
+  --link-hover: #ebc08f;
+  --code-canvas: #2c2721;
+  --selection: #4d3f2c;
+  --find: #6a5420;
+  --find-current: #82561c;
+  --find-text: #f1e9db;
+  --quote-rule: #574c3f;
 }
 
 :root[data-theme="light"] {
@@ -258,6 +304,13 @@ button {
     background: var(--neutral-50);
     color: var(--neutral-950);
   }
+}
+
+/* After the system-dark rule above, which would otherwise win on a dark system. */
+:root[data-theme="dim"] .wordmark,
+:root[data-theme="dusk"] .wordmark {
+  background: var(--text-primary);
+  color: var(--canvas);
 }
 
 .file-copy {
@@ -726,7 +779,7 @@ button {
 
 .article blockquote {
   padding: var(--space-2) 0 var(--space-2) var(--space-5);
-  border-left: 4px solid var(--neutral-300);
+  border-left: 4px solid var(--quote-rule);
   color: var(--text-secondary);
   font-family: var(--font-serif);
   font-size: 20px;
@@ -1125,12 +1178,12 @@ button {
 
 ::highlight(leanmark-find) {
   background: var(--find);
-  color: var(--neutral-950);
+  color: var(--find-text);
 }
 
 ::highlight(leanmark-find-current) {
   background: var(--find-current);
-  color: var(--neutral-950);
+  color: var(--find-text);
 }
 
 @media (min-width: 1180px) {

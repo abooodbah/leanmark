@@ -34,13 +34,20 @@ double SavedZoom(void) {
         : leanmark::core::kDefaultZoom;
 }
 
+const char *ThemeUTF8(NSString *name) {
+    const char *utf8 = name.UTF8String;
+    return utf8 != nullptr ? utf8 : "";
+}
+
+NSString *ThemeString(leanmark::core::Theme theme) {
+    return @(leanmark::core::ThemeName(theme));
+}
+
+// An unknown saved name, such as one from a later version, gives "system".
 NSString *CurrentTheme(void) {
-    NSString *theme = [NSUserDefaults.standardUserDefaults
+    NSString *saved = [NSUserDefaults.standardUserDefaults
         stringForKey:LMThemePreferenceKey];
-    if ([theme isEqualToString:@"light"] || [theme isEqualToString:@"dark"]) {
-        return theme;
-    }
-    return @"system";
+    return ThemeString(leanmark::core::ParseTheme(ThemeUTF8(saved)));
 }
 
 BOOL IsExpectedAppURL(NSURL *URL) {
@@ -287,9 +294,9 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
     }
     if ([command hasPrefix:@"theme|"]) {
         NSString *theme = [command substringFromIndex:@"theme|".length];
-        if (![theme isEqualToString:@"light"] &&
-            ![theme isEqualToString:@"dark"] &&
-            ![theme isEqualToString:@"system"]) {
+        // Only exact theme names are saved; anything else is ignored.
+        if (![ThemeString(leanmark::core::ParseTheme(ThemeUTF8(theme)))
+                isEqualToString:theme]) {
             return;
         }
         [NSUserDefaults.standardUserDefaults setObject:theme
@@ -514,10 +521,9 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
 }
 
 - (void)cycleTheme {
-    NSString *theme = CurrentTheme();
-    NSString *next = [theme isEqualToString:@"system"]
-        ? @"light"
-        : ([theme isEqualToString:@"light"] ? @"dark" : @"system");
+    NSString *next =
+        ThemeString(leanmark::core::NextTheme(
+            leanmark::core::ParseTheme(ThemeUTF8(CurrentTheme()))));
     [NSUserDefaults.standardUserDefaults setObject:next forKey:LMThemePreferenceKey];
     [self applyWindowTheme:next];
     NSDictionary *payload = @{ @"type" : @"theme", @"value" : next };
@@ -531,12 +537,13 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
 }
 
 - (void)applyWindowTheme:(NSString *)theme {
-    if ([theme isEqualToString:@"dark"]) {
-        self.window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
-    } else if ([theme isEqualToString:@"light"]) {
-        self.window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
-    } else {
+    const leanmark::core::Theme parsed = leanmark::core::ParseTheme(ThemeUTF8(theme));
+    if (parsed == leanmark::core::Theme::System) {
         self.window.appearance = nil;
+    } else if (leanmark::core::IsDarkTheme(parsed, false)) {
+        self.window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameDarkAqua];
+    } else {
+        self.window.appearance = [NSAppearance appearanceNamed:NSAppearanceNameAqua];
     }
 }
 

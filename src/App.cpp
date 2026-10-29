@@ -15,6 +15,7 @@
 #include <cstring>
 #include <cwctype>
 #include <filesystem>
+#include <initializer_list>
 #include <iterator>
 #include <optional>
 #include <string_view>
@@ -161,6 +162,17 @@ bool SystemUsesDarkApps() {
         &lightTheme,
         &size);
     return status == ERROR_SUCCESS && lightTheme == 0;
+}
+
+// WEBVIEW2_DEFAULT_BACKGROUND_COLOR takes AARRGGBB in hex.
+std::wstring BackgroundColorVariable(leanmark::core::ThemeColor color) {
+    constexpr wchar_t kHex[] = L"0123456789ABCDEF";
+    std::wstring value = L"FF";
+    for (const unsigned char channel : {color.red, color.green, color.blue}) {
+        value += kHex[channel >> 4];
+        value += kHex[channel & 0x0f];
+    }
+    return value;
 }
 
 std::wstring DocumentHostName(unsigned number) {
@@ -383,7 +395,7 @@ bool LeanMarkApp::SameStamp(const FileStamp& left, const FileStamp& right) {
 }
 
 bool LeanMarkApp::CreateMainWindow(int showCommand) {
-    const bool dark = EffectiveDarkTheme();
+    const leanmark::core::ThemeColor canvas = CanvasColor();
     WNDCLASSEXW windowClass = {};
     windowClass.cbSize = sizeof(windowClass);
     windowClass.lpfnWndProc = WindowProcedure;
@@ -398,7 +410,7 @@ bool LeanMarkApp::CreateMainWindow(int showCommand) {
         GetSystemMetrics(SM_CYSMICON),
         LR_DEFAULTCOLOR));
     windowClass.hbrBackground =
-        CreateSolidBrush(dark ? RGB(14, 13, 11) : RGB(250, 249, 247));
+        CreateSolidBrush(RGB(canvas.red, canvas.green, canvas.blue));
     windowClass.lpszClassName = kWindowClassName;
     if (!RegisterClassExW(&windowClass) &&
         GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
@@ -494,7 +506,7 @@ LRESULT LeanMarkApp::HandleWindowMessage(
             RecreateWebView();
             return 0;
         case WM_SETTINGCHANGE:
-            if (theme_ == ThemeMode::System) {
+            if (theme_ == leanmark::core::Theme::System) {
                 ApplyWindowTheme();
                 if (minimized_) {
                     themeChangedWhileMinimized_ = true;
@@ -512,8 +524,9 @@ LRESULT LeanMarkApp::HandleWindowMessage(
             // seam.
             RECT client = {};
             GetClientRect(window_, &client);
-            const HBRUSH brush = CreateSolidBrush(
-                EffectiveDarkTheme() ? RGB(14, 13, 11) : RGB(250, 249, 247));
+            const leanmark::core::ThemeColor canvas = CanvasColor();
+            const HBRUSH brush =
+                CreateSolidBrush(RGB(canvas.red, canvas.green, canvas.blue));
             FillRect(reinterpret_cast<HDC>(wParam), &client, brush);
             DeleteObject(brush);
             return 1;
@@ -569,7 +582,7 @@ void LeanMarkApp::InitializeWebView() {
     // The API call in ConfigureWebView still handles later theme changes.
     SetEnvironmentVariableW(
         L"WEBVIEW2_DEFAULT_BACKGROUND_COLOR",
-        EffectiveDarkTheme() ? L"FF0E0D0B" : L"FFFAF9F7");
+        BackgroundColorVariable(CanvasColor()).c_str());
 
     auto options = Make<CoreWebView2EnvironmentOptions>();
     options->put_AdditionalBrowserArguments(LeanMarkBrowserArguments().c_str());
@@ -680,10 +693,9 @@ void LeanMarkApp::ConfigureWebView() {
 
     ComPtr<ICoreWebView2Controller2> controller2;
     if (SUCCEEDED(controller_.As(&controller2))) {
-        const COREWEBVIEW2_COLOR color =
-            EffectiveDarkTheme() ? COREWEBVIEW2_COLOR{255, 14, 13, 11}
-                                 : COREWEBVIEW2_COLOR{255, 250, 249, 247};
-        controller2->put_DefaultBackgroundColor(color);
+        const leanmark::core::ThemeColor canvas = CanvasColor();
+        controller2->put_DefaultBackgroundColor(
+            COREWEBVIEW2_COLOR{255, canvas.red, canvas.green, canvas.blue});
     }
 
     ComPtr<ICoreWebView2_3> webView3;
@@ -1478,14 +1490,8 @@ void LeanMarkApp::HandleWebMessage(
         return;
     }
     if (StartsWithInsensitive(message, L"theme|")) {
-        const std::wstring requested = Lowercase(message.substr(6));
-        if (requested == L"light") {
-            theme_ = ThemeMode::Light;
-        } else if (requested == L"dark") {
-            theme_ = ThemeMode::Dark;
-        } else {
-            theme_ = ThemeMode::System;
-        }
+        theme_ = leanmark::core::ParseTheme(
+            leanmark::WideToUtf8(std::wstring_view(message).substr(6)));
         SaveSettings();
         ApplyWindowTheme();
     }
@@ -1622,7 +1628,7 @@ void LeanMarkApp::HandleCopySource(const std::wstring& arguments) {
 }
 
 void LeanMarkApp::LoadSettings() {
-    theme_ = ThemeMode::System;
+    theme_ = leanmark::core::Theme::System;
     wchar_t value[16] = {};
     DWORD valueBytes = sizeof(value);
     if (RegGetValueW(
@@ -1633,12 +1639,9 @@ void LeanMarkApp::LoadSettings() {
             nullptr,
             value,
             &valueBytes) == ERROR_SUCCESS) {
-        const std::wstring saved = Lowercase(value);
-        if (saved == L"light") {
-            theme_ = ThemeMode::Light;
-        } else if (saved == L"dark") {
-            theme_ = ThemeMode::Dark;
-        }
+        // An unknown name, such as one saved by a later version, gives the
+        // system theme.
+        theme_ = leanmark::core::ParseTheme(leanmark::WideToUtf8(value));
     }
 
     // Stored as a whole percentage; anything off the shared levels snaps to
@@ -1712,30 +1715,20 @@ void LeanMarkApp::ApplyWindowTheme() {
 
     ComPtr<ICoreWebView2Controller2> controller2;
     if (controller_ != nullptr && SUCCEEDED(controller_.As(&controller2))) {
-        const COREWEBVIEW2_COLOR color =
-            dark ? COREWEBVIEW2_COLOR{255, 14, 13, 11}
-                 : COREWEBVIEW2_COLOR{255, 250, 249, 247};
-        controller2->put_DefaultBackgroundColor(color);
+        const leanmark::core::ThemeColor canvas = CanvasColor();
+        controller2->put_DefaultBackgroundColor(
+            COREWEBVIEW2_COLOR{255, canvas.red, canvas.green, canvas.blue});
     }
 }
 
 bool LeanMarkApp::EffectiveDarkTheme() const {
-    if (theme_ == ThemeMode::Dark) {
-        return true;
-    }
-    if (theme_ == ThemeMode::Light) {
-        return false;
-    }
-    return SystemUsesDarkApps();
+    return leanmark::core::IsDarkTheme(theme_, SystemUsesDarkApps());
+}
+
+leanmark::core::ThemeColor LeanMarkApp::CanvasColor() const {
+    return leanmark::core::ThemeCanvas(theme_, SystemUsesDarkApps());
 }
 
 const char* LeanMarkApp::ThemeName() const {
-    switch (theme_) {
-        case ThemeMode::Light:
-            return "light";
-        case ThemeMode::Dark:
-            return "dark";
-        default:
-            return "system";
-    }
+    return leanmark::core::ThemeName(theme_);
 }

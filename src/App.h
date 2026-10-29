@@ -11,6 +11,7 @@
 #include <WebView2.h>
 
 #include "Markdown.h"
+#include "core/MarkdownCore.h"
 
 class LeanMarkApp {
 public:
@@ -24,7 +25,6 @@ public:
     int Run(HINSTANCE instance, int showCommand);
 
 private:
-    enum class ThemeMode { System, Light, Dark };
     enum class OpenMode { NewTab, ReplaceActive };
 
     struct FileStamp {
@@ -113,6 +113,7 @@ private:
     void SaveSettings();
     void ApplyWindowTheme();
     bool EffectiveDarkTheme() const;
+    leanmark::core::ThemeColor CanvasColor() const;
     const char* ThemeName() const;
 
     HINSTANCE instance_ = nullptr;
@@ -136,6 +137,6 @@ private:
     ULONGLONG recoveryWindowStart_ = 0;
     unsigned recoveriesInWindow_ = 0;
 
-    ThemeMode theme_ = ThemeMode::System;
+    leanmark::core::Theme theme_ = leanmark::core::Theme::System;
     double zoom_ = 1.0;
 };

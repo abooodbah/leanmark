@@ -95,6 +95,33 @@ double StepZoom(double current, int direction);
 // finite or are out of range give the default.
 double NormalizeZoom(double value);
 
+// Reader themes. Dim and Dusk are softer dark themes with less contrast than
+// Dark. The names are what every host saves and what the reader page uses.
+enum class Theme { System, Light, Dark, Dim, Dusk };
+
+struct ThemeColor {
+    unsigned char red = 0;
+    unsigned char green = 0;
+    unsigned char blue = 0;
+};
+
+// Reads a saved or page-requested theme name, ignoring ASCII case. Anything
+// else, including a name from a later version, gives Theme::System.
+Theme ParseTheme(std::string_view name);
+const char* ThemeName(Theme theme);
+
+// The theme after this one on the theme button: System, Light, Dark, Dim,
+// Dusk, then System again.
+Theme NextTheme(Theme theme);
+
+// Whether the window chrome should be dark. systemDark is the platform's own
+// dark-mode setting, used only for Theme::System.
+bool IsDarkTheme(Theme theme, bool systemDark);
+
+// The page background (--canvas in reader.css) for a theme. Hosts paint it
+// before the page draws so a launch shows no white flash.
+ThemeColor ThemeCanvas(Theme theme, bool systemDark);
+
 // Appends value to output as the inside of a JSON string literal. Building a
 // message in place avoids a temporary copy per field, which matters for the
 // rendered HTML of a large document.

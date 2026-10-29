@@ -22,7 +22,6 @@ public:
     LinuxApp& operator=(const LinuxApp&) = delete;
 
 private:
-    enum class ThemeMode { System, Light, Dark };
 
     LinuxApp(
         GtkApplication* application,
@@ -135,7 +134,7 @@ private:
     GFileMonitor* directoryMonitor_ = nullptr;
     guint reloadTimer_ = 0;
 
-    ThemeMode theme_ = ThemeMode::System;
+    core::Theme theme_ = core::Theme::System;
     double zoom_ = core::kDefaultZoom;
     // The page holds the rendered document once it is sent, so the host drops
     // its copy of the HTML and renders the file again if the page reloads.

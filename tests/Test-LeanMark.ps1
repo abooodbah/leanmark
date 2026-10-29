@@ -91,6 +91,37 @@ function Test-StaticInvariants {
     Assert-Match $reader 'dataset\.renderState\s*=\s*["'']ready["'']' 'DOM tests need the explicit ready state.'
     Write-TestPass 'strict, bounded, local-only Mermaid and image preparation'
 
+    # The window paints the theme background before the page does, so the
+    # shared table in the core must match each theme's --canvas token.
+    $css = Read-TextFile (Join-Path $repoRoot 'assets\reader.css')
+    $palette = @{}
+    foreach ($match in [regex]::Matches($css, '(--[a-z]+-\d+):\s*(#[0-9a-fA-F]{6});')) {
+        $palette[$match.Groups[1].Value] = $match.Groups[2].Value.ToLowerInvariant()
+    }
+    foreach ($theme in @('Light', 'Dark', 'Dim', 'Dusk')) {
+        $block = if ($theme -eq 'Light') {
+            [regex]::Match($css, '(?ms)^:root \{(.*?)^\}')
+        } else {
+            [regex]::Match($css, '(?s)\n:root\[data-theme="' + $theme.ToLowerInvariant() + '"\]\s*\{(.*?)\}')
+        }
+        Assert-True $block.Success "reader.css has no $theme theme block."
+        $canvas = [regex]::Match($block.Groups[1].Value, '--canvas:\s*([^;]+);')
+        Assert-True $canvas.Success "The $theme theme does not set --canvas."
+        $value = $canvas.Groups[1].Value.Trim().ToLowerInvariant()
+        $reference = [regex]::Match($value, '^var\((--[a-z]+-\d+)\)$')
+        if ($reference.Success) { $value = $palette[$reference.Groups[1].Value] }
+        $native = [regex]::Match($markdownCore, '(?s)case Theme::' + $theme + ':\s*return \{\s*0x([0-9a-f]{2}),\s*0x([0-9a-f]{2}),\s*0x([0-9a-f]{2})\s*\}')
+        Assert-True $native.Success "The core has no window background for the $theme theme."
+        $nativeHex = '#' + $native.Groups[1].Value + $native.Groups[2].Value + $native.Groups[3].Value
+        Assert-Equal $nativeHex $value "The $theme window background differs from its --canvas token."
+    }
+    Assert-True ([regex]::Matches($app, 'leanmark::core::ParseTheme\(').Count -ge 2) 'Saved and requested themes must both go through the shared parser.'
+    Assert-NotMatch $app 'RGB\(14, 13, 11\)|RGB\(250, 249, 247\)|FF0E0D0B|FFFAF9F7|\{255, 14, 13, 11\}' 'Window colours must come from the shared theme table, not literals.'
+    Assert-Match $app '(?s)case WM_ERASEBKGND:.{0,800}?CanvasColor\(\)' 'The window must paint the theme background before the page draws.'
+    Assert-Match $app '(?s)WEBVIEW2_DEFAULT_BACKGROUND_COLOR.{0,200}?CanvasColor\(\)' 'WebView2 must start with the theme background.'
+    Assert-Match $app 'leanmark::core::IsDarkTheme\(' 'The title bar must follow the shared dark-theme rule.'
+    Write-TestPass 'theme window colours match the reader tokens, and settings use the shared parser'
+
     Assert-Match $app 'kAppOrigin\[\].*https://app\.leanmark\.invalid/' 'The trusted application origin changed unexpectedly.'
     Assert-Match $app 'kDocumentHostSuffix\[\].*\.doc\.leanmark\.invalid' 'The document asset origin changed unexpectedly.'
     Assert-Match $app 'COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS' 'The application virtual-host mapping must deny CORS.'

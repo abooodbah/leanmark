@@ -651,15 +651,7 @@ void LinuxApp::HandleMessage(std::string_view message) {
         return;
     }
     if (StartsWithInsensitive(message, "theme|")) {
-        const std::string requested =
-            LowercaseAscii(std::string(message.substr(6)));
-        if (requested == "light") {
-            theme_ = ThemeMode::Light;
-        } else if (requested == "dark") {
-            theme_ = ThemeMode::Dark;
-        } else {
-            theme_ = ThemeMode::System;
-        }
+        theme_ = core::ParseTheme(message.substr(6));
         SaveSettings();
         SendJson(
             "{\"type\":\"theme\",\"value\":\"" + ThemeName() + "\"}");
@@ -816,7 +808,7 @@ void LinuxApp::HandleLink(std::string_view hrefView) {
 }
 
 void LinuxApp::LoadSettings() {
-    theme_ = ThemeMode::System;
+    theme_ = core::Theme::System;
     zoom_ = core::kDefaultZoom;
     GKeyFile* settings = g_key_file_new();
     if (!g_key_file_load_from_file(
@@ -830,13 +822,10 @@ void LinuxApp::LoadSettings() {
 
     char* value = g_key_file_get_string(settings, "Reader", "Theme", nullptr);
     if (value != nullptr) {
-        const std::string saved = LowercaseAscii(value);
+        // An unknown name, such as one saved by a later version, gives the
+        // system theme.
+        theme_ = core::ParseTheme(value);
         g_free(value);
-        if (saved == "light") {
-            theme_ = ThemeMode::Light;
-        } else if (saved == "dark") {
-            theme_ = ThemeMode::Dark;
-        }
     }
 
     GError* error = nullptr;
@@ -868,14 +857,7 @@ void LinuxApp::SaveSettings() const {
 }
 
 std::string LinuxApp::ThemeName() const {
-    switch (theme_) {
-        case ThemeMode::Light:
-            return "light";
-        case ThemeMode::Dark:
-            return "dark";
-        default:
-            return "system";
-    }
+    return core::ThemeName(theme_);
 }
 
 void LinuxApp::UpdateTitle() {
