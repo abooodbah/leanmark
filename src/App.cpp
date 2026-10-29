@@ -13,9 +13,9 @@
 #include <climits>
 #include <cmath>
 #include <cstring>
-#include <cwchar>
 #include <cwctype>
 #include <filesystem>
+#include <initializer_list>
 #include <iterator>
 #include <optional>
 #include <string_view>
@@ -166,8 +166,12 @@ bool SystemUsesDarkApps() {
 
 // WEBVIEW2_DEFAULT_BACKGROUND_COLOR takes AARRGGBB in hex.
 std::wstring BackgroundColorVariable(leanmark::core::ThemeColor color) {
-    wchar_t value[9] = {};
-    swprintf_s(value, L"FF%02X%02X%02X", color.red, color.green, color.blue);
+    constexpr wchar_t kHex[] = L"0123456789ABCDEF";
+    std::wstring value = L"FF";
+    for (const unsigned char channel : {color.red, color.green, color.blue}) {
+        value += kHex[channel >> 4];
+        value += kHex[channel & 0x0f];
+    }
     return value;
 }
 
