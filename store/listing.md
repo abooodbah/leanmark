@@ -7,7 +7,7 @@ Paste each field into Partner Center > your app > Submission > Store listings > 
 - Product name (reserve this exact name): LeanMark
 - Publisher display name: Lean Apps Studio
 - Short title (50 characters or fewer): LeanMark: Markdown viewer
-- Version in this pack: 0.4.2 (package version 0.4.2.0)
+- Version in this pack: 0.5.0 (package version 0.5.0.0)
 - File types it opens: Markdown files (.md, .markdown, .mdown, .mkd)
 
 ## Short description
@@ -37,7 +37,7 @@ LeanMark is free and open source under the MIT License. The source code, release
 - Refreshes when the file changes on disk and keeps your place
 - Heading outline, find, and reading progress
 - Copy one section or the whole file as Markdown
-- Light, dark, and system themes
+- Light, dark, and system themes, plus two softer dark themes (Dim and Dusk)
 - Zoom from 50 to 300 percent
 - Print
 - Opens .md, .markdown, .mdown, and .mkd files
