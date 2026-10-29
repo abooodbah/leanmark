@@ -1,4 +1,8 @@
-# LeanMark
+# LeanMark: a free Markdown viewer for Windows, Linux and macOS
+
+Read .md files and Mermaid diagrams offline, without opening an editor. About 74 ms to a visible window and 97 MiB peak private memory on Windows 11 (measured with 0.3.0), with no Electron and no telemetry.
+
+[Website](https://abooodbah.github.io/leanmark/) · [Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) · `winget install abooodbah.LeanMark` · [All Lean apps](https://abooodbah.github.io/)
 
 **Read Markdown and Mermaid diagrams without opening an IDE. Everything renders
 offline, with no Electron and no telemetry.**
@@ -428,10 +432,12 @@ automation and are not simulated by the public CI build.
 ## Related tools
 
 LeanMark is for reading Markdown.
-[LeanDoc](https://github.com/abooodbah/leandoc) is for reading Word documents
-(`.docx`) without opening an office suite, and
-[LeanRows](https://github.com/abooodbah/leanrows) is for viewing large CSV and
-log files. All three are read-only, work offline, and are MIT licensed.
+[LeanDoc](https://github.com/abooodbah/leandoc), a Word document viewer, is for
+reading `.docx` files without opening an office suite, and
+[LeanRows](https://github.com/abooodbah/leanrows), a large CSV viewer, is for
+viewing CSV and log files too big for Excel. All three are read-only, work
+offline, and are MIT licensed. The [Lean Apps page](https://abooodbah.github.io/)
+lists them together.
 
 ## Contributing
 
