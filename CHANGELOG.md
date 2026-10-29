@@ -3,6 +3,18 @@
 All notable LeanMark changes are recorded here. The project follows semantic
 versioning.
 
+## [0.5.0] - 2026-10-29
+
+### Added
+
+- Two softer dark themes, Dim (neutral grey) and Dusk (warm), with less
+  contrast than Dark for long reading (issue #6). The theme button and
+  Ctrl+Shift+T step through System, Light, Dark, Dim and Dusk. Body text
+  contrast is 10.1 to 1 in Dim and 10.0 to 1 in Dusk, against 18.5 to 1 in
+  Dark, and every text colour meets WCAG AA. Mermaid diagrams follow the
+  theme, and on Windows the window opens in the theme's background without a
+  white flash.
+
 ## [0.4.2] - 2026-10-20
 
 ### Fixed
@@ -190,6 +202,7 @@ versioning.
 - WebView2 keeps the package small but uses a browser-process memory footprint.
 - LeanMark reads Markdown; it does not edit or manage a document vault.
 
+[0.5.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.5.0
 [0.4.2]: https://github.com/abooodbah/leanmark/releases/tag/v0.4.2
 [0.4.1]: https://github.com/abooodbah/leanmark/releases/tag/v0.4.1
 [0.4.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.4.0

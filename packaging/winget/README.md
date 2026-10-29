@@ -25,7 +25,7 @@ website are unaffected.
 From Windows, with [wingetcreate](https://github.com/microsoft/winget-create):
 
 ```powershell
-$version = '0.4.2'
+$version = '0.5.0'
 wingetcreate update abooodbah.LeanMark `
   --version $version `
   --urls "https://github.com/abooodbah/leanmark/releases/download/v$version/LeanMark-v$version-windows-x64.zip" `
