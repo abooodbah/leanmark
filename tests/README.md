@@ -151,6 +151,14 @@ fresh runner.
 - Optional real-DOM assertions for headings, tables, task lists, code, blockquotes,
   local SVG, two Mermaid SVGs, copy buttons, and hostile markup/URL/image/diagram
   payloads.
+- Reader themes: the theme button cycles System, Light, Dark, Dim, and Dusk;
+  Dim and Dusk apply their token values and keep every kind of text, Mermaid
+  labels included, at WCAG AA 4.5:1 or more; an unknown theme falls back to
+  System. `--capture-dir` also saves a screenshot of a sample document in each
+  theme. The window background in the core matches each theme's `--canvas`.
+- Optional real-DOM theme checks: a saved Dim theme loads with a dark title bar,
+  a chosen Dusk theme survives a restart, and an unknown saved value gives
+  System. The test puts the user's own Theme and ZoomPercent values back.
 - Optional real-DOM tab checks: a later launch opens a tab without reloading the
   page, its image loads from its own folder origin, section and whole-document copy
   put the exact Markdown on the clipboard, and switching or closing tabs follows the
@@ -168,8 +176,9 @@ The fixtures are also useful for manual visual review:
 
 Automation cannot reliably replace these operator checks on a real desktop:
 
-1. Review the showcase at 100%, 125%, 150%, and 200% DPI in light, dark, and
-   Windows High Contrast themes. Confirm no page-level horizontal overflow.
+1. Review the showcase at 100%, 125%, 150%, and 200% DPI in light, dark, dim,
+   dusk, and Windows High Contrast themes. Confirm no page-level horizontal
+   overflow.
 2. Navigate every control by keyboard; test Ctrl+O, Ctrl+F/F3/Shift+F3,
    Ctrl+plus/minus/0, Ctrl+R, Ctrl+Shift+T, Ctrl+Shift+C, Ctrl+Tab/Ctrl+Shift+Tab,
    Ctrl+W, Home/End/Page Up/Page Down, and Alt+F4.

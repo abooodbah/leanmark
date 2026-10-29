@@ -384,7 +384,13 @@ const READ_THEME = `(function () {
     diagramFill: shape ? getComputedStyle(shape).fill : "",
     diagramLabel: label ? (label.tagName.toLowerCase() === "text"
       ? getComputedStyle(label).fill : getComputedStyle(label).color) : "",
-    diagramLine: edge ? getComputedStyle(edge).stroke : ""
+    diagramLine: edge ? getComputedStyle(edge).stroke : "",
+    wordmark: getComputedStyle(document.querySelector(".wordmark")).backgroundColor,
+    highlightColors: Array.from(document.styleSheets).flatMap(function (sheet) {
+      return Array.from(sheet.cssRules);
+    }).filter(function (rule) {
+      return /^::highlight\\(leanmark-find(-current)?\\)$/.test(rule.selectorText || "");
+    }).map(function (rule) { return rule.style.color; })
   };
 }())`;
 
@@ -867,6 +873,18 @@ async function run() {
       readings.light.tokens["--canvas"] === "#faf9f7" &&
       readings.light.tokens["--text-primary"] === "#1a1917",
       "the existing light and dark themes keep their colours");
+    check(["light", "dark"].every((name) =>
+      parseColor(readings[name].quoteRule).join() === parseColor("#d5cfc3").join() &&
+      readings[name].tokens["--find-text"] === "#0e0d0b"),
+      "light and dark keep their quote rule and find text colours");
+    check(Object.keys(readings).every((name) =>
+      readings[name].highlightColors.join() === "var(--find-text),var(--find-text)"),
+      "find highlights take their text colour from the theme");
+    check(["dim", "dusk"].every((name) =>
+      parseColor(readings[name].wordmark).join() ===
+        parseColor(readings[name].tokens["--text-primary"]).join()),
+      "the toolbar mark follows the soft themes (" +
+      readings.dim.wordmark + ", " + readings.dusk.wordmark + ")");
     for (const name of ["dim", "dusk"]) {
       const r = readings[name];
       const label = name.charAt(0).toUpperCase() + name.slice(1);
@@ -909,8 +927,12 @@ async function run() {
       .concat(process.argv.includes("--reduced-motion")
         ? [{ name: "prefers-reduced-motion", value: "reduce" }] : []);
     await client.send("Emulation.setEmulatedMedia", { features: mediaFeatures("dark") });
-    check((await applyTheme("dim")).tokens["--canvas"] === "#1e2023" &&
-      (await applyTheme("dusk")).tokens["--text-primary"] === "#d4c8b4",
+    const dimOnDark = await applyTheme("dim");
+    const duskOnDark = await applyTheme("dusk");
+    check(dimOnDark.tokens["--canvas"] === "#1e2023" &&
+      duskOnDark.tokens["--text-primary"] === "#d4c8b4" &&
+      parseColor(dimOnDark.wordmark).join() === parseColor("#c8ccd2").join() &&
+      parseColor(duskOnDark.wordmark).join() === parseColor("#d4c8b4").join(),
       "the soft themes keep their colours when the system is dark");
     check((await applyTheme("system")).tokens["--canvas"] === "#0e0d0b",
       "the system theme still follows a dark system");
