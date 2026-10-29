@@ -90,6 +90,18 @@ Assert-Match $html '<img[^>]+leanmark-window\.png[^>]+alt="LeanMark displaying' 
 Assert-NotMatch $html '(?i)javascript\s*:' 'The static site must not contain javascript: URLs.'
 Assert-NotMatch $html '(?is)<script[^>]+\bsrc\s*=' 'The static landing page must not execute external or bundled JavaScript.'
 Assert-NotMatch $html ([char]0xFFFD) 'The page contains a Unicode replacement character.'
+Assert-Match $html '<h1>[^<]*Markdown viewer[^<]*</h1>' 'The H1 must say what LeanMark is in search words.'
+Assert-Match $html '<section class="section section-muted" id="faq" aria-labelledby="faq-heading">' 'The visible FAQ section is missing.'
+Assert-Match $html 'href="https://abooodbah\.github\.io/"' 'The page must link the Lean Apps hub.'
+Assert-Match $html 'href="https://abooodbah\.github\.io/leandoc/"' 'The page must link the LeanDoc site.'
+Assert-Match $html 'href="https://abooodbah\.github\.io/leanrows/"' 'The page must link the LeanRows site.'
+$jsonLd = [regex]::Match($html, '(?s)<script\s+type="application/ld\+json">\s*(.*?)\s*</script>')
+Assert-True $jsonLd.Success 'SoftwareApplication JSON-LD is missing.'
+$structured = $jsonLd.Groups[1].Value | ConvertFrom-Json
+Assert-Equal ([string]$structured.'@type') 'SoftwareApplication' 'JSON-LD must describe a SoftwareApplication.'
+Assert-Equal ([string]$structured.softwareVersion) $version 'JSON-LD softwareVersion must match package.json.'
+Assert-Equal ([string]$structured.offers.price) '0' 'JSON-LD must offer LeanMark at price 0.'
+Assert-Equal ([string]$structured.author.name) 'Abdulfatah Bahbouh' 'JSON-LD must name the author.'
 Write-TestPass 'semantic metadata, release CTA, and script-free markup'
 
 Assert-Match $css ':focus-visible' 'Visible keyboard focus styling is required.'
@@ -136,10 +148,11 @@ Assert-Equal $viewer.Height 820 'Diagram viewer screenshot height changed withou
 Write-TestPass 'brand, social-preview, and real-product image dimensions'
 
 try {
-    [void]([xml](Read-TextFile (Join-Path $resolvedSite 'sitemap.xml')))
+    $sitemap = [xml](Read-TextFile (Join-Path $resolvedSite 'sitemap.xml'))
 } catch {
     throw "sitemap.xml is not well-formed XML: $($_.Exception.Message)"
 }
+Assert-Match ([string]$sitemap.urlset.url.lastmod) '^\d{4}-\d{2}-\d{2}$' 'sitemap.xml must give a lastmod date.'
 $manifest = Get-Content -LiteralPath (Join-Path $resolvedSite 'site.webmanifest') -Raw |
     ConvertFrom-Json
 Assert-Equal ([string]$manifest.name) 'LeanMark' 'Web app manifest name changed unexpectedly.'
