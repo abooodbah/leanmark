@@ -83,6 +83,18 @@ assert.match(
   "the CSP must allow only the confined Linux document-image scheme"
 );
 
+// Saved and requested themes go through the shared core parser, so dim and
+// dusk load here too and an unknown saved value falls back to the system theme.
+assert.ok(
+  (host.match(/core::ParseTheme\(/g) || []).length >= 2,
+  "saved and requested themes must go through the shared parser"
+);
+assert.doesNotMatch(
+  host,
+  /(?:requested|saved) == "(?:light|dark)"/,
+  "theme names must not be compared by hand"
+);
+
 assert.match(cmake, /pkg_check_modules\(GTK4[^\n]*gtk4>=4\.10/);
 assert.match(cmake, /pkg_check_modules\(WEBKITGTK[^\n]*webkitgtk-6\.0>=2\.44/);
 assert.match(cmake, /scripts\/stage-runtime-assets\.mjs/);

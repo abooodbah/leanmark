@@ -2,7 +2,7 @@
 param(
     [Parameter(Mandatory = $true)][string]$ExePath,
     [ValidateRange(5, 120)][int]$TimeoutSeconds = 30,
-    [ValidateSet('All', 'Both', 'Showcase', 'Security', 'Tabs')][string]$Fixture = 'All'
+    [ValidateSet('All', 'Both', 'Showcase', 'Security', 'Tabs', 'Themes')][string]$Fixture = 'All'
 )
 
 Set-StrictMode -Version Latest
@@ -348,6 +348,121 @@ document.getElementById("fileName").textContent === "other.md" &&
     }
 }
 
+function Get-WindowDarkTitleBar {
+    param([IntPtr]$WindowHandle)
+    if (-not ('LeanMark.Tests.DwmMethods' -as [type])) {
+        Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+namespace LeanMark.Tests
+{
+    public static class DwmMethods
+    {
+        [DllImport("dwmapi.dll")]
+        public static extern int DwmGetWindowAttribute(IntPtr window, int attribute, out int value, int size);
+    }
+}
+"@
+    }
+    [int]$value = 0
+    $result = [LeanMark.Tests.DwmMethods]::DwmGetWindowAttribute($WindowHandle, 20, [ref]$value, 4)
+    Assert-Equal $result 0 'DwmGetWindowAttribute could not read the title bar mode.'
+    $value -ne 0
+}
+
+function Get-ThemeState {
+    param([string]$WebSocketUrl)
+    $expression = @'
+JSON.stringify({
+  attribute: document.documentElement.getAttribute("data-theme"),
+  button: document.getElementById("themeButton").textContent,
+  canvas: getComputedStyle(document.body).backgroundColor
+})
+'@
+    (Invoke-CdpExpression -WebSocketUrl $WebSocketUrl -Expression $expression) | ConvertFrom-Json
+}
+
+function Start-ThemeReader {
+    param([string]$DocumentPath)
+    [int]$port = 0
+    $process = Start-DebuggableLeanMark -DocumentPath $DocumentPath -Port ([ref]$port)
+    $window = Wait-LeanMarkWindow -Process $process -TimeoutSeconds $TimeoutSeconds
+    $target = Wait-CdpPageTarget -Port $port -Seconds $TimeoutSeconds
+    Wait-RenderedDocument -WebSocketUrl $target.webSocketDebuggerUrl -Seconds $TimeoutSeconds
+    [pscustomobject]@{ Process = $process; Window = $window; Socket = $target.webSocketDebuggerUrl }
+}
+
+# The theme is saved under HKCU\Software\LeanMark. This test sets it, so it
+# puts back the user's own Theme and ZoomPercent values afterwards.
+function Test-ThemeSettings {
+    $settingsKey = 'Software\LeanMark'
+    $saved = @{}
+    foreach ($name in @('Theme', 'ZoomPercent')) {
+        $saved[$name] = Get-RegistryValueState -Hive CurrentUser -SubKey $settingsKey -Name $name
+    }
+    $setTheme = {
+        param([string]$Value)
+        $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($settingsKey)
+        try { $key.SetValue('Theme', $Value, [Microsoft.Win32.RegistryValueKind]::String) }
+        finally { $key.Dispose() }
+    }
+    $document = Join-Path $PSScriptRoot 'fixtures\showcase.md'
+    $reader = $null
+    try {
+        & $setTheme 'dim'
+        $reader = Start-ThemeReader -DocumentPath $document
+        $state = Get-ThemeState -WebSocketUrl $reader.Socket
+        Assert-Equal $state.attribute 'dim' 'A saved dim theme must be applied at launch.'
+        Assert-Equal $state.button 'Dim' 'The theme button must name the dim theme.'
+        Assert-Equal $state.canvas 'rgb(30, 32, 35)' 'The dim page background differs from its token.'
+        Assert-True (Get-WindowDarkTitleBar $reader.Window) 'The dim theme must give the window a dark title bar.'
+        Write-TestPass 'real WebView: a saved dim theme loads with a dark title bar'
+
+        # The theme button saves the next theme, and a relaunch loads it.
+        [void](Invoke-CdpExpression -WebSocketUrl $reader.Socket -Expression 'document.getElementById("themeButton").click(); true')
+        $deadline = [DateTime]::UtcNow.AddSeconds(10)
+        do {
+            $stored = Get-RegistryValueState -Hive CurrentUser -SubKey $settingsKey -Name 'Theme'
+            if ($stored.Exists -and $stored.Value -eq 'dusk') { break }
+            Start-Sleep -Milliseconds 100
+        } while ([DateTime]::UtcNow -lt $deadline)
+        Assert-Equal $stored.Value 'dusk' 'Choosing the dusk theme must save it.'
+        Stop-LeanMarkTestProcessTree -RootProcess $reader.Process
+        $reader = $null
+        Start-Sleep -Milliseconds 1500
+        $reader = Start-ThemeReader -DocumentPath $document
+        $state = Get-ThemeState -WebSocketUrl $reader.Socket
+        Assert-Equal $state.attribute 'dusk' 'The dusk theme must still be chosen after a restart.'
+        Assert-Equal $state.canvas 'rgb(34, 30, 25)' 'The dusk page background differs from its token.'
+        Assert-True (Get-WindowDarkTitleBar $reader.Window) 'The dusk theme must give the window a dark title bar.'
+        Write-TestPass 'real WebView: a chosen dusk theme is saved and survives a restart'
+        Stop-LeanMarkTestProcessTree -RootProcess $reader.Process
+        $reader = $null
+        Start-Sleep -Milliseconds 1500
+
+        # A value this version does not know, such as one from a later version,
+        # falls back to the system theme.
+        & $setTheme 'neon'
+        $reader = Start-ThemeReader -DocumentPath $document
+        $state = Get-ThemeState -WebSocketUrl $reader.Socket
+        Assert-Equal $state.attribute $null 'An unknown saved theme must fall back to the system theme.'
+        Assert-Equal $state.button 'System' 'An unknown saved theme must show as System.'
+        $systemLight = Get-RegistryValueState -Hive CurrentUser -SubKey 'Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name 'AppsUseLightTheme'
+        $systemDark = $systemLight.Exists -and [int]$systemLight.Value -eq 0
+        Assert-Equal (Get-WindowDarkTitleBar $reader.Window) $systemDark 'An unknown saved theme must give the system title bar.'
+        Write-TestPass 'real WebView: an unknown saved theme falls back to the system theme'
+    } finally {
+        if ($null -ne $reader) { Stop-LeanMarkTestProcessTree -RootProcess $reader.Process }
+        $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($settingsKey)
+        try {
+            foreach ($name in @('Theme', 'ZoomPercent')) {
+                if ($saved[$name].Exists) { $key.SetValue($name, $saved[$name].Value, $saved[$name].Kind) }
+                elseif (@($key.GetValueNames()) -contains $name) { $key.DeleteValue($name) }
+            }
+        } finally { $key.Dispose() }
+    }
+}
+
 $resolvedExe = [System.IO.Path]::GetFullPath($ExePath)
 Assert-True (Test-Path -LiteralPath $resolvedExe -PathType Leaf) "LeanMark.exe is missing: $resolvedExe"
 Write-TestNote 'DOM smoke enables an ephemeral loopback-only CDP port for each test process, then restores the environment.'
@@ -366,4 +481,9 @@ if ($Fixture -in @('All', 'Both', 'Security')) {
 if ($Fixture -in @('All', 'Tabs')) {
     if ($ranOne) { Start-Sleep -Milliseconds 1500 }
     Test-TabsAndCopy
+    $ranOne = $true
+}
+if ($Fixture -in @('All', 'Themes')) {
+    if ($ranOne) { Start-Sleep -Milliseconds 1500 }
+    Test-ThemeSettings
 }

@@ -261,6 +261,133 @@ const DOCUMENT_HTML = [
   "<p>needle one, needle two, needle three.</p>",
 ].join("\n");
 
+// A typical document, as MD4C renders it, for the theme checks and screenshots.
+const THEME_DOCUMENT_HTML = [
+  "<h1>Release notes</h1>",
+  "<p>This page is shown in every reader theme. It has <strong>bold</strong> " +
+    'text, <a href="https://example.com/">a link</a>, and <code>inline code</code>.</p>',
+  "<h2>Checklist</h2>",
+  "<ul>\n<li>Build the reader</li>\n<li>Run the tests\n<ul>\n" +
+    "<li>Core checks</li>\n</ul>\n</li>\n</ul>",
+  "<ol>\n<li>Tag the release</li>\n<li>Publish it</li>\n</ol>",
+  "<blockquote>\n<p>Read-only, offline, and quick to open.</p>\n</blockquote>",
+  "<h2>Code</h2>",
+  '<pre><code class="language-js">function add(a, b) {\n  return a + b;\n}\n</code></pre>',
+  "<h3>Platforms</h3>",
+  "<table>\n<thead>\n<tr>\n<th>Platform</th>\n<th>Host</th>\n</tr>\n</thead>\n<tbody>\n" +
+    "<tr>\n<td>Windows</td>\n<td>WebView2</td>\n</tr>\n" +
+    "<tr>\n<td>Linux</td>\n<td>WebKitGTK</td>\n</tr>\n</tbody>\n</table>",
+  "<h2>Flow</h2>",
+  '<pre><code class="language-mermaid">flowchart LR\n' +
+    "    A[Write] --&gt; B[Review]\n" +
+    "    B --&gt; C{Ready?}\n" +
+    "    C --&gt;|yes| D[Ship]\n</code></pre>",
+].join("\n");
+
+// The softer dark themes from issue #6. The reader must apply exactly these
+// token values; they are the contract a later shared theme system reuses.
+const SOFT_THEME_TOKENS = {
+  dim: {
+    "--canvas": "#1e2023",
+    "--surface": "#25282c",
+    "--surface-muted": "#2d3035",
+    "--border": "#393d43",
+    "--text-primary": "#c8ccd2",
+    "--text-secondary": "#9ea4ac",
+    "--link": "#86aee6",
+    "--code-canvas": "#282b30",
+    "--selection": "#34486a",
+    "--find": "#5c4d1f",
+    "--find-current": "#7a5317",
+    "--find-text": "#e8e4dc",
+    "--quote-rule": "#4a4f56",
+  },
+  dusk: {
+    "--canvas": "#221e19",
+    "--surface": "#29241e",
+    "--surface-muted": "#322c25",
+    "--border": "#3f3830",
+    "--text-primary": "#d4c8b4",
+    "--text-secondary": "#a99c87",
+    "--link": "#e0a86e",
+    "--code-canvas": "#2c2721",
+    "--selection": "#4d3f2c",
+    "--find": "#6a5420",
+    "--find-current": "#82561c",
+    "--find-text": "#f1e9db",
+    "--quote-rule": "#574c3f",
+  },
+};
+
+function parseColor(value) {
+  const text = String(value).trim().toLowerCase();
+  let match = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/.exec(text);
+  if (match) {
+    return match.slice(1).map((part) => parseInt(part, 16));
+  }
+  match = /^rgba?\(\s*([\d.]+)[ ,]+([\d.]+)[ ,]+([\d.]+)/.exec(text);
+  if (match) {
+    return match.slice(1).map(Number);
+  }
+  fail("Unreadable colour: " + value);
+}
+
+function luminance(value) {
+  const [red, green, blue] = parseColor(value).map((channel) => {
+    const c = channel / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+}
+
+// WCAG 2 contrast ratio between two opaque colours.
+function contrast(foreground, background) {
+  const a = luminance(foreground);
+  const b = luminance(background);
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+// Reads the applied theme: token values and the colours elements really get.
+const READ_THEME = `(function () {
+  var root = document.documentElement;
+  var rootStyle = getComputedStyle(root);
+  var article = document.getElementById("article");
+  var token = function (name) { return rootStyle.getPropertyValue(name).trim().toLowerCase(); };
+  var style = function (selector) { return getComputedStyle(article.querySelector(selector)); };
+  var names = ["--canvas", "--surface", "--surface-muted", "--border", "--text-primary",
+    "--text-secondary", "--link", "--code-canvas", "--selection", "--find",
+    "--find-current", "--find-text", "--quote-rule"];
+  var tokens = {};
+  names.forEach(function (name) { tokens[name] = token(name); });
+  var node = article.querySelector("figure.diagram g.node");
+  var shape = node && node.querySelector(".label-container, rect, polygon, path");
+  var label = node && (node.querySelector(".nodeLabel") || node.querySelector("text"));
+  var edge = article.querySelector("figure.diagram .flowchart-link, figure.diagram path.edge");
+  return {
+    attribute: root.getAttribute("data-theme"),
+    button: document.getElementById("themeButton").textContent,
+    tokens: tokens,
+    canvas: getComputedStyle(document.body).backgroundColor,
+    body: style("p").color,
+    heading: style("h2").color,
+    link: style("p a").color,
+    inlineCode: style("p code").color,
+    inlineCodeBackground: style("p code").backgroundColor,
+    codeBlock: style("pre code").color,
+    codeBlockBackground: style("pre").backgroundColor,
+    cell: style("td").color,
+    cellBorder: style("td").borderBottomColor,
+    headerCell: style("th").color,
+    headerCellBackground: style("th").backgroundColor,
+    quote: style("blockquote").color,
+    quoteRule: style("blockquote").borderLeftColor,
+    diagramFill: shape ? getComputedStyle(shape).fill : "",
+    diagramLabel: label ? (label.tagName.toLowerCase() === "text"
+      ? getComputedStyle(label).fill : getComputedStyle(label).color) : "",
+    diagramLine: edge ? getComputedStyle(edge).stroke : ""
+  };
+}())`;
+
 // Runs before reader.js: a stand-in for the WebView2 bridge that records what
 // the reader posts and lets the test deliver host messages.
 const HOST_STUB = `
@@ -661,6 +788,145 @@ async function run() {
     check(await client.evaluate('document.getElementById("findCount").textContent') === "1/3",
       "Enter runs a pending search immediately");
     await press(client, "Escape");
+
+    // Themes. The theme button cycles through every theme, and each choice
+    // goes to the host, which saves it.
+    await deliver({
+      type: "document", tabId: 1, theme: "system", fileName: "themes.md",
+      path: "/fixtures/themes.md", documentBaseUrl: "", sourceBytes: 900,
+      hasMermaid: true, html: THEME_DOCUMENT_HTML,
+    });
+    await waitFor(client, 'document.documentElement.dataset.renderState === "ready" && ' +
+      '!!document.querySelector("#article figure.diagram svg")', "the theme document");
+    await clearPosted();
+    const labels = [];
+    for (let step = 0; step < 5; step += 1) {
+      await clickSelector(client, "#themeButton");
+      labels.push(await client.evaluate('document.getElementById("themeButton").textContent'));
+    }
+    check(JSON.stringify(labels) === JSON.stringify(["Light", "Dark", "Dim", "Dusk", "System"]),
+      "the theme button cycles System, Light, Dark, Dim, Dusk (" + labels.join(", ") + ")");
+    check(JSON.stringify(await posted()) === JSON.stringify(
+      ["theme|light", "theme|dark", "theme|dim", "theme|dusk", "theme|system"]),
+      "each theme choice is sent to the host to be saved");
+
+    const applyTheme = async (name) => {
+      await deliver({ type: "theme", value: name });
+      await waitFor(client, 'document.documentElement.dataset.renderState === "ready" && ' +
+        '!!document.querySelector("#article figure.diagram svg")', "the " + name + " theme");
+      return client.evaluate(READ_THEME);
+    };
+    const readings = {};
+    for (const name of ["light", "dark", "dim", "dusk"]) {
+      readings[name] = await applyTheme(name);
+      if (captureDirectory) {
+        await fs.mkdir(resolve(captureDirectory), { recursive: true });
+        const metrics = await client.send("Page.getLayoutMetrics");
+        const size = metrics.cssContentSize || metrics.contentSize;
+        const shot = await client.send("Page.captureScreenshot", {
+          format: "png",
+          captureBeyondViewport: true,
+          clip: { x: 0, y: 0, width: size.width, height: size.height, scale: 1 },
+        });
+        await fs.writeFile(join(resolve(captureDirectory), "theme-" + name + ".png"),
+          Buffer.from(shot.data, "base64"));
+      }
+    }
+
+    // Contrast of each part of the page, printed for every theme.
+    const ratios = {};
+    for (const [name, r] of Object.entries(readings)) {
+      ratios[name] = {
+        body: contrast(r.body, r.canvas),
+        headings: contrast(r.heading, r.canvas),
+        links: contrast(r.link, r.canvas),
+        inlineCode: contrast(r.inlineCode, r.inlineCodeBackground),
+        codeBlock: contrast(r.codeBlock, r.codeBlockBackground),
+        tableText: contrast(r.cell, r.canvas),
+        tableHeader: contrast(r.headerCell, r.headerCellBackground),
+        tableBorder: contrast(r.cellBorder, r.canvas),
+        blockquote: contrast(r.quote, r.canvas),
+        quoteRule: contrast(r.quoteRule, r.canvas),
+        selection: contrast(r.tokens["--text-primary"], r.tokens["--selection"]),
+        find: contrast(r.tokens["--find-text"], r.tokens["--find"]),
+        findCurrent: contrast(r.tokens["--find-text"], r.tokens["--find-current"]),
+        diagramLabel: r.diagramLabel && r.diagramFill && r.diagramFill !== "none"
+          ? contrast(r.diagramLabel, r.diagramFill) : NaN,
+        diagramLine: r.diagramLine && r.diagramLine !== "none"
+          ? contrast(r.diagramLine, r.canvas) : NaN,
+      };
+    }
+    console.log("Contrast ratios (WCAG 2):");
+    for (const part of Object.keys(ratios.dim)) {
+      console.log("  " + part.padEnd(13) + Object.keys(ratios).map((name) =>
+        (name + " " + ratios[name][part].toFixed(2)).padEnd(13)).join(""));
+    }
+
+    check(readings.dark.tokens["--canvas"] === "#0e0d0b" &&
+      readings.dark.tokens["--text-primary"] === "#faf9f7" &&
+      readings.light.tokens["--canvas"] === "#faf9f7" &&
+      readings.light.tokens["--text-primary"] === "#1a1917",
+      "the existing light and dark themes keep their colours");
+    for (const name of ["dim", "dusk"]) {
+      const r = readings[name];
+      const label = name.charAt(0).toUpperCase() + name.slice(1);
+      check(r.attribute === name && r.button === label,
+        "the " + name + " theme is selectable and named " + label);
+      const wrong = Object.entries(SOFT_THEME_TOKENS[name])
+        .filter(([token, value]) => r.tokens[token] !== value)
+        .map(([token, value]) => token + " is " + r.tokens[token] + ", expected " + value);
+      check(wrong.length === 0, "the " + name + " theme applies its token values" +
+        (wrong.length ? ": " + wrong.join("; ") : ""));
+      const expected = SOFT_THEME_TOKENS[name];
+      const same = (a, b) => parseColor(a).join() === parseColor(b).join();
+      check(same(r.canvas, expected["--canvas"]) && same(r.body, expected["--text-primary"]) &&
+        same(r.link, expected["--link"]) && same(r.codeBlockBackground, expected["--code-canvas"]) &&
+        same(r.cellBorder, expected["--border"]) && same(r.quote, expected["--text-secondary"]) &&
+        same(r.quoteRule, expected["--quote-rule"]),
+        "the " + name + " tokens reach the page, code, tables, and quotes");
+      const text = ["body", "headings", "links", "inlineCode", "codeBlock", "tableText",
+        "tableHeader", "blockquote", "selection", "find", "findCurrent", "diagramLabel"];
+      const low = text.filter((part) => !(ratios[name][part] >= 4.5));
+      check(low.length === 0, "every kind of text in " + name + " meets WCAG AA 4.5:1" +
+        (low.length ? "; below: " + low.map((part) => part + " " +
+          ratios[name][part].toFixed(2)).join(", ") : ""));
+      check(ratios[name].body <= ratios.dark.body * 0.65,
+        "the " + name + " body text is clearly softer than dark (" +
+        ratios[name].body.toFixed(2) + " against " + ratios.dark.body.toFixed(2) + ")");
+      check(same(r.diagramFill, r.tokens["--surface-muted"]) &&
+        same(r.diagramLabel, r.tokens["--text-primary"]),
+        "Mermaid diagrams in " + name + " are drawn with its tokens");
+    }
+
+    // Leaving a soft theme gives the built-in Mermaid look back unchanged.
+    const darkAgain = await applyTheme("dark");
+    check(darkAgain.diagramFill === readings.dark.diagramFill &&
+      darkAgain.diagramLabel === readings.dark.diagramLabel,
+      "diagrams look the same in dark after a soft theme was shown");
+
+    // A chosen theme wins over the system setting, in both directions.
+    const mediaFeatures = (scheme) => [{ name: "prefers-color-scheme", value: scheme }]
+      .concat(process.argv.includes("--reduced-motion")
+        ? [{ name: "prefers-reduced-motion", value: "reduce" }] : []);
+    await client.send("Emulation.setEmulatedMedia", { features: mediaFeatures("dark") });
+    check((await applyTheme("dim")).tokens["--canvas"] === "#1e2023" &&
+      (await applyTheme("dusk")).tokens["--text-primary"] === "#d4c8b4",
+      "the soft themes keep their colours when the system is dark");
+    check((await applyTheme("system")).tokens["--canvas"] === "#0e0d0b",
+      "the system theme still follows a dark system");
+    await client.send("Emulation.setEmulatedMedia", { features: mediaFeatures("light") });
+    check((await applyTheme("dim")).tokens["--canvas"] === "#1e2023",
+      "the soft themes keep their colours when the system is light");
+
+    // An unknown theme from a host or an old setting falls back to System.
+    const unknown = await applyTheme("neon");
+    check(unknown.attribute === null && unknown.button === "System" &&
+      unknown.tokens["--canvas"] === "#faf9f7",
+      "an unknown theme falls back to the system theme");
+    await client.send("Emulation.setEmulatedMedia", {
+      features: process.argv.includes("--reduced-motion")
+        ? [{ name: "prefers-reduced-motion", value: "reduce" }] : [],
+    });
 
     // The diagram cap leaves diagrams past the fiftieth unrendered.
     const many = [];

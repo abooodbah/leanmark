@@ -337,6 +337,74 @@ void TestZoomLevels() {
            "a corrupt stored zoom should give the default");
 }
 
+bool SameColor(
+    leanmark::core::ThemeColor color,
+    unsigned red,
+    unsigned green,
+    unsigned blue) {
+    return color.red == red && color.green == green && color.blue == blue;
+}
+
+void TestThemes() {
+    using leanmark::core::IsDarkTheme;
+    using leanmark::core::NextTheme;
+    using leanmark::core::ParseTheme;
+    using leanmark::core::Theme;
+    using leanmark::core::ThemeCanvas;
+    using leanmark::core::ThemeName;
+
+    Expect(ParseTheme("light") == Theme::Light &&
+               ParseTheme("dark") == Theme::Dark &&
+               ParseTheme("dim") == Theme::Dim &&
+               ParseTheme("dusk") == Theme::Dusk &&
+               ParseTheme("system") == Theme::System,
+           "every theme name should parse to its theme");
+    Expect(ParseTheme("DIM") == Theme::Dim && ParseTheme("Dusk") == Theme::Dusk,
+           "stored theme names should parse without regard to case");
+    Expect(ParseTheme("") == Theme::System &&
+               ParseTheme("neon") == Theme::System &&
+               ParseTheme("dim ") == Theme::System &&
+               ParseTheme("dimmer") == Theme::System &&
+               ParseTheme(std::string_view("dim\0", 4)) == Theme::System,
+           "an unknown stored theme should fall back to the system theme");
+    for (const Theme theme :
+         {Theme::System, Theme::Light, Theme::Dark, Theme::Dim, Theme::Dusk}) {
+        Expect(ParseTheme(ThemeName(theme)) == theme,
+               "a saved theme name should load back as the same theme");
+    }
+    Expect(std::string(ThemeName(Theme::Dim)) == "dim" &&
+               std::string(ThemeName(Theme::Dusk)) == "dusk",
+           "the softer themes should be saved as dim and dusk");
+
+    Expect(NextTheme(Theme::System) == Theme::Light &&
+               NextTheme(Theme::Light) == Theme::Dark &&
+               NextTheme(Theme::Dark) == Theme::Dim &&
+               NextTheme(Theme::Dim) == Theme::Dusk &&
+               NextTheme(Theme::Dusk) == Theme::System,
+           "cycling should visit every theme and return to the system theme");
+
+    Expect(IsDarkTheme(Theme::Dim, false) && IsDarkTheme(Theme::Dusk, false),
+           "the softer themes should give a dark title bar on a light system");
+    Expect(IsDarkTheme(Theme::Dark, false) && !IsDarkTheme(Theme::Light, true),
+           "dark and light should ignore the system setting");
+    Expect(IsDarkTheme(Theme::System, true) && !IsDarkTheme(Theme::System, false),
+           "the system theme should follow the system setting");
+
+    // The window shows these before the page paints, so they must match the
+    // reader's --canvas token for each theme.
+    Expect(SameColor(ThemeCanvas(Theme::Light, true), 0xfa, 0xf9, 0xf7),
+           "the light canvas should be #faf9f7");
+    Expect(SameColor(ThemeCanvas(Theme::Dark, false), 0x0e, 0x0d, 0x0b),
+           "the dark canvas should be #0e0d0b");
+    Expect(SameColor(ThemeCanvas(Theme::Dim, false), 0x1e, 0x20, 0x23),
+           "the dim canvas should be #1e2023");
+    Expect(SameColor(ThemeCanvas(Theme::Dusk, false), 0x22, 0x1e, 0x19),
+           "the dusk canvas should be #221e19");
+    Expect(SameColor(ThemeCanvas(Theme::System, true), 0x0e, 0x0d, 0x0b) &&
+               SameColor(ThemeCanvas(Theme::System, false), 0xfa, 0xf9, 0xf7),
+           "the system canvas should follow the system setting");
+}
+
 void TestFilesAndPaths() {
     TemporaryDirectory temporary;
     const auto notes = temporary.path / "notes";
@@ -401,6 +469,7 @@ int main() {
     TestJsonEscaping();
     TestWordAtATimeScans();
     TestZoomLevels();
+    TestThemes();
     TestFilesAndPaths();
     if (failures != 0) {
         std::cerr << failures << " portable core assertion(s) failed.\n";
