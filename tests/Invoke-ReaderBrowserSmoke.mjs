@@ -385,6 +385,7 @@ const READ_THEME = `(function () {
     diagramLabel: label ? (label.tagName.toLowerCase() === "text"
       ? getComputedStyle(label).fill : getComputedStyle(label).color) : "",
     diagramLine: edge ? getComputedStyle(edge).stroke : "",
+    colorScheme: rootStyle.colorScheme,
     wordmark: getComputedStyle(document.querySelector(".wordmark")).backgroundColor,
     highlightColors: Array.from(document.styleSheets).flatMap(function (sheet) {
       return Array.from(sheet.cssRules);
@@ -890,6 +891,8 @@ async function run() {
       const label = name.charAt(0).toUpperCase() + name.slice(1);
       check(r.attribute === name && r.button === label,
         "the " + name + " theme is selectable and named " + label);
+      check(r.colorScheme === "dark",
+        "the " + name + " theme gives dark scrollbars and controls");
       const wrong = Object.entries(SOFT_THEME_TOKENS[name])
         .filter(([token, value]) => r.tokens[token] !== value)
         .map(([token, value]) => token + " is " + r.tokens[token] + ", expected " + value);
