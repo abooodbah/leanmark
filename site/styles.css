@@ -1212,3 +1212,8 @@ a:hover {
     color: black;
   }
 }
+
+/* Android closed-test sign-up */
+.android-join {
+  margin: 1.5rem 0 1rem;
+}
