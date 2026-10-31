@@ -19,6 +19,7 @@ namespace {
 
 NSString *const LMThemePreferenceKey = @"LeanMarkTheme";
 NSString *const LMZoomPreferenceKey = @"LeanMarkZoom";
+NSString *const LMTextWidthPreferenceKey = @"LeanMarkTextWidth";
 
 BOOL StringContainsNUL(NSString *value) {
     const unichar nul = 0;
@@ -48,6 +49,56 @@ NSString *CurrentTheme(void) {
     NSString *saved = [NSUserDefaults.standardUserDefaults
         stringForKey:LMThemePreferenceKey];
     return ThemeString(leanmark::core::ParseTheme(ThemeUTF8(saved)));
+}
+
+// Settings from 0.5.0 have no width; that and any unknown name give
+// "narrow", the 0.5.0 column.
+NSString *CurrentTextWidth(void) {
+    NSString *saved = [NSUserDefaults.standardUserDefaults
+        stringForKey:LMTextWidthPreferenceKey];
+    return @(leanmark::core::TextWidthName(
+        leanmark::core::ParseTextWidth(ThemeUTF8(saved))));
+}
+
+// A menu item's key equivalent as the reader's shortcut list writes keys,
+// for example "Cmd+Shift+T". An uppercase key equivalent implies Shift.
+NSString *ShortcutKeys(NSMenuItem *item) {
+    NSString *key = item.keyEquivalent;
+    if (key.length == 0) {
+        return nil;
+    }
+    const NSEventModifierFlags flags = item.keyEquivalentModifierMask;
+    const BOOL shifted = (flags & NSEventModifierFlagShift) != 0 ||
+                         ![key isEqualToString:key.lowercaseString];
+    NSMutableString *text = [NSMutableString string];
+    if ((flags & NSEventModifierFlagControl) != 0) {
+        [text appendString:@"Ctrl+"];
+    }
+    if ((flags & NSEventModifierFlagOption) != 0) {
+        [text appendString:@"Option+"];
+    }
+    if ((flags & NSEventModifierFlagCommand) != 0) {
+        [text appendString:@"Cmd+"];
+    }
+    if (shifted) {
+        [text appendString:@"Shift+"];
+    }
+    [text appendString:key.uppercaseString];
+    return text;
+}
+
+// Every menu shortcut, read from the menus themselves so the reader's list
+// matches what the menus do.
+void CollectMenuShortcuts(NSMenu *menu, NSMutableArray<NSDictionary *> *into) {
+    for (NSMenuItem *item in menu.itemArray) {
+        if (item.submenu != nil) {
+            CollectMenuShortcuts(item.submenu, into);
+        }
+        NSString *keys = ShortcutKeys(item);
+        if (keys != nil && item.title.length > 0 && !item.hidden) {
+            [into addObject:@{ @"keys" : keys, @"label" : item.title }];
+        }
+    }
 }
 
 BOOL IsExpectedAppURL(NSURL *URL) {
@@ -165,7 +216,9 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
     _webView.navigationDelegate = self;
     _webView.UIDelegate = self;
     _webView.allowsMagnification = NO;
-    _webView.pageZoom = SavedZoom();
+    // The web view stays at 100% so the toolbar keeps its size; the reader
+    // zooms the document to the saved level it receives with the host message.
+    _webView.pageZoom = 1.0;
     if (@available(macOS 13.3, *)) {
         _webView.inspectable = NO;
     }
@@ -257,10 +310,18 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
     }
     if ([command isEqualToString:@"ready"]) {
         _readerReady = YES;
+        NSMutableArray<NSDictionary *> *menuShortcuts = [NSMutableArray array];
+        if (NSApp.mainMenu != nil) {
+            CollectMenuShortcuts(NSApp.mainMenu, menuShortcuts);
+        }
         [self deliverPayload:@{
             @"type" : @"host",
             @"copySource" : @YES,
             @"tabs" : @NO,
+            @"platform" : @"macos",
+            @"zoom" : @(std::lround(SavedZoom() * 100.0)),
+            @"width" : CurrentTextWidth(),
+            @"shortcuts" : menuShortcuts,
         }];
         [self sendCurrentDocument];
         return;
@@ -290,6 +351,14 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
         } else if ([action isEqualToString:@"reset"]) {
             [self resetZoom];
         }
+        return;
+    }
+    if ([command hasPrefix:@"width|"]) {
+        NSString *width = [command substringFromIndex:@"width|".length];
+        NSString *name = @(leanmark::core::TextWidthName(
+            leanmark::core::ParseTextWidth(ThemeUTF8(width))));
+        [NSUserDefaults.standardUserDefaults setObject:name
+                                                forKey:LMTextWidthPreferenceKey];
         return;
     }
     if ([command hasPrefix:@"theme|"]) {
@@ -488,7 +557,6 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
 
 - (void)applyZoom:(double)zoom {
     const double level = leanmark::core::NormalizeZoom(zoom);
-    _webView.pageZoom = level;
     [NSUserDefaults.standardUserDefaults setDouble:level forKey:LMZoomPreferenceKey];
     [self deliverPayload:@{
         @"type" : @"zoom",
@@ -498,7 +566,7 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
 
 - (void)zoomBy:(NSInteger)direction {
     [self applyZoom:leanmark::core::StepZoom(
-                        _webView.pageZoom, direction > 0 ? 1 : -1)];
+                        SavedZoom(), direction > 0 ? 1 : -1)];
 }
 
 - (void)resetZoom {
@@ -518,6 +586,14 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
     }
     // The reader answers with zoom|<action> when no figure is expanded.
     [self deliverPayload:@{ @"type" : @"zoom-command", @"action" : action }];
+}
+
+- (void)widthCommand {
+    [self deliverPayload:@{ @"type" : @"command", @"name" : @"width" }];
+}
+
+- (void)settingsCommand {
+    [self deliverPayload:@{ @"type" : @"command", @"name" : @"settings" }];
 }
 
 - (void)cycleTheme {
@@ -566,7 +642,7 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
          @"document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));"
          @"viewer=(opened&&s&&s.mode==='fit'&&s.scale>0&&moved&&document.getElementById('figureViewer').hidden&&"
          @"!document.querySelector('.viewer-placeholder'))?'ok':'failed';}"
-         @"return {state:root.dataset.renderState||'', bridge:!!(window.LeanMarkHost&&window.LeanMarkHost.receive),"
+         @"return {state:root.dataset.renderState||'', zoom:root.dataset.zoom||'', bridge:!!(window.LeanMarkHost&&window.LeanMarkHost.receive),"
          @"content:!!(article&&article.textContent.trim().length), remote:Array.from(document.images).some(function(i){return /^https?:/i.test(i.src);}),"
          @"viewer:viewer};}())";
     [_webView evaluateJavaScript:script completionHandler:^(id result, NSError *error) {
@@ -576,6 +652,17 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
       BOOL content = [values[@"content"] boolValue];
       BOOL remote = [values[@"remote"] boolValue];
       NSString *viewer = values[@"viewer"];
+      // Zoom is the page's job: the web view stays at 100% and the page
+      // shows the saved level.
+      NSString *expectedZoom =
+          [NSString stringWithFormat:@"%ld", std::lround(SavedZoom() * 100.0)];
+      if (ready && (self->_webView.pageZoom != 1.0 ||
+                    ![values[@"zoom"] isEqual:expectedZoom])) {
+          completion(NO, [NSString stringWithFormat:
+              @"zoom is not applied by the page (web view %.2f, page %@, saved %@)",
+              self->_webView.pageZoom, values[@"zoom"], expectedZoom]);
+          return;
+      }
       if ([viewer isEqualToString:@"failed"]) {
           completion(NO, @"the figure viewer did not open, fit, and restore a figure");
           return;

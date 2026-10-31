@@ -669,9 +669,11 @@ void LeanMarkApp::ConfigureWebView() {
     settings->put_AreDevToolsEnabled(FALSE);
     settings->put_AreDefaultContextMenusEnabled(TRUE);
     // Ctrl+wheel and pinch would zoom outside the shared levels; the reader
-    // sends zoom commands instead and the saved level is applied here.
+    // sends zoom commands instead. The web view itself stays at 100% so the
+    // toolbar and tabs keep their size; the reader zooms the document to the
+    // saved level, which it receives with the host message.
     settings->put_IsZoomControlEnabled(FALSE);
-    controller_->put_ZoomFactor(zoom_);
+    controller_->put_ZoomFactor(1.0);
     settings->put_IsBuiltInErrorPageEnabled(FALSE);
 
     ComPtr<ICoreWebView2Settings3> settings3;
@@ -1412,9 +1414,6 @@ void LeanMarkApp::SendCopyResult(unsigned long requestId, bool ok) {
 
 void LeanMarkApp::ApplyZoom(double zoom) {
     zoom_ = leanmark::core::NormalizeZoom(zoom);
-    if (controller_ != nullptr) {
-        controller_->put_ZoomFactor(zoom_);
-    }
     SaveSettings();
     SendZoom();
 }
@@ -1439,7 +1438,13 @@ void LeanMarkApp::HandleWebMessage(
 
     if (message == L"ready") {
         readerReady_ = true;
-        PostJson("{\"type\":\"host\",\"copySource\":true,\"tabs\":true}");
+        std::string host =
+            "{\"type\":\"host\",\"copySource\":true,\"tabs\":true,\"zoom\":";
+        host += std::to_string(std::lround(zoom_ * 100.0));
+        host += ",\"width\":\"";
+        host += leanmark::core::TextWidthName(width_);
+        host += "\"}";
+        PostJson(std::move(host));
         SendTabs();
         ShowActiveTab();
         return;
@@ -1494,6 +1499,12 @@ void LeanMarkApp::HandleWebMessage(
             leanmark::WideToUtf8(std::wstring_view(message).substr(6)));
         SaveSettings();
         ApplyWindowTheme();
+        return;
+    }
+    if (StartsWithInsensitive(message, L"width|")) {
+        width_ = leanmark::core::ParseTextWidth(
+            leanmark::WideToUtf8(std::wstring_view(message).substr(6)));
+        SaveSettings();
     }
 }
 
@@ -1659,6 +1670,22 @@ void LeanMarkApp::LoadSettings() {
         percent = 100;
     }
     zoom_ = leanmark::core::NormalizeZoom(static_cast<double>(percent) / 100.0);
+
+    // Settings from 0.5.0 have no width; that and any unknown name give
+    // Narrow, the 0.5.0 column.
+    width_ = leanmark::core::kDefaultTextWidth;
+    wchar_t width[16] = {};
+    DWORD widthBytes = sizeof(width);
+    if (RegGetValueW(
+            HKEY_CURRENT_USER,
+            kSettingsKey,
+            L"TextWidth",
+            RRF_RT_REG_SZ,
+            nullptr,
+            width,
+            &widthBytes) == ERROR_SUCCESS) {
+        width_ = leanmark::core::ParseTextWidth(leanmark::WideToUtf8(width));
+    }
 }
 
 void LeanMarkApp::SaveSettings() {
@@ -1691,6 +1718,15 @@ void LeanMarkApp::SaveSettings() {
         REG_DWORD,
         reinterpret_cast<const BYTE*>(&percent),
         sizeof(percent));
+    const std::wstring width =
+        leanmark::Utf8ToWide(leanmark::core::TextWidthName(width_));
+    RegSetValueExW(
+        key,
+        L"TextWidth",
+        0,
+        REG_SZ,
+        reinterpret_cast<const BYTE*>(width.c_str()),
+        static_cast<DWORD>((width.size() + 1) * sizeof(wchar_t)));
     RegCloseKey(key);
 }
 

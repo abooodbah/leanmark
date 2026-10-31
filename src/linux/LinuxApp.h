@@ -136,6 +136,7 @@ private:
 
     core::Theme theme_ = core::Theme::System;
     double zoom_ = core::kDefaultZoom;
+    core::TextWidth width_ = core::kDefaultTextWidth;
     // The page holds the rendered document once it is sent, so the host drops
     // its copy of the HTML and renders the file again if the page reloads.
     bool htmlReleased_ = false;

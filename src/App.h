@@ -139,4 +139,5 @@ private:
 
     leanmark::core::Theme theme_ = leanmark::core::Theme::System;
     double zoom_ = 1.0;
+    leanmark::core::TextWidth width_ = leanmark::core::kDefaultTextWidth;
 };

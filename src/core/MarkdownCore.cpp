@@ -422,20 +422,28 @@ double NormalizeZoom(double value) {
     return nearest;
 }
 
+namespace {
+
+// True when name equals the lowercase ASCII candidate, ignoring ASCII case.
+bool EqualsLowercaseName(std::string_view name, std::string_view candidate) {
+    return name.size() == candidate.size() &&
+           std::equal(name.begin(), name.end(), candidate.begin(),
+                      [](char left, char right) {
+                          const char lower =
+                              left >= 'A' && left <= 'Z'
+                                  ? static_cast<char>(left - 'A' + 'a')
+                                  : left;
+                          return lower == right;
+                      });
+}
+
+}  // namespace
+
 Theme ParseTheme(std::string_view name) {
     constexpr Theme kThemes[] = {
         Theme::System, Theme::Light, Theme::Dark, Theme::Dim, Theme::Dusk};
     for (const Theme theme : kThemes) {
-        const std::string_view candidate = ThemeName(theme);
-        if (name.size() == candidate.size() &&
-            std::equal(name.begin(), name.end(), candidate.begin(),
-                       [](char left, char right) {
-                           const char lower =
-                               left >= 'A' && left <= 'Z'
-                                   ? static_cast<char>(left - 'A' + 'a')
-                                   : left;
-                           return lower == right;
-                       })) {
+        if (EqualsLowercaseName(name, ThemeName(theme))) {
             return theme;
         }
     }
@@ -469,6 +477,39 @@ Theme NextTheme(Theme theme) {
             return Theme::Dusk;
         default:
             return Theme::System;
+    }
+}
+
+TextWidth ParseTextWidth(std::string_view name) {
+    constexpr TextWidth kWidths[] = {
+        TextWidth::Narrow, TextWidth::Wide, TextWidth::Full};
+    for (const TextWidth width : kWidths) {
+        if (EqualsLowercaseName(name, TextWidthName(width))) {
+            return width;
+        }
+    }
+    return kDefaultTextWidth;
+}
+
+const char* TextWidthName(TextWidth width) {
+    switch (width) {
+        case TextWidth::Wide:
+            return "wide";
+        case TextWidth::Full:
+            return "full";
+        default:
+            return "narrow";
+    }
+}
+
+TextWidth NextTextWidth(TextWidth width) {
+    switch (width) {
+        case TextWidth::Narrow:
+            return TextWidth::Wide;
+        case TextWidth::Wide:
+            return TextWidth::Full;
+        default:
+            return TextWidth::Narrow;
     }
 }
 

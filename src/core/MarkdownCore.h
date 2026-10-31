@@ -122,6 +122,21 @@ bool IsDarkTheme(Theme theme, bool systemDark);
 // before the page draws so a launch shows no white flash.
 ThemeColor ThemeCanvas(Theme theme, bool systemDark);
 
+// Width of the reading column. Narrow is the 0.5.0 column and the default;
+// the pixel widths live in reader.css. The names are what every host saves and
+// what the reader page uses.
+enum class TextWidth { Narrow, Wide, Full };
+constexpr TextWidth kDefaultTextWidth = TextWidth::Narrow;
+
+// Reads a saved or page-requested width name, ignoring ASCII case. Anything
+// else, including a missing value from 0.5.0 or a name from a later version,
+// gives kDefaultTextWidth.
+TextWidth ParseTextWidth(std::string_view name);
+const char* TextWidthName(TextWidth width);
+
+// The width after this one: Narrow, Wide, Full, then Narrow again.
+TextWidth NextTextWidth(TextWidth width);
+
 // Appends value to output as the inside of a JSON string literal. Building a
 // message in place avoids a temporary copy per field, which matters for the
 // rendered HTML of a large document.

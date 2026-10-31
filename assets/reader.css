@@ -38,6 +38,7 @@
   font-display: swap;
 }
 
+.theme-swatch[data-swatch="light"],
 :root {
   color-scheme: light;
   --font-sans: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -100,6 +101,11 @@
   --duration-short: 180ms;
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 
+  /* Document zoom, set by reader.js from the host's saved level. Only the
+     document area is zoomed; the toolbar, tabs, and panels keep their size. */
+  --reader-zoom: 1;
+  --settings-width: 300px;
+
   /* Height of the sticky header; anchors and the outline sit below it. */
   --chrome-height: 57px;
   --anchor-offset: calc(var(--chrome-height) + 31px);
@@ -128,6 +134,7 @@
   }
 }
 
+.theme-swatch[data-swatch="dark"],
 :root[data-theme="dark"] {
   color-scheme: dark;
   --canvas: var(--neutral-950);
@@ -149,6 +156,7 @@
    stays near 10:1 against the page, above WCAG AA's 4.5:1 but well below the
    18:1 of Dark. Each block sets every token the dark blocks set, so it wins
    over the system-dark block above whatever the system setting is. */
+.theme-swatch[data-swatch="dim"],
 :root[data-theme="dim"] {
   color-scheme: dark;
   --canvas: #1e2023;
@@ -169,6 +177,7 @@
   --quote-rule: #4a4f56;
 }
 
+.theme-swatch[data-swatch="dusk"],
 :root[data-theme="dusk"] {
   color-scheme: dark;
   --canvas: #221e19;
@@ -527,12 +536,45 @@ button {
   background: var(--border);
 }
 
+/* Narrow is the 0.5.0 column; Wide and Full are the text width setting.
+   Full fills the window less the page padding. */
 .content-grid {
+  --column: minmax(0, 720px);
   display: grid;
-  grid-template-columns: minmax(0, 720px);
+  grid-template-columns: var(--column);
   justify-content: center;
   gap: var(--space-8);
   padding: var(--space-12) var(--space-8) var(--space-16);
+  zoom: var(--reader-zoom);
+}
+
+:root[data-width="wide"] .content-grid {
+  --column: minmax(0, 960px);
+}
+
+:root[data-width="full"] .content-grid {
+  --column: minmax(0, 1fr);
+  justify-content: stretch;
+}
+
+.state-content {
+  zoom: var(--reader-zoom);
+}
+
+/* Engines without CSS zoom scale the document instead. */
+:root[data-zoom-fallback] .content-grid,
+:root[data-zoom-fallback] .state-content {
+  zoom: normal;
+  width: calc(100% / var(--reader-zoom));
+  transform: scale(var(--reader-zoom));
+  transform-origin: 0 0;
+}
+
+/* The open settings panel takes the right edge; the document moves over.
+   The margin is inside the zoomed box, so it is divided by the zoom. */
+:root[data-settings-open] .content-grid,
+:root[data-settings-open] .state-content {
+  margin-right: calc(var(--settings-width) / var(--reader-zoom));
 }
 
 .main-content {
@@ -546,8 +588,10 @@ button {
 
 .outline {
   position: sticky;
-  top: var(--anchor-offset);
-  max-height: calc(100vh - var(--chrome-height) - 55px);
+  /* Lengths inside the zoomed grid are multiplied by the zoom; the toolbar
+     above it is not, so divide to stay just below the toolbar. */
+  top: calc(var(--anchor-offset) / var(--reader-zoom));
+  max-height: calc((100vh - var(--chrome-height) - 55px) / var(--reader-zoom));
   align-self: start;
   overflow-y: auto;
   padding-right: var(--space-4);
@@ -608,7 +652,9 @@ button {
 .article h4,
 .article h5,
 .article h6 {
-  scroll-margin-top: var(--anchor-offset);
+  /* Inside the zoomed document, so divided by the zoom to land in the same
+     place below the toolbar at every zoom level. */
+  scroll-margin-top: calc(var(--anchor-offset) / var(--reader-zoom));
   color: var(--text-primary);
   font-family: var(--font-serif);
   font-weight: 600;
@@ -1186,15 +1232,23 @@ button {
   color: var(--find-text);
 }
 
-@media (min-width: 1180px) {
-  .content-grid {
-    grid-template-columns: 220px minmax(0, 720px) 220px;
-  }
+/* The layout follows the width left for the zoomed document (set by
+   reader.js), not the window, so zooming in still gives the text room. */
+:root[data-layout="wide"] .content-grid {
+  grid-template-columns: 220px var(--column) 220px;
+}
 
-  .outline:not([hidden]),
-  .layout-balance {
-    display: block;
-  }
+:root[data-layout="wide"] .outline:not([hidden]),
+:root[data-layout="wide"] .layout-balance {
+  display: block;
+}
+
+:root[data-layout="compact"] .content-grid {
+  padding: var(--space-8) var(--space-5) var(--space-12);
+}
+
+:root[data-layout="compact"] .article {
+  font-size: 17px;
 }
 
 @media (max-width: 760px) {
@@ -1216,14 +1270,6 @@ button {
   .search-field {
     min-width: 132px;
   }
-
-  .content-grid {
-    padding: var(--space-8) var(--space-5) var(--space-12);
-  }
-
-  .article {
-    font-size: 17px;
-  }
 }
 
 @media (max-width: 560px) {
@@ -1243,6 +1289,163 @@ button {
   .button {
     padding-right: var(--space-3);
     padding-left: var(--space-3);
+  }
+}
+
+/* The theme button's dot: the page colour of the theme it names, with a thin
+   ring in that theme's text colour, so it shows on any toolbar. */
+.theme-button {
+  gap: var(--space-2);
+}
+
+.theme-swatch {
+  display: inline-block;
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border: 1px solid var(--text-primary);
+  border-radius: 50%;
+  background: var(--canvas);
+}
+
+.button-icon {
+  width: 40px;
+  padding: 0;
+}
+
+.button-icon svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.6;
+}
+
+.button[aria-expanded="true"] {
+  border-color: var(--border);
+  background: var(--surface-muted);
+}
+
+.settings-panel {
+  position: fixed;
+  z-index: 30;
+  top: var(--chrome-height);
+  right: 0;
+  bottom: 0;
+  width: var(--settings-width);
+  max-width: 100%;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-5) var(--space-8);
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.settings-header h2 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.settings-group {
+  margin: 0 0 var(--space-5);
+  padding: 0;
+  border: 0;
+}
+
+.settings-group legend,
+.settings-label {
+  display: block;
+  margin: 0 0 var(--space-2);
+  padding: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.settings-choice {
+  display: flex;
+  min-height: 32px;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.settings-choice input {
+  margin: 0;
+  accent-color: var(--link);
+}
+
+.settings-zoom {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.settings-zoom .settings-label {
+  width: 100%;
+}
+
+.settings-zoom-value {
+  min-width: 48px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.shortcut-list h4 {
+  margin: var(--space-4) 0 var(--space-1);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.shortcut-list dl {
+  margin: 0;
+}
+
+.shortcut-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcut-row dt {
+  flex: none;
+}
+
+.shortcut-row dd {
+  margin: 0;
+  color: var(--text-secondary);
+  text-align: right;
+}
+
+.shortcut-row kbd {
+  padding: 1px var(--space-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+@media (max-width: 560px) {
+  :root {
+    --settings-width: 100vw;
   }
 }
 
@@ -1280,10 +1483,15 @@ button {
 
   .expand-figure,
   .zoom-indicator,
-  .figure-viewer {
+  .figure-viewer,
+  .settings-panel {
     border: 1px solid CanvasText;
     background: Canvas;
     color: CanvasText;
+  }
+
+  .theme-swatch {
+    border-color: ButtonText;
   }
 }
 
@@ -1293,6 +1501,7 @@ button {
   .expand-figure,
   .figure-viewer,
   .zoom-indicator,
+  .settings-panel,
   .outline,
   .layout-balance,
   .status-toast {
