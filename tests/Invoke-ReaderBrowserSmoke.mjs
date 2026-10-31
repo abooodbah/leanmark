@@ -1274,7 +1274,7 @@ async function run() {
     await clearPosted();
     await clickSelector(client, '#settingsPanel input[name="settings-theme"][value="dusk"]');
     check(await client.evaluate('document.documentElement.dataset.theme') === "dusk" &&
-      same((await client.evaluate(DOT)).background, THEME_COLOURS.dusk.canvas),
+      same((await client.evaluate(DOT)).background, SWATCH.dusk),
       "choosing Dusk in the panel applies it and updates the toolbar dot");
     await clickSelector(client, '#settingsPanel input[name="settings-width"][value="wide"]');
     check(await client.evaluate('document.documentElement.dataset.width') === "wide",
