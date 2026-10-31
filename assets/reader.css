@@ -1292,8 +1292,10 @@ button {
   }
 }
 
-/* The theme button's dot: the page colour of the theme it names, with a thin
-   ring in that theme's text colour, so it shows on any toolbar. */
+/* The theme button's dot: one fixed colour per theme, with the same grey ring
+   in every theme, so the five dots look different on any toolbar. The page
+   colours of the three dark themes are too close to each other and to the
+   toolbar to tell apart at this size. System is half Light and half Dark. */
 .theme-button {
   gap: var(--space-2);
 }
@@ -1301,11 +1303,19 @@ button {
 .theme-swatch {
   display: inline-block;
   flex: none;
-  width: 8px;
-  height: 8px;
-  border: 1px solid var(--text-primary);
+  width: 10px;
+  height: 10px;
+  border: 1px solid #8c8c8c;
   border-radius: 50%;
-  background: var(--canvas);
+  background: var(--swatch, #ffffff);
+}
+
+.theme-swatch[data-swatch="light"] { --swatch: #ffffff; }
+.theme-swatch[data-swatch="dark"] { --swatch: #000000; }
+.theme-swatch[data-swatch="dim"] { --swatch: #7f8a99; }
+.theme-swatch[data-swatch="dusk"] { --swatch: #c98f4f; }
+.theme-swatch[data-swatch="system"] {
+  background: linear-gradient(90deg, #ffffff 50%, #000000 50%);
 }
 
 .button-icon {

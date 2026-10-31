@@ -185,10 +185,9 @@
     } else {
       document.documentElement.setAttribute("data-theme", currentTheme);
     }
-    // The dot takes --canvas and --text-primary from the theme block its
-    // data-swatch names, so it shows the page and text colours of that theme.
+    // The dot has one fixed colour per theme (see .theme-swatch in the CSS).
     elements.themeLabel.textContent = titleCase(currentTheme);
-    elements.themeSwatch.dataset.swatch = shownTheme(currentTheme);
+    elements.themeSwatch.dataset.swatch = currentTheme;
     var name = themeDisplayName(currentTheme);
     elements.themeButton.setAttribute(
       "aria-label", "Theme: " + name + ". Activate to change theme.");
@@ -1939,10 +1938,6 @@
       .forEach(function (input) {
         input.checked = input.value === currentWidth;
       });
-    var systemSwatch = elements.settingsPanel.querySelector("[data-swatch-system]");
-    if (systemSwatch) {
-      systemSwatch.dataset.swatch = shownTheme("system");
-    }
     elements.settingsZoomValue.textContent = Math.round(zoomLevel * 100) + "%";
   }
 

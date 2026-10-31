@@ -1161,8 +1161,10 @@ async function run() {
       "the zoom indicator to fade", 5);
     await setViewport(1200);
 
-    // The theme button shows a dot in the active theme's page and text colours,
-    // and names the theme for screen readers and the tooltip.
+    // The theme button shows a dot in a fixed colour per theme, all five
+    // different, and names the theme for screen readers and the tooltip.
+    const SWATCH = { light: "#ffffff", dark: "#000000", dim: "#7f8a99", dusk: "#c98f4f" };
+    const SWATCH_RING = "#8c8c8c";
     const THEME_COLOURS = {
       light: { canvas: "#faf9f7", text: "#1a1917", name: "Light" },
       dark: { canvas: "#0e0d0b", text: "#faf9f7", name: "Dark" },
@@ -1176,6 +1178,7 @@ async function run() {
       var rect = dot ? dot.getBoundingClientRect() : null;
       return dot ? {
         background: style.backgroundColor,
+        image: style.backgroundImage,
         border: style.borderTopColor,
         borderWidth: parseFloat(style.borderTopWidth),
         size: [rect.width, rect.height],
@@ -1186,15 +1189,19 @@ async function run() {
     const same = (a, b) => parseColor(a).join() === parseColor(b).join();
     await deliver({ type: "theme", value: "system" });
     await clearPosted();
+    const seenDots = new Set();
     for (const name of ["light", "dark", "dim", "dusk", "system"]) {
       await press(client, "T", { ctrl: true });
       const dot = await client.evaluate(DOT);
-      const shown = name === "system" ? "light" : name;
       const label = name === "system" ? "System (Light)" : THEME_COLOURS[name].name;
-      check(dot && same(dot.background, THEME_COLOURS[shown].canvas) &&
-        same(dot.border, THEME_COLOURS[shown].text),
-        "the theme dot shows " + label + "'s page and text colours " + JSON.stringify(dot));
-      check(dot.size[0] >= 6 && dot.size[0] <= 8 && dot.size[1] === dot.size[0] &&
+      const looks = name === "system"
+        ? dot && /linear-gradient/.test(dot.image) &&
+          /255, 255, 255/.test(dot.image) && /0, 0, 0/.test(dot.image)
+        : dot && dot.image === "none" && same(dot.background, SWATCH[name]);
+      check(looks && same(dot.border, SWATCH_RING),
+        "the theme dot shows " + label + "'s own colour " + JSON.stringify(dot));
+      seenDots.add(dot.image === "none" ? dot.background : dot.image);
+      check(dot.size[0] === 10 && dot.size[1] === dot.size[0] &&
         dot.borderWidth > 0 && dot.borderWidth <= 1.5,
         "the " + label + " dot is a small round mark with a thin border");
       check(dot.label.indexOf("Theme: " + label) === 0 &&
@@ -1202,6 +1209,7 @@ async function run() {
         "the theme button names " + label + " in its accessible name and tooltip (" +
         dot.label + " / " + dot.title + ")");
     }
+    check(seenDots.size === 5, "the five theme dots all look different " + JSON.stringify([...seenDots]));
     check(JSON.stringify(await posted()) === JSON.stringify(
       ["theme|light", "theme|dark", "theme|dim", "theme|dusk", "theme|system"]),
       "Ctrl+Shift+T still saves each theme through the host");
@@ -1286,16 +1294,15 @@ async function run() {
         document.querySelectorAll('#settingsPanel input[name="settings-theme"]').forEach(function (input) {
           var dot = input.closest("label").querySelector(".theme-swatch");
           var style = getComputedStyle(dot);
-          found[input.value] = [style.backgroundColor, style.borderTopColor];
+          found[input.value] = [style.backgroundColor, style.borderTopColor, style.backgroundImage];
         });
         return found;
       }())`);
       check(["light", "dark", "dim", "dusk"].every((name) => swatches[name] &&
-        same(swatches[name][0], THEME_COLOURS[name].canvas) &&
-        same(swatches[name][1], THEME_COLOURS[name].text)) &&
-        same(swatches.system[0], THEME_COLOURS.light.canvas),
+        same(swatches[name][0], SWATCH[name]) && same(swatches[name][1], SWATCH_RING)) &&
+        /linear-gradient/.test(swatches.system[2]),
         "under " + current + ", each theme choice in the panel shows its own dot, " +
-        "System its resolved theme " + JSON.stringify(swatches));
+        "System half Light and half Dark " + JSON.stringify(swatches));
     }
 
     // The panel stays readable in every theme.
