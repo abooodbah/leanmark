@@ -122,6 +122,23 @@ function Test-StaticInvariants {
     Assert-Match $app 'leanmark::core::IsDarkTheme\(' 'The title bar must follow the shared dark-theme rule.'
     Write-TestPass 'theme window colours match the reader tokens, and settings use the shared parser'
 
+    # Zoom is applied inside the page so the toolbar keeps its size: the
+    # WebView2 zoom factor stays at 1.0 and only the saved level travels.
+    $zoomCalls = [regex]::Matches($app, 'put_ZoomFactor\(([^)]*)\)')
+    Assert-True ($zoomCalls.Count -ge 1) 'WebView2 must be pinned to a zoom factor of 1.0.'
+    foreach ($call in $zoomCalls) {
+        Assert-Equal $call.Groups[1].Value.Trim() '1.0' 'WebView2 must stay at 100%; the reader zooms the document itself.'
+    }
+    Assert-True $app.Contains('\"zoom\":') 'The saved zoom level must be sent to the reader.'
+    # The text width is saved like the theme: read through the shared parser
+    # (unknown or missing gives Narrow), written by name, and sent to the page.
+    Assert-True ([regex]::Matches($app, 'L"TextWidth"').Count -ge 2) 'The text width must be both read and saved.'
+    Assert-Match $app 'leanmark::core::ParseTextWidth\(' 'The saved text width must go through the shared parser.'
+    Assert-Match $app 'leanmark::core::TextWidthName\(' 'The text width must be saved by its shared name.'
+    Assert-True $app.Contains('\"width\":\"') 'The saved text width must be sent to the reader.'
+    Assert-Match $app 'L"width\|"' 'The reader must be able to ask the host to save a width.'
+    Write-TestPass 'the web view stays at 100% and the text width is saved and restored'
+
     Assert-Match $app 'kAppOrigin\[\].*https://app\.leanmark\.invalid/' 'The trusted application origin changed unexpectedly.'
     Assert-Match $app 'kDocumentHostSuffix\[\].*\.doc\.leanmark\.invalid' 'The document asset origin changed unexpectedly.'
     Assert-Match $app 'COREWEBVIEW2_HOST_RESOURCE_ACCESS_KIND_DENY_CORS' 'The application virtual-host mapping must deny CORS.'

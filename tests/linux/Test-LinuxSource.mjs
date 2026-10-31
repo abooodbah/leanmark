@@ -95,6 +95,21 @@ assert.doesNotMatch(
   "theme names must not be compared by hand"
 );
 
+// Zoom is applied inside the page, so the toolbar keeps its size: the web
+// view's own zoom level stays at 1.0.
+const zoomCalls = [...host.matchAll(/webkit_web_view_set_zoom_level\(\s*webView_,\s*([^)]+)\)/g)];
+assert.ok(zoomCalls.length >= 1, "the web view must be pinned to a zoom level of 1.0");
+for (const call of zoomCalls) {
+  assert.equal(call[1].trim(), "1.0",
+    "the web view must stay at 100%; the reader zooms the document itself");
+}
+// The text width is saved like the theme, read through the shared parser.
+assert.match(host, /core::ParseTextWidth\(/, "the saved width must go through the shared parser");
+assert.match(host, /g_key_file_get_string\(\s*settings,\s*"Reader",\s*"Width"/,
+  "the width must be read from [Reader] Width");
+assert.match(host, /g_key_file_set_string\(\s*settings,\s*"Reader",\s*"Width"/,
+  "the width must be saved to [Reader] Width");
+
 assert.match(cmake, /pkg_check_modules\(GTK4[^\n]*gtk4>=4\.10/);
 assert.match(cmake, /pkg_check_modules\(WEBKITGTK[^\n]*webkitgtk-6\.0>=2\.44/);
 assert.match(cmake, /scripts\/stage-runtime-assets\.mjs/);

@@ -202,6 +202,10 @@ const KEYS = {
   ArrowRight: { code: "ArrowRight", keyCode: 39 },
   ArrowDown: { code: "ArrowDown", keyCode: 40 },
   Enter: { code: "Enter", keyCode: 13 },
+  L: { code: "KeyL", keyCode: 76, shift: true },
+  T: { code: "KeyT", keyCode: 84, shift: true },
+  "/": { code: "Slash", keyCode: 191 },
+  F1: { code: "F1", keyCode: 112 },
 };
 
 async function press(client, key, { ctrl = false } = {}) {
@@ -952,6 +956,370 @@ async function run() {
       features: process.argv.includes("--reduced-motion")
         ? [{ name: "prefers-reduced-motion", value: "reduce" }] : [],
     });
+
+    // Text width, the settings panel, the theme dot, and zoom that leaves the
+    // toolbar alone (issue #6 follow-up). The column widths are the contract:
+    // Narrow is the 0.5.0 column, Wide is 960 px, Full is the window less the
+    // page padding.
+    const NARROW_PX = 720;
+    const WIDE_PX = 960;
+    const PAGE_PADDING_PX = 32;
+    const setViewport = (width, height = 900) =>
+      client.send("Emulation.setDeviceMetricsOverride", {
+        width, height, deviceScaleFactor: 1, mobile: false,
+      });
+    const showWidthDocument = async (host = {}) => {
+      await deliver(Object.assign({ type: "host", copySource: true, tabs: true }, host));
+      await deliver({
+        type: "document", tabId: 1, theme: "light", fileName: "themes.md",
+        path: "/fixtures/themes.md", documentBaseUrl: "", sourceBytes: 900,
+        hasMermaid: true, html: THEME_DOCUMENT_HTML,
+      });
+      await waitFor(client, 'document.documentElement.dataset.renderState === "ready" && ' +
+        '!!document.querySelector("#article figure.diagram svg")', "the width document");
+    };
+    const COLUMN = `(function () {
+      var main = document.getElementById("mainContent").getBoundingClientRect();
+      var pane = document.getElementById("readerPane");
+      var style = getComputedStyle(pane);
+      var zoom = Number(document.documentElement.dataset.zoom || "100") / 100;
+      var outline = document.getElementById("outline");
+      var sideColumns = getComputedStyle(outline).display === "none" ? 0
+        : 2 * (220 + parseFloat(style.columnGap));
+      return {
+        width: main.width,
+        full: (pane.clientWidth / zoom - parseFloat(style.paddingLeft) -
+          parseFloat(style.paddingRight) - sideColumns) * zoom,
+        padding: parseFloat(style.paddingLeft),
+        attribute: document.documentElement.dataset.width,
+        scroll: document.documentElement.scrollWidth - window.innerWidth
+      };
+    }())`;
+
+    await setViewport(1800);
+    await showWidthDocument({ zoom: 100, width: "narrow" });
+    let column = await client.evaluate(COLUMN);
+    check(Math.round(column.width) === NARROW_PX && column.attribute === "narrow",
+      "Narrow is the 0.5.0 column of " + NARROW_PX + " px (" + column.width + ")");
+    check(column.padding === PAGE_PADDING_PX,
+      "the page keeps its " + PAGE_PADDING_PX + " px side padding");
+    await clearPosted();
+    await press(client, "L", { ctrl: true });
+    column = await client.evaluate(COLUMN);
+    check(Math.round(column.width) === WIDE_PX && column.attribute === "wide",
+      "Ctrl+Shift+L widens the column to Wide, " + WIDE_PX + " px (" + column.width + ")");
+    await press(client, "L", { ctrl: true });
+    column = await client.evaluate(COLUMN);
+    check(column.attribute === "full" && Math.abs(column.width - column.full) < 1,
+      "Ctrl+Shift+L again gives Full, the window less its padding (" +
+      column.width + " of " + column.full + ")");
+    await press(client, "L", { ctrl: true });
+    column = await client.evaluate(COLUMN);
+    check(Math.round(column.width) === NARROW_PX && column.attribute === "narrow",
+      "a third Ctrl+Shift+L returns to Narrow");
+    check(JSON.stringify(await posted()) ===
+      JSON.stringify(["width|wide", "width|full", "width|narrow"]),
+      "each width choice is sent to the host to be saved");
+    await clearPosted();
+    await deliver({ type: "width", value: "wide" });
+    check(Math.round((await client.evaluate(COLUMN)).width) === WIDE_PX &&
+      (await posted()).length === 0,
+      "a width from the host is applied without being sent back");
+    await showWidthDocument({ width: "huge" });
+    check((await client.evaluate(COLUMN)).attribute === "narrow",
+      "an unknown saved width falls back to Narrow");
+    await showWidthDocument({ width: "full" });
+    check((await client.evaluate(COLUMN)).attribute === "full",
+      "the saved width arrives with the host's first message");
+    await setViewport(1000);
+    column = await client.evaluate(COLUMN);
+    check(Math.abs(column.width - column.full) < 1 && column.scroll <= 0,
+      "Full fills a narrower window too, with no sideways scroll");
+
+    // Zoom. The host keeps its web view at 100% and the page zooms only the
+    // document, so the toolbar and tabs keep their size.
+    await setViewport(1200);
+    await showWidthDocument({ zoom: 100, width: "narrow" });
+    await deliver({ type: "tabs", active: 1, tabs: [
+      { id: 1, name: "themes.md", path: "/fixtures/themes.md" },
+      { id: 2, name: "other.md", path: "/fixtures/other.md" },
+    ] });
+    const CHROME_AND_CONTENT = `(function () {
+      var rect = function (selector) {
+        var node = document.querySelector(selector);
+        return node ? node.getBoundingClientRect() : null;
+      };
+      return {
+        topbar: rect(".topbar").height,
+        tabs: rect("#tabStrip").height,
+        find: rect("#findInput").height,
+        open: rect("#openButton").width,
+        buttonFont: getComputedStyle(document.getElementById("openButton")).fontSize,
+        heading: rect("#article h1").height,
+        paragraph: rect("#article p").height,
+        zoom: document.documentElement.dataset.zoom,
+        indicator: !document.getElementById("zoomIndicator").hidden
+      };
+    }())`;
+    const before = await client.evaluate(CHROME_AND_CONTENT);
+    await deliver({ type: "zoom", percent: 200 });
+    const zoomed = await client.evaluate(CHROME_AND_CONTENT);
+    check(zoomed.zoom === "200", "the page applies the host's zoom level itself");
+    check(zoomed.topbar === before.topbar && zoomed.tabs === before.tabs &&
+      zoomed.find === before.find && zoomed.open === before.open &&
+      zoomed.buttonFont === before.buttonFont,
+      "at 200% the toolbar and tabs keep their size (" + JSON.stringify(before) +
+      " then " + JSON.stringify(zoomed) + ")");
+    check(zoomed.heading / before.heading > 1.9 && zoomed.heading / before.heading < 2.1 &&
+      zoomed.paragraph > before.paragraph * 1.5,
+      "at 200% the document text is twice as large");
+    for (const name of ["narrow", "wide", "full"]) {
+      await deliver({ type: "width", value: name });
+      const contained = await client.evaluate(`(function () {
+        var right = window.innerWidth + 0.5;
+        var parts = Array.from(document.querySelectorAll(
+          "#article pre, #article table, #article figure.diagram svg, #article img, #article p"));
+        return {
+          scroll: document.documentElement.scrollWidth - window.innerWidth,
+          outside: parts.filter(function (node) {
+            return node.getBoundingClientRect().right > right;
+          }).map(function (node) { return node.tagName; })
+        };
+      }())`);
+      check(contained.scroll <= 0 && contained.outside.length === 0,
+        "at 200% " + name + " keeps code, tables, figures, and images in the window " +
+        JSON.stringify(contained));
+    }
+    await deliver({ type: "width", value: "narrow" });
+    check(await client.evaluate(
+      'getComputedStyle(document.getElementById("outline")).display === "none"'),
+      "the outline makes room when zoom leaves too little width for it");
+
+    // The saved level from 0.5.0 arrives with the host's first message and
+    // means the same text size; it is applied without the zoom flash.
+    await showWidthDocument({ zoom: 125, width: "narrow" });
+    const restored = await client.evaluate(CHROME_AND_CONTENT);
+    check(restored.zoom === "125" && !restored.indicator &&
+      Math.abs(restored.heading / before.heading - 1.25) < 0.06,
+      "a saved 125% zoom loads at the same text size, without the indicator");
+
+    // Find, the outline, and the scroll position still work when zoomed.
+    await setViewport(1800);
+    await deliver({ type: "zoom", percent: 125 });
+    await waitFor(client, 'document.getElementById("zoomIndicator").hidden',
+      "the zoom indicator to fade", 5);
+    await client.evaluate('window.scrollTo(0, 0); true');
+    await client.evaluate(`(function () {
+      var link = Array.from(document.querySelectorAll("#outlineList a")).find(function (a) {
+        return a.textContent === "Platforms";
+      });
+      link.click();
+      return true;
+    }())`);
+    await delay(300);
+    const jumped = await client.evaluate(`(function () {
+      var heading = Array.from(document.querySelectorAll("#article h3")).find(function (h) {
+        return h.textContent.indexOf("Platforms") >= 0;
+      });
+      var top = heading.getBoundingClientRect().top;
+      var chrome = document.querySelector(".chrome").getBoundingClientRect().bottom;
+      return { top: top, chrome: chrome };
+    }())`);
+    check(jumped.top >= jumped.chrome - 1 && jumped.top < jumped.chrome + 80,
+      "at 125% the outline jumps to a heading just below the toolbar " +
+      JSON.stringify(jumped));
+    await client.evaluate(
+      'var input = document.getElementById("findInput"); input.focus(); ' +
+      'input.value = "Ship"; input.dispatchEvent(new Event("input")); true');
+    await press(client, "Enter");
+    check(await client.evaluate('document.getElementById("findCount").textContent') === "1/1",
+      "find still counts matches when zoomed");
+    await press(client, "Escape");
+    await setViewport(1200, 500);
+    await client.evaluate(
+      'window.scrollTo(0, (document.documentElement.scrollHeight - innerHeight) / 2); true');
+    const ratioBefore = await client.evaluate(
+      'scrollY / (document.documentElement.scrollHeight - innerHeight)');
+    await deliver({ type: "zoom", percent: 150 });
+    const ratioAfter = await client.evaluate(
+      'scrollY / (document.documentElement.scrollHeight - innerHeight)');
+    check(Math.abs(ratioAfter - ratioBefore) < 0.05,
+      "a zoom change keeps the reading position (" + ratioBefore.toFixed(3) + " then " +
+      ratioAfter.toFixed(3) + ")");
+    await deliver({ type: "zoom", percent: 100 });
+    await waitFor(client, 'document.getElementById("zoomIndicator").hidden',
+      "the zoom indicator to fade", 5);
+    await setViewport(1200);
+
+    // The theme button shows a dot in the active theme's page and text colours,
+    // and names the theme for screen readers and the tooltip.
+    const THEME_COLOURS = {
+      light: { canvas: "#faf9f7", text: "#1a1917", name: "Light" },
+      dark: { canvas: "#0e0d0b", text: "#faf9f7", name: "Dark" },
+      dim: { canvas: "#1e2023", text: "#c8ccd2", name: "Dim" },
+      dusk: { canvas: "#221e19", text: "#d4c8b4", name: "Dusk" },
+    };
+    const DOT = `(function () {
+      var button = document.getElementById("themeButton");
+      var dot = button.querySelector(".theme-swatch");
+      var style = dot ? getComputedStyle(dot) : null;
+      var rect = dot ? dot.getBoundingClientRect() : null;
+      return dot ? {
+        background: style.backgroundColor,
+        border: style.borderTopColor,
+        borderWidth: parseFloat(style.borderTopWidth),
+        size: [rect.width, rect.height],
+        label: button.getAttribute("aria-label"),
+        title: button.title
+      } : null;
+    }())`;
+    const same = (a, b) => parseColor(a).join() === parseColor(b).join();
+    await deliver({ type: "theme", value: "system" });
+    await clearPosted();
+    for (const name of ["light", "dark", "dim", "dusk", "system"]) {
+      await press(client, "T", { ctrl: true });
+      const dot = await client.evaluate(DOT);
+      const shown = name === "system" ? "light" : name;
+      const label = name === "system" ? "System (Light)" : THEME_COLOURS[name].name;
+      check(dot && same(dot.background, THEME_COLOURS[shown].canvas) &&
+        same(dot.border, THEME_COLOURS[shown].text),
+        "the theme dot shows " + label + "'s page and text colours " + JSON.stringify(dot));
+      check(dot.size[0] >= 6 && dot.size[0] <= 8 && dot.size[1] === dot.size[0] &&
+        dot.borderWidth > 0 && dot.borderWidth <= 1.5,
+        "the " + label + " dot is a small round mark with a thin border");
+      check(dot.label.indexOf("Theme: " + label) === 0 &&
+        dot.title === "Theme: " + label + " (Ctrl+Shift+T)",
+        "the theme button names " + label + " in its accessible name and tooltip (" +
+        dot.label + " / " + dot.title + ")");
+    }
+    check(JSON.stringify(await posted()) === JSON.stringify(
+      ["theme|light", "theme|dark", "theme|dim", "theme|dusk", "theme|system"]),
+      "Ctrl+Shift+T still saves each theme through the host");
+
+    // The settings panel: one button, Ctrl+/ or F1, Esc to close.
+    const PANEL = `(function () {
+      var panel = document.getElementById("settingsPanel");
+      var button = document.getElementById("settingsButton");
+      return {
+        open: !!panel && !panel.hidden,
+        expanded: button && button.getAttribute("aria-expanded"),
+        focusInside: !!panel && panel.contains(document.activeElement),
+        focusOnButton: document.activeElement === button,
+        label: button && (button.getAttribute("aria-label") || button.textContent.trim()),
+        text: panel ? panel.textContent.replace(/\\s+/g, " ") : ""
+      };
+    }())`;
+    check(await client.evaluate('!!document.getElementById("settingsButton") && ' +
+      'document.getElementById("settingsButton").querySelector("svg") !== null'),
+      "the toolbar has a settings button drawn with inline SVG");
+    await clickSelector(client, "#settingsButton");
+    let panel = await client.evaluate(PANEL);
+    check(panel.open && panel.expanded === "true" && panel.focusInside,
+      "the settings button opens the panel and moves focus into it (" +
+      JSON.stringify({ open: panel.open, expanded: panel.expanded, focus: panel.focusInside }) + ")");
+    check(/settings/i.test(panel.label) && /shortcut/i.test(panel.label),
+      "the settings button is labelled for screen readers (" + panel.label + ")");
+    check(/Ctrl\+Shift\+T\s*Change the theme/i.test(panel.text) ||
+      /Change the theme\s*Ctrl\+Shift\+T/i.test(panel.text),
+      "the panel lists Ctrl+Shift+T for the theme");
+    const shortcuts = await client.evaluate("window.LeanMarkTest.shortcuts()");
+    const missing = shortcuts.filter((entry) => panel.text.indexOf(entry.keys) < 0 ||
+      panel.text.indexOf(entry.label) < 0);
+    check(shortcuts.length >= 20 && missing.length === 0,
+      "the panel lists all " + shortcuts.length + " shortcuts the key handlers act on" +
+      (missing.length ? "; missing " + JSON.stringify(missing) : ""));
+    for (const keys of ["Ctrl+O", "Ctrl+F", "F3", "Shift+F3", "Ctrl+R", "Ctrl+Shift+C",
+      "Ctrl+Shift+L", "Ctrl+/", "F1", "Ctrl+Tab", "Ctrl+W", "Ctrl+0", "Esc"]) {
+      check(shortcuts.some((entry) => entry.keys === keys),
+        "the shortcut list includes " + keys);
+    }
+    await press(client, "Escape");
+    panel = await client.evaluate(PANEL);
+    check(!panel.open && panel.expanded === "false" && panel.focusOnButton,
+      "Esc closes the panel and returns focus to the settings button");
+    await client.evaluate('document.getElementById("article").focus(); true');
+    await press(client, "/", { ctrl: true });
+    check((await client.evaluate(PANEL)).open, "Ctrl+/ opens the panel");
+    await press(client, "Escape");
+    await press(client, "F1");
+    check((await client.evaluate(PANEL)).open, "F1 opens the panel");
+
+    // The panel changes the theme, width, and zoom through the same paths.
+    await clearPosted();
+    await clickSelector(client, '#settingsPanel input[name="settings-theme"][value="dusk"]');
+    check(await client.evaluate('document.documentElement.dataset.theme') === "dusk" &&
+      same((await client.evaluate(DOT)).background, THEME_COLOURS.dusk.canvas),
+      "choosing Dusk in the panel applies it and updates the toolbar dot");
+    await clickSelector(client, '#settingsPanel input[name="settings-width"][value="wide"]');
+    check(await client.evaluate('document.documentElement.dataset.width') === "wide",
+      "choosing Wide in the panel widens the column");
+    await clickSelector(client, "#settingsZoomIn");
+    await clickSelector(client, "#settingsZoomReset");
+    check(JSON.stringify(await posted()) ===
+      JSON.stringify(["theme|dusk", "width|wide", "zoom|in", "zoom|reset"]),
+      "panel choices go to the host like the shortcuts (" +
+      JSON.stringify(await posted()) + ")");
+    const swatches = await client.evaluate(`(function () {
+      var found = {};
+      document.querySelectorAll('#settingsPanel input[name="settings-theme"]').forEach(function (input) {
+        var dot = input.closest("label").querySelector(".theme-swatch");
+        var style = getComputedStyle(dot);
+        found[input.value] = [style.backgroundColor, style.borderTopColor];
+      });
+      return found;
+    }())`);
+    check(["light", "dark", "dim", "dusk"].every((name) => swatches[name] &&
+      same(swatches[name][0], THEME_COLOURS[name].canvas) &&
+      same(swatches[name][1], THEME_COLOURS[name].text)) &&
+      same(swatches.system[0], THEME_COLOURS.light.canvas),
+      "each theme choice in the panel shows its own dot, System its resolved theme " +
+      JSON.stringify(swatches));
+
+    // The panel stays readable in every theme.
+    for (const name of ["light", "dark", "dim", "dusk"]) {
+      await deliver({ type: "theme", value: name });
+      const colours = await client.evaluate(`(function () {
+        var panel = document.getElementById("settingsPanel");
+        var heading = panel.querySelector("h2");
+        var keys = panel.querySelector("kbd");
+        var surface = getComputedStyle(panel).backgroundColor;
+        return {
+          surface: surface,
+          heading: getComputedStyle(heading).color,
+          keys: getComputedStyle(keys).color,
+          keysBackground: getComputedStyle(keys).backgroundColor
+        };
+      }())`);
+      const keyBackground = parseColor(colours.keysBackground)[3] === 0
+        ? colours.surface : colours.keysBackground;
+      check(contrast(colours.heading, colours.surface) >= 4.5 &&
+        contrast(colours.keys, keyBackground) >= 4.5,
+        "the panel's text meets 4.5:1 in " + name + " (" +
+        contrast(colours.heading, colours.surface).toFixed(2) + ", " +
+        contrast(colours.keys, keyBackground).toFixed(2) + ")");
+    }
+
+    // On a 760 px window the open panel sits beside the text, not over it.
+    await setViewport(760);
+    await delay(100);
+    const beside = await client.evaluate(`(function () {
+      var panel = document.getElementById("settingsPanel").getBoundingClientRect();
+      var text = document.getElementById("article").getBoundingClientRect();
+      return {
+        panel: [panel.left, panel.right, panel.top, panel.bottom],
+        text: [text.left, text.right],
+        width: window.innerWidth,
+        height: window.innerHeight,
+        scroll: document.documentElement.scrollWidth - window.innerWidth
+      };
+    }())`);
+    check(beside.text[1] <= beside.panel[0] + 0.5 && beside.panel[1] <= beside.width + 0.5 &&
+      beside.panel[3] <= beside.height + 0.5 && beside.scroll <= 0,
+      "on a 760 px window the panel does not cover the text " + JSON.stringify(beside));
+    await press(client, "Escape");
+    await setViewport(1200);
+    await deliver({ type: "theme", value: "system" });
+    await deliver({ type: "width", value: "narrow" });
 
     // The diagram cap leaves diagrams past the fiftieth unrendered.
     const many = [];

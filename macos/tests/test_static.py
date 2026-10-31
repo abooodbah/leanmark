@@ -99,6 +99,22 @@ def main() -> int:
     require('isEqualToString:@"dark"' not in window,
             "theme names must not be compared by hand; unknown values fall back in the core")
 
+    # Zoom is applied inside the page so the toolbar keeps its size: the web
+    # view's own pageZoom stays at 1.0 and only the saved level travels.
+    import re
+    zoom_assignments = re.findall(r"pageZoom\s*=\s*([^;]+);", window)
+    require(zoom_assignments and all(value.strip() == "1.0" for value in zoom_assignments),
+            "the web view must stay at pageZoom 1.0; the reader zooms the document itself")
+    # The text width is saved like the theme, read through the shared parser.
+    contains_all(window, [
+        'LMTextWidthPreferenceKey = @"LeanMarkTextWidth"',
+        "leanmark::core::ParseTextWidth(",
+        "leanmark::core::TextWidthName(",
+        '[command hasPrefix:@"width|"]',
+    ], "text width setting")
+    require(window.count("LMTextWidthPreferenceKey") >= 3,
+            "the text width must be both read and saved")
+
     document_source = (mac / "src" / "LMDocument.mm").read_text("utf-8")
     contains_all(document_source, [
         "leanmark::core::RenderMarkdownFile",
