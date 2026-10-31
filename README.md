@@ -223,10 +223,18 @@ browser-free renderer, or a claim to the lowest possible RAM use.
 - Five reader themes: System, Light, Dark, and two softer dark themes, Dim
   (neutral grey) and Dusk (warm), with less contrast than Dark for long
   reading. The theme button in the toolbar, or Ctrl+Shift+T, steps through
-  them, and LeanMark remembers the choice.
-- Page zoom in fixed steps (50, 67, 75, 80, 90, 100, 110, 125, 150, 175, 200,
-  250, and 300%). The new level shows briefly, and LeanMark remembers it for
-  the next launch.
+  them, and LeanMark remembers the choice. A small dot on the button shows the
+  theme's page and text colours, and the button's tooltip names it.
+- Document zoom in fixed steps (50, 67, 75, 80, 90, 100, 110, 125, 150, 175,
+  200, 250, and 300%). Only the document grows; the toolbar and tabs keep
+  their size. The new level shows briefly, and LeanMark remembers it for the
+  next launch.
+- Three text widths: Narrow (a 720 px column, the default), Wide (960 px),
+  and Full (the window less its margins). Ctrl+Shift+L steps through them, and
+  LeanMark remembers the choice.
+- A settings button in the toolbar opens a panel beside the document to change
+  the theme, text width, and zoom. It also lists every keyboard shortcut.
+  Ctrl+/ or F1 opens it, and Escape closes it.
 - An expand button in the bottom-right corner of every Mermaid diagram and
   standalone image. It opens the figure full-window, fitted to the window,
   with its own zoom from 10% to 800%, panning, and keyboard control. Inline
@@ -250,6 +258,8 @@ browser-free renderer, or a claim to the lowest possible RAM use.
 | Reload from disk | Ctrl+R | Command+R |
 | Zoom in / out / reset | Ctrl++ (or Ctrl+=) / Ctrl+- / Ctrl+0 | Command++ / Command+- / Command+0 |
 | Cycle reader theme | Ctrl+Shift+T | Command+Shift+T |
+| Cycle text width | Ctrl+Shift+L | Command+Shift+L |
+| Settings and shortcuts | Ctrl+/ or F1 | Command+/, Command+, or F1 |
 | Copy the whole document | Ctrl+Shift+C | Command+Shift+C |
 | Next / previous tab (Windows) | Ctrl+Tab / Ctrl+Shift+Tab | Window menu |
 | Go to tab 1 to 8 / last tab (Windows) | Ctrl+1 to Ctrl+8 / Ctrl+9 | Window menu |
@@ -257,6 +267,17 @@ browser-free renderer, or a claim to the lowest possible RAM use.
 | Open a link in a new tab (Windows) | Ctrl+click or middle-click | Not available |
 | Print | Ctrl+P | Command+P |
 | Leave find | Escape | Escape |
+| Close the settings panel | Escape | Escape |
+
+The settings panel lists these keys as this window handles them, including
+the find box, tab strip, and figure viewer keys.
+
+LeanMark saves the theme, zoom, and text width per user: on Windows under
+`HKEY_CURRENT_USER\Software\LeanMark` (`Theme`, `ZoomPercent`, `TextWidth`),
+on Linux in `~/.config/leanmark/settings.ini` (`[Reader]` `Theme`, `Zoom`,
+`Width`), and on macOS in the app's defaults (`LeanMarkTheme`, `LeanMarkZoom`,
+`LeanMarkTextWidth`). Settings saved by 0.5.0 have no width and open in
+Narrow.
 
 In the figure viewer, opened with a figure's expand button:
 

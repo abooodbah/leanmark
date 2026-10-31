@@ -3,6 +3,30 @@
 All notable LeanMark changes are recorded here. The project follows semantic
 versioning.
 
+## [0.6.0] - Unreleased
+
+### Added
+
+- A text width setting: Narrow (the 720 px column of 0.5.0, the default),
+  Wide (960 px), and Full (the window less its margins). Ctrl+Shift+L steps
+  through them, and LeanMark remembers the choice. Settings from 0.5.0 have no
+  width and open in Narrow. Code blocks, tables, diagrams, and images stay
+  inside the window at every width.
+- A settings button in the toolbar. It opens a panel beside the document to
+  change the theme, text width, and zoom, and lists every keyboard shortcut.
+  Ctrl+/ or F1 opens it, and Escape closes it. The list is built from the same
+  tables the key handlers use; on macOS it adds the menu shortcuts.
+- A dot on the theme button in the active theme's page and text colours.
+  The button's tooltip and accessible name include the theme, for example
+  "Theme: Dusk (Ctrl+Shift+T)", and System says which theme it resolves to.
+  The panel shows the same dot next to each theme.
+
+### Fixed
+
+- Zooming also enlarged the toolbar and tab strip. Each host now keeps its
+  web view at 100% and the reader zooms only the document. A zoom level saved
+  by 0.5.0 loads at the same text size.
+
 ## [0.5.0] - 2026-10-29
 
 ### Added
