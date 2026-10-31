@@ -884,8 +884,8 @@ button {
   padding: var(--space-4);
   border-left: 4px solid var(--warning-500);
   border-radius: var(--radius-sm);
-  background: var(--warning-50);
-  color: var(--neutral-800);
+  background: var(--surface-muted);
+  color: var(--text-secondary);
   font-size: 14px;
 }
 
