@@ -7,7 +7,7 @@ Paste each field into Partner Center > your app > Submission > Store listings > 
 - Product name (reserve this exact name): LeanMark
 - Publisher display name: Lean Apps Studio
 - Short title (50 characters or fewer): LeanMark: Markdown viewer
-- Version in this pack: 0.5.0 (package version 0.5.0.0)
+- Version in this pack: 0.6.0 (package version 0.6.0.0)
 - File types it opens: Markdown files (.md, .markdown, .mdown, .mkd)
 
 ## Short description

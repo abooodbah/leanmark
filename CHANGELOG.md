@@ -3,7 +3,7 @@
 All notable LeanMark changes are recorded here. The project follows semantic
 versioning.
 
-## [0.6.0] - Unreleased
+## [0.6.0] - 2026-10-31
 
 ### Added
 
@@ -16,16 +16,20 @@ versioning.
   change the theme, text width, and zoom, and lists every keyboard shortcut.
   Ctrl+/ or F1 opens it, and Escape closes it. The list is built from the same
   tables the key handlers use; on macOS it adds the menu shortcuts.
-- A dot on the theme button in the active theme's page and text colours.
-  The button's tooltip and accessible name include the theme, for example
-  "Theme: Dusk (Ctrl+Shift+T)", and System says which theme it resolves to.
-  The panel shows the same dot next to each theme.
+- A dot on the theme button with one colour per theme: white for Light,
+  black for Dark, grey blue for Dim, amber for Dusk, and half white, half
+  black for System. The button's tooltip and accessible name include the
+  theme, for example "Theme: Dusk (Ctrl+Shift+T)", and System says which
+  theme it resolves to. The panel shows the same dot next to each theme.
 
 ### Fixed
 
 - Zooming also enlarged the toolbar and tab strip. Each host now keeps its
   web view at 100% and the reader zooms only the document. A zoom level saved
   by 0.5.0 loads at the same text size.
+- The note shown in place of an image that cannot load was a light cream box
+  in every theme. It now uses the theme's own surface and text colours, with
+  text contrast of 5.1 to 1 or more in all four themes.
 
 ## [0.5.0] - 2026-10-29
 
