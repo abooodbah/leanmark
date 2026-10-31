@@ -61,7 +61,7 @@ LeanMark is free and open source under the MIT License. The source code, release
 
 ## What's new in this version
 
-The window no longer shows a white flash when LeanMark opens with the dark theme.
+Adds a text width setting (Narrow, Wide, Full) and a settings panel that lists every keyboard shortcut. Zoom now enlarges only the document, not the toolbar. The theme button shows a coloured dot for the current theme.
 
 ## Copyright and trademark info
 
