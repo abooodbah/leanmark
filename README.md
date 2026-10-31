@@ -2,7 +2,7 @@
 
 Read .md files and Mermaid diagrams offline, without opening an editor. About 74 ms to a visible window and 97 MiB peak private memory on Windows 11 (measured with 0.3.0), with no Electron and no telemetry.
 
-[Website](https://abooodbah.github.io/leanmark/) · [Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) · `winget install abooodbah.LeanMark` · [All Lean apps](https://abooodbah.github.io/)
+[Website](https://abooodbah.github.io/leanmark/) · [Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) · `winget install abooodbah.LeanMark` · `choco install leanmark` · [All Lean apps](https://abooodbah.github.io/)
 
 **Read Markdown and Mermaid diagrams without opening an IDE. Everything renders
 offline, with no Electron and no telemetry.**
@@ -64,6 +64,26 @@ winget install --id 9MSS4WKJ22ZV --source msstore
 scoop bucket add lean https://github.com/abooodbah/scoop-bucket
 scoop install lean/leanmark
 ```
+
+### Chocolatey
+
+From an administrator PowerShell:
+
+```powershell
+choco install leanmark -y
+```
+
+The [LeanMark package](https://community.chocolatey.org/packages/leanmark) installs
+the portable Windows ZIP from the GitHub release, checks its SHA-256, and adds a
+Start menu shortcut and a command-line shim. To move an existing Chocolatey
+installation to the newest release:
+
+```powershell
+choco upgrade leanmark -y
+```
+
+A new version reaches Chocolatey once its moderators have approved the package,
+which can take a few days after the GitHub release.
 
 ### Homebrew (macOS)
 
@@ -385,6 +405,8 @@ The runtime's own network use is governed by the
   installed <code>uninstall.ps1</code> shown under [Windows x64](#windows-x64).
 - Windows, portable copy: delete the extracted folder.
 - Windows, through winget: <code>winget uninstall abooodbah.LeanMark</code>.
+- Windows, through Chocolatey: <code>choco uninstall leanmark</code>, from an
+  administrator shell.
 - Linux: <code>sudo apt remove leanmark</code>.
 - macOS: move <code>LeanMark.app</code> to the Trash.
 
