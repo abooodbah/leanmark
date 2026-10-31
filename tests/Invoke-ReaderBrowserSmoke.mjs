@@ -1243,6 +1243,14 @@ async function run() {
       check(shortcuts.some((entry) => entry.keys === keys),
         "the shortcut list includes " + keys);
     }
+    // Each key handler's table is listed: the reader, the find box, the tab
+    // strip, and the expanded figure.
+    for (const [group, keys] of [["Reader", "Ctrl+Shift+T"], ["Find box", "Shift+Enter"],
+      ["Tab strip", "Delete"], ["Expanded figure", "Arrow keys"]]) {
+      check(shortcuts.some((entry) => entry.group === group && entry.keys === keys) &&
+        panel.text.indexOf(group) >= 0,
+        "the panel lists the " + group + " keys, such as " + keys);
+    }
     await press(client, "Escape");
     panel = await client.evaluate(PANEL);
     check(!panel.open && panel.expanded === "false" && panel.focusOnButton,
@@ -1269,21 +1277,26 @@ async function run() {
       JSON.stringify(["theme|dusk", "width|wide", "zoom|in", "zoom|reset"]),
       "panel choices go to the host like the shortcuts (" +
       JSON.stringify(await posted()) + ")");
-    const swatches = await client.evaluate(`(function () {
-      var found = {};
-      document.querySelectorAll('#settingsPanel input[name="settings-theme"]').forEach(function (input) {
-        var dot = input.closest("label").querySelector(".theme-swatch");
-        var style = getComputedStyle(dot);
-        found[input.value] = [style.backgroundColor, style.borderTopColor];
-      });
-      return found;
-    }())`);
-    check(["light", "dark", "dim", "dusk"].every((name) => swatches[name] &&
-      same(swatches[name][0], THEME_COLOURS[name].canvas) &&
-      same(swatches[name][1], THEME_COLOURS[name].text)) &&
-      same(swatches.system[0], THEME_COLOURS.light.canvas),
-      "each theme choice in the panel shows its own dot, System its resolved theme " +
-      JSON.stringify(swatches));
+    // Each dot shows its own theme whatever theme is on screen, so read them
+    // under a light and a dark theme.
+    for (const current of ["light", "dusk"]) {
+      await deliver({ type: "theme", value: current });
+      const swatches = await client.evaluate(`(function () {
+        var found = {};
+        document.querySelectorAll('#settingsPanel input[name="settings-theme"]').forEach(function (input) {
+          var dot = input.closest("label").querySelector(".theme-swatch");
+          var style = getComputedStyle(dot);
+          found[input.value] = [style.backgroundColor, style.borderTopColor];
+        });
+        return found;
+      }())`);
+      check(["light", "dark", "dim", "dusk"].every((name) => swatches[name] &&
+        same(swatches[name][0], THEME_COLOURS[name].canvas) &&
+        same(swatches[name][1], THEME_COLOURS[name].text)) &&
+        same(swatches.system[0], THEME_COLOURS.light.canvas),
+        "under " + current + ", each theme choice in the panel shows its own dot, " +
+        "System its resolved theme " + JSON.stringify(swatches));
+    }
 
     // The panel stays readable in every theme.
     for (const name of ["light", "dark", "dim", "dusk"]) {
