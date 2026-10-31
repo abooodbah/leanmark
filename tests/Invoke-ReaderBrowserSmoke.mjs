@@ -1097,40 +1097,50 @@ async function run() {
 
     // The saved level from 0.5.0 arrives with the host's first message and
     // means the same text size; it is applied without the zoom flash.
+    await waitFor(client, 'document.getElementById("zoomIndicator").hidden',
+      "the zoom indicator to fade", 5);
     await showWidthDocument({ zoom: 125, width: "narrow" });
     const restored = await client.evaluate(CHROME_AND_CONTENT);
     check(restored.zoom === "125" && !restored.indicator &&
       Math.abs(restored.heading / before.heading - 1.25) < 0.06,
       "a saved 125% zoom loads at the same text size, without the indicator");
 
-    // Find, the outline, and the scroll position still work when zoomed.
+    // Find, the outline, and the scroll position still work when zoomed. A
+    // jump from the outline lands the heading where it lands at 100%.
     await setViewport(1800);
-    await deliver({ type: "zoom", percent: 125 });
-    await waitFor(client, 'document.getElementById("zoomIndicator").hidden',
-      "the zoom indicator to fade", 5);
-    await client.evaluate('window.scrollTo(0, 0); true');
-    await client.evaluate(`(function () {
-      var link = Array.from(document.querySelectorAll("#outlineList a")).find(function (a) {
-        return a.textContent === "Platforms";
-      });
-      link.click();
-      return true;
-    }())`);
-    await delay(300);
-    const jumped = await client.evaluate(`(function () {
-      var heading = Array.from(document.querySelectorAll("#article h3")).find(function (h) {
-        return h.textContent.indexOf("Platforms") >= 0;
-      });
-      var top = heading.getBoundingClientRect().top;
-      var chrome = document.querySelector(".chrome").getBoundingClientRect().bottom;
-      return { top: top, chrome: chrome };
-    }())`);
-    check(jumped.top >= jumped.chrome - 1 && jumped.top < jumped.chrome + 80,
-      "at 125% the outline jumps to a heading just below the toolbar " +
-      JSON.stringify(jumped));
+    const jumpTo = async (percent) => {
+      await deliver({ type: "zoom", percent });
+      await waitFor(client, 'document.getElementById("zoomIndicator").hidden',
+        "the zoom indicator to fade", 5);
+      await client.evaluate('window.scrollTo(0, 0); true');
+      await client.evaluate(`(function () {
+        Array.from(document.querySelectorAll("#outlineList a")).find(function (a) {
+          return a.textContent === "Checklist";
+        }).click();
+        return true;
+      }())`);
+      await delay(300);
+      return client.evaluate(`(function () {
+        var heading = Array.from(document.querySelectorAll("#article h2")).find(function (h) {
+          return h.textContent.indexOf("Checklist") >= 0;
+        });
+        return {
+          top: Math.round(heading.getBoundingClientRect().top),
+          chrome: Math.round(document.querySelector(".chrome").getBoundingClientRect().bottom),
+          scrollY: Math.round(scrollY),
+          maxScroll: document.documentElement.scrollHeight - innerHeight
+        };
+      }())`);
+    };
+    const jumpActual = await jumpTo(100);
+    const jumpZoomed = await jumpTo(125);
+    check(jumpActual.scrollY > 0 && jumpZoomed.scrollY > 0 &&
+      jumpZoomed.top > jumpZoomed.chrome && Math.abs(jumpZoomed.top - jumpActual.top) <= 2,
+      "at 125% the outline jumps to a heading in the same place below the toolbar " +
+      JSON.stringify({ actual: jumpActual, zoomed: jumpZoomed }));
     await client.evaluate(
       'var input = document.getElementById("findInput"); input.focus(); ' +
-      'input.value = "Ship"; input.dispatchEvent(new Event("input")); true');
+      'input.value = "Publish"; input.dispatchEvent(new Event("input")); true');
     await press(client, "Enter");
     check(await client.evaluate('document.getElementById("findCount").textContent') === "1/1",
       "find still counts matches when zoomed");
