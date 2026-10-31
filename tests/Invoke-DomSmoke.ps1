@@ -393,11 +393,11 @@ function Start-ThemeReader {
 }
 
 # The theme is saved under HKCU\Software\LeanMark. This test sets it, so it
-# puts back the user's own Theme and ZoomPercent values afterwards.
+# puts back the user's own Theme, ZoomPercent, and TextWidth values afterwards.
 function Test-ThemeSettings {
     $settingsKey = 'Software\LeanMark'
     $saved = @{}
-    foreach ($name in @('Theme', 'ZoomPercent')) {
+    foreach ($name in @('Theme', 'ZoomPercent', 'TextWidth')) {
         $saved[$name] = Get-RegistryValueState -Hive CurrentUser -SubKey $settingsKey -Name $name
     }
     $setTheme = {
@@ -455,7 +455,65 @@ function Test-ThemeSettings {
         if ($null -ne $reader) { Stop-LeanMarkTestProcessTree -RootProcess $reader.Process }
         $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($settingsKey)
         try {
-            foreach ($name in @('Theme', 'ZoomPercent')) {
+            foreach ($name in @('Theme', 'ZoomPercent', 'TextWidth')) {
+                if ($saved[$name].Exists) { $key.SetValue($name, $saved[$name].Value, $saved[$name].Kind) }
+                elseif (@($key.GetValueNames()) -contains $name) { $key.DeleteValue($name) }
+            }
+        } finally { $key.Dispose() }
+    }
+}
+
+# The saved zoom and text width load in the real WebView2, a 0.5.0 setting
+# without a width reads as Narrow, and zoom never reaches WebView2 itself: a
+# WebView2 zoom factor would change devicePixelRatio and the toolbar's size.
+function Test-ZoomAndWidthSettings {
+    $settingsKey = 'Software\LeanMark'
+    $saved = @{}
+    foreach ($name in @('Theme', 'ZoomPercent', 'TextWidth')) {
+        $saved[$name] = Get-RegistryValueState -Hive CurrentUser -SubKey $settingsKey -Name $name
+    }
+    $setValues = {
+        param([int]$Zoom, [string]$Width)
+        $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($settingsKey)
+        try {
+            $key.SetValue('ZoomPercent', $Zoom, [Microsoft.Win32.RegistryValueKind]::DWord)
+            if ($Width) { $key.SetValue('TextWidth', $Width, [Microsoft.Win32.RegistryValueKind]::String) }
+            elseif (@($key.GetValueNames()) -contains 'TextWidth') { $key.DeleteValue('TextWidth') }
+        } finally { $key.Dispose() }
+    }
+    $expression = @'
+JSON.stringify({
+  zoom: document.documentElement.dataset.zoom,
+  width: document.documentElement.dataset.width,
+  ratio: window.devicePixelRatio,
+  toolbar: document.querySelector(".topbar").getBoundingClientRect().height
+})
+'@
+    $document = Join-Path $PSScriptRoot 'fixtures\showcase.md'
+    $reader = $null
+    try {
+        & $setValues 100 'wide'
+        $reader = Start-ThemeReader -DocumentPath $document
+        $actual = (Invoke-CdpExpression -WebSocketUrl $reader.Socket -Expression $expression) | ConvertFrom-Json
+        Assert-Equal $actual.zoom '100' 'A saved 100% zoom must reach the page.'
+        Assert-Equal $actual.width 'wide' 'A saved Wide text width must reach the page.'
+        Stop-LeanMarkTestProcessTree -RootProcess $reader.Process
+        $reader = $null
+        Start-Sleep -Milliseconds 1500
+
+        & $setValues 150 ''
+        $reader = Start-ThemeReader -DocumentPath $document
+        $zoomed = (Invoke-CdpExpression -WebSocketUrl $reader.Socket -Expression $expression) | ConvertFrom-Json
+        Assert-Equal $zoomed.zoom '150' 'A saved 150% zoom from 0.5.0 must reach the page.'
+        Assert-Equal $zoomed.width 'narrow' 'A 0.5.0 setting without a width must read as Narrow.'
+        Assert-Equal $zoomed.ratio $actual.ratio 'WebView2 must stay at 100%: devicePixelRatio changed with the zoom.'
+        Assert-Equal $zoomed.toolbar $actual.toolbar 'Zoom must not change the toolbar height.'
+        Write-TestPass 'real WebView: saved zoom and width load, and WebView2 itself stays at 100%'
+    } finally {
+        if ($null -ne $reader) { Stop-LeanMarkTestProcessTree -RootProcess $reader.Process }
+        $key = [Microsoft.Win32.Registry]::CurrentUser.CreateSubKey($settingsKey)
+        try {
+            foreach ($name in @('Theme', 'ZoomPercent', 'TextWidth')) {
                 if ($saved[$name].Exists) { $key.SetValue($name, $saved[$name].Value, $saved[$name].Kind) }
                 elseif (@($key.GetValueNames()) -contains $name) { $key.DeleteValue($name) }
             }
@@ -486,4 +544,6 @@ if ($Fixture -in @('All', 'Tabs')) {
 if ($Fixture -in @('All', 'Themes')) {
     if ($ranOne) { Start-Sleep -Milliseconds 1500 }
     Test-ThemeSettings
+    Start-Sleep -Milliseconds 1500
+    Test-ZoomAndWidthSettings
 }

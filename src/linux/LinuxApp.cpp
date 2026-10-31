@@ -374,7 +374,9 @@ void LinuxApp::Initialize() {
     g_object_unref(settings);
 
     ConfigureWebView();
-    webkit_web_view_set_zoom_level(webView_, zoom_);
+    // The web view stays at 100% so the toolbar keeps its size; the reader
+    // zooms the document to the saved level it receives with the host message.
+    webkit_web_view_set_zoom_level(webView_, 1.0);
     gtk_window_set_child(GTK_WINDOW(window_), GTK_WIDGET(webView_));
     NavigateToReader();
     gtk_window_present(GTK_WINDOW(window_));
@@ -609,7 +611,10 @@ void LinuxApp::SendJson(std::string script) {
 void LinuxApp::HandleMessage(std::string_view message) {
     if (message == "ready") {
         readerReady_ = true;
-        SendJson("{\"type\":\"host\",\"copySource\":true,\"tabs\":false}");
+        SendJson(
+            "{\"type\":\"host\",\"copySource\":true,\"tabs\":false,\"zoom\":" +
+            std::to_string(std::lround(zoom_ * 100.0)) + ",\"width\":\"" +
+            core::TextWidthName(width_) + "\"}");
         SendCurrentView();
         if (smokeTest_) {
             StartSmokeProbe();
@@ -627,6 +632,11 @@ void LinuxApp::HandleMessage(std::string_view message) {
         return;
     }
     if (message == "smoke-ok" && smokeTest_) {
+        // Zoom is the page's job: the web view itself must still be at 100%.
+        if (webkit_web_view_get_zoom_level(webView_) != 1.0) {
+            CompleteSmoke(false, "The web view zoom level is not 1.0.");
+            return;
+        }
         CompleteSmoke(true, "Linux WebKit host smoke test passed.");
         return;
     }
@@ -655,12 +665,16 @@ void LinuxApp::HandleMessage(std::string_view message) {
         SaveSettings();
         SendJson(
             "{\"type\":\"theme\",\"value\":\"" + ThemeName() + "\"}");
+        return;
+    }
+    if (StartsWithInsensitive(message, "width|")) {
+        width_ = core::ParseTextWidth(message.substr(6));
+        SaveSettings();
     }
 }
 
 void LinuxApp::ApplyZoom(double zoom, bool announce) {
     zoom_ = core::NormalizeZoom(zoom);
-    webkit_web_view_set_zoom_level(webView_, zoom_);
     SaveSettings();
     if (announce) {
         SendZoom();
@@ -810,6 +824,7 @@ void LinuxApp::HandleLink(std::string_view hrefView) {
 void LinuxApp::LoadSettings() {
     theme_ = core::Theme::System;
     zoom_ = core::kDefaultZoom;
+    width_ = core::kDefaultTextWidth;
     GKeyFile* settings = g_key_file_new();
     if (!g_key_file_load_from_file(
             settings,
@@ -826,6 +841,14 @@ void LinuxApp::LoadSettings() {
         // system theme.
         theme_ = core::ParseTheme(value);
         g_free(value);
+    }
+
+    // Settings from 0.5.0 have no width; that and any unknown name give
+    // Narrow, the 0.5.0 column.
+    char* width = g_key_file_get_string(settings, "Reader", "Width", nullptr);
+    if (width != nullptr) {
+        width_ = core::ParseTextWidth(width);
+        g_free(width);
     }
 
     GError* error = nullptr;
@@ -846,6 +869,7 @@ void LinuxApp::SaveSettings() const {
     GKeyFile* settings = g_key_file_new();
     g_key_file_set_string(settings, "Reader", "Theme", ThemeName().c_str());
     g_key_file_set_double(settings, "Reader", "Zoom", zoom_);
+    g_key_file_set_string(settings, "Reader", "Width", core::TextWidthName(width_));
     gsize length = 0;
     char* data = g_key_file_to_data(settings, &length, nullptr);
     g_key_file_unref(settings);
@@ -892,12 +916,51 @@ void LinuxApp::StartSmokeProbe() {
       document.getElementById("figureViewer").hidden &&
       !document.querySelector(".viewer-placeholder");
   }
+  // With LEANMARK_SMOKE_SETTINGS ("width,zoom,theme"), the page must show
+  // the saved settings; then it picks Full width and zooms in through the
+  // settings panel, and the host saves both (tests/linux/Test-LinuxSettings.sh).
+  function settingsWork(done) {
+    var expected = window.__leanmarkSmokeSettings;
+    if (!expected) {
+      done(true);
+      return;
+    }
+    var parts = expected.split(",");
+    var root = document.documentElement;
+    if (root.dataset.width !== parts[0] || root.dataset.zoom !== parts[1] ||
+        (root.dataset.theme || "system") !== parts[2]) {
+      done(false);
+      return;
+    }
+    var before = root.dataset.zoom;
+    document.querySelector('input[name="settings-width"][value="full"]').click();
+    document.getElementById("settingsZoomIn").click();
+    var waited = 0;
+    (function wait() {
+      if (root.dataset.width === "full" && root.dataset.zoom !== before) {
+        done(true);
+        return;
+      }
+      waited += 1;
+      if (waited > 50) {
+        done(false);
+        return;
+      }
+      window.setTimeout(wait, 100);
+    }());
+  }
   function inspect() {
     attempts += 1;
     var ready = document.documentElement.dataset.renderState === "ready";
     if (ready && document.querySelector("#article h1")) {
-      window.webkit.messageHandlers.leanmark.postMessage(
-        viewerWorks() ? "smoke-ok" : "smoke-failed");
+      if (!viewerWorks()) {
+        window.webkit.messageHandlers.leanmark.postMessage("smoke-failed");
+        return;
+      }
+      settingsWork(function (ok) {
+        window.webkit.messageHandlers.leanmark.postMessage(
+          ok ? "smoke-ok" : "smoke-failed");
+      });
       return;
     }
     if (attempts >= 100) {
@@ -909,8 +972,26 @@ void LinuxApp::StartSmokeProbe() {
   inspect();
 }());
 )JS";
+    const char* settings = g_getenv("LEANMARK_SMOKE_SETTINGS");
+    std::string probe = "window.__leanmarkSmokeSettings = ";
+    if (settings != nullptr) {
+        probe += '"';
+        probe += core::EscapeJsonString(settings);
+        probe += '"';
+    } else {
+        probe += "null";
+    }
+    probe += ";\n";
+    probe += kProbe;
     webkit_web_view_evaluate_javascript(
-        webView_, kProbe, -1, nullptr, kReaderUrl, nullptr, nullptr, nullptr);
+        webView_,
+        probe.c_str(),
+        static_cast<gssize>(probe.size()),
+        nullptr,
+        kReaderUrl,
+        nullptr,
+        nullptr,
+        nullptr);
     smokeTimeout_ = g_timeout_add_seconds(15, OnSmokeTimeout, this);
 }
 

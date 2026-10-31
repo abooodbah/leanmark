@@ -147,6 +147,19 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
           "LEANMARK_ASSETS_DIR=${LEANMARK_RUNTIME_ASSETS};WEBKIT_DISABLE_COMPOSITING_MODE=1"
         TIMEOUT 45)
 
+      # Width, zoom, and theme are saved and restored, a 0.5.0 file without a
+      # width reads as Narrow, and the web view itself stays at 100%.
+      add_test(
+        NAME leanmark-linux-settings
+        COMMAND "${LEANMARK_XVFB_RUN_EXECUTABLE}" -a bash
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/linux/Test-LinuxSettings.sh"
+                "$<TARGET_FILE:leanmark>"
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/simple.md")
+      set_tests_properties(leanmark-linux-settings PROPERTIES
+        ENVIRONMENT
+          "LEANMARK_ASSETS_DIR=${LEANMARK_RUNTIME_ASSETS};WEBKIT_DISABLE_COMPOSITING_MODE=1"
+        TIMEOUT 90)
+
       find_program(LEANMARK_BROWSER_EXECUTABLE
         NAMES google-chrome google-chrome-stable chromium chromium-browser
               microsoft-edge)

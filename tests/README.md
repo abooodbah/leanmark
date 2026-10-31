@@ -159,6 +159,19 @@ fresh runner.
 - Optional real-DOM theme checks: a saved Dim theme loads with a dark title bar,
   a chosen Dusk theme survives a restart, and an unknown saved value gives
   System. The test puts the user's own Theme and ZoomPercent values back.
+- Reader settings: Narrow, Wide, and Full column widths (720 px, 960 px, the
+  window less 32 px of padding a side) and Ctrl+Shift+L; the settings panel,
+  Ctrl+/, F1, Esc, focus in and out, every listed shortcut, and that it sits
+  beside the text on a 760 px window; the theme dot's colours and the theme
+  button's name for each theme; and zoom at 200% leaving the toolbar and tabs
+  at their size while the document doubles, with no sideways scroll at any
+  width. The portable core tests pin the width names, default, cycle, and
+  fallback.
+- The web view's own zoom stays at 1.0 on every host: a static check of each
+  host's source, the Linux and macOS host smoke tests, and the optional
+  Windows real-DOM check. On Linux, `leanmark-linux-settings` saves and
+  restores width, zoom, and theme through the real host, including a 0.5.0
+  settings file without a width.
 - Optional real-DOM tab checks: a later launch opens a tab without reloading the
   page, its image loads from its own folder origin, section and whole-document copy
   put the exact Markdown on the clipboard, and switching or closing tabs follows the

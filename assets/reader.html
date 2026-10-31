@@ -44,8 +44,23 @@
           >
             Copy
           </button>
-          <button id="themeButton" class="button button-ghost" type="button">
-            System
+          <button id="themeButton" class="button button-ghost theme-button" type="button"><span id="themeSwatch" class="theme-swatch" data-swatch="system" aria-hidden="true"></span><span id="themeLabel">System</span></button>
+          <button
+            id="settingsButton"
+            class="button button-ghost button-icon"
+            type="button"
+            aria-label="Settings and keyboard shortcuts"
+            aria-haspopup="dialog"
+            aria-expanded="false"
+            aria-controls="settingsPanel"
+            title="Settings and shortcuts (Ctrl+/)"
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M2 4h6M11 4h3M2 8h2M7 8h7M2 12h7M12 12h2" />
+              <circle cx="9.5" cy="4" r="1.5" />
+              <circle cx="5.5" cy="8" r="1.5" />
+              <circle cx="10.5" cy="12" r="1.5" />
+            </svg>
           </button>
           <button id="openButton" class="button button-secondary" type="button">
             Open
@@ -163,6 +178,59 @@
         <div id="viewerCanvas" class="viewer-canvas"></div>
       </div>
     </div>
+
+    <aside
+      id="settingsPanel"
+      class="settings-panel"
+      role="dialog"
+      aria-modal="false"
+      aria-labelledby="settingsTitle"
+      hidden
+    >
+      <div class="settings-header">
+        <h2 id="settingsTitle">Settings</h2>
+        <button
+          id="settingsClose"
+          class="viewer-button"
+          type="button"
+          aria-label="Close settings"
+          title="Close (Esc)"
+        >
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
+        </button>
+      </div>
+
+      <fieldset class="settings-group">
+        <legend>Theme</legend>
+        <label class="settings-choice"><input type="radio" name="settings-theme" value="system" /><span class="theme-swatch" data-swatch="system" aria-hidden="true"></span>System</label>
+        <label class="settings-choice"><input type="radio" name="settings-theme" value="light" /><span class="theme-swatch" data-swatch="light" aria-hidden="true"></span>Light</label>
+        <label class="settings-choice"><input type="radio" name="settings-theme" value="dark" /><span class="theme-swatch" data-swatch="dark" aria-hidden="true"></span>Dark</label>
+        <label class="settings-choice"><input type="radio" name="settings-theme" value="dim" /><span class="theme-swatch" data-swatch="dim" aria-hidden="true"></span>Dim</label>
+        <label class="settings-choice"><input type="radio" name="settings-theme" value="dusk" /><span class="theme-swatch" data-swatch="dusk" aria-hidden="true"></span>Dusk</label>
+      </fieldset>
+
+      <fieldset class="settings-group">
+        <legend>Text width</legend>
+        <label class="settings-choice"><input type="radio" name="settings-width" value="narrow" />Narrow</label>
+        <label class="settings-choice"><input type="radio" name="settings-width" value="wide" />Wide</label>
+        <label class="settings-choice"><input type="radio" name="settings-width" value="full" />Full window</label>
+      </fieldset>
+
+      <div class="settings-group settings-zoom" role="group" aria-labelledby="settingsZoomLabel">
+        <span id="settingsZoomLabel" class="settings-label">Zoom</span>
+        <button id="settingsZoomOut" class="viewer-button" type="button" aria-label="Zoom out">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" /></svg>
+        </button>
+        <output id="settingsZoomValue" class="settings-zoom-value" aria-live="polite">100%</output>
+        <button id="settingsZoomIn" class="viewer-button" type="button" aria-label="Zoom in">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M8 3v10" /></svg>
+        </button>
+        <button id="settingsZoomReset" class="button button-ghost" type="button">Reset</button>
+      </div>
+
+      <h3 class="settings-label">Keyboard shortcuts</h3>
+      <div id="shortcutList" class="shortcut-list"></div>
+    </aside>
 
     <div id="zoomIndicator" class="zoom-indicator" aria-hidden="true" hidden></div>
     <div id="statusToast" class="status-toast" role="status" hidden></div>

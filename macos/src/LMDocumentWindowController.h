@@ -24,6 +24,9 @@ NS_ASSUME_NONNULL_BEGIN
 // Menu zoom: an expanded figure in the reader takes it, otherwise the page.
 - (void)zoomCommand:(NSString *)action;
 - (void)cycleTheme;
+// Menu commands the reader page carries out: next text width, settings panel.
+- (void)widthCommand;
+- (void)settingsCommand;
 
 - (void)runSmokeCheckWithCompletion:
     (void (^)(BOOL success, NSString *detail))completion;

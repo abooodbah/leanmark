@@ -81,6 +81,9 @@ NSMenuItem *MenuItem(NSString *title, SEL action, NSString *keyEquivalent,
     [applicationMenu addItem:MenuItem(@"Show All", @selector(unhideAllApplications:),
                                       @"", NSApp)];
     [applicationMenu addItem:NSMenuItem.separatorItem];
+    [applicationMenu addItem:MenuItem(@"Settings and Shortcuts…", @selector(showSettings:),
+                                      @",", self)];
+    [applicationMenu addItem:NSMenuItem.separatorItem];
     NSMenuItem *services = [[NSMenuItem alloc] initWithTitle:@"Services"
                                                      action:nil
                                               keyEquivalent:@""];
@@ -136,6 +139,10 @@ NSMenuItem *MenuItem(NSString *title, SEL action, NSString *keyEquivalent,
     theme.keyEquivalentModifierMask =
         NSEventModifierFlagCommand | NSEventModifierFlagShift;
     [viewMenu addItem:theme];
+    NSMenuItem *width = MenuItem(@"Cycle Text Width", @selector(cycleTextWidth:), @"l", self);
+    width.keyEquivalentModifierMask =
+        NSEventModifierFlagCommand | NSEventModifierFlagShift;
+    [viewMenu addItem:width];
     viewRoot.submenu = viewMenu;
     [mainMenu addItem:viewRoot];
 
@@ -293,13 +300,24 @@ NSMenuItem *MenuItem(NSString *title, SEL action, NSString *keyEquivalent,
     [[self activeReader] cycleTheme];
 }
 
+- (void)cycleTextWidth:(id)sender {
+    (void)sender;
+    [[self activeReader] widthCommand];
+}
+
+- (void)showSettings:(id)sender {
+    (void)sender;
+    [[self activeReader] settingsCommand];
+}
+
 - (BOOL)validateMenuItem:(NSMenuItem *)menuItem {
     SEL action = menuItem.action;
     if (action == @selector(printActiveDocument:) || action == @selector(focusFind:) ||
         action == @selector(findNext:) || action == @selector(findPrevious:) ||
         action == @selector(reloadActiveDocument:) || action == @selector(resetZoom:) ||
         action == @selector(zoomIn:) || action == @selector(zoomOut:) ||
-        action == @selector(cycleTheme:)) {
+        action == @selector(cycleTheme:) || action == @selector(cycleTextWidth:) ||
+        action == @selector(showSettings:)) {
         return [self activeReader] != nil;
     }
     return YES;

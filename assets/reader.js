@@ -21,6 +21,14 @@
     outlineList: document.getElementById("outlineList"),
     progress: document.getElementById("readingProgress"),
     readerPane: document.getElementById("readerPane"),
+    settingsButton: document.getElementById("settingsButton"),
+    settingsClose: document.getElementById("settingsClose"),
+    settingsPanel: document.getElementById("settingsPanel"),
+    settingsZoomIn: document.getElementById("settingsZoomIn"),
+    settingsZoomOut: document.getElementById("settingsZoomOut"),
+    settingsZoomReset: document.getElementById("settingsZoomReset"),
+    settingsZoomValue: document.getElementById("settingsZoomValue"),
+    shortcutList: document.getElementById("shortcutList"),
     stateMessage: document.getElementById("stateMessage"),
     stateOpenButton: document.getElementById("stateOpenButton"),
     statePane: document.getElementById("statePane"),
@@ -28,6 +36,8 @@
     status: document.getElementById("statusToast"),
     tabStrip: document.getElementById("tabStrip"),
     themeButton: document.getElementById("themeButton"),
+    themeLabel: document.getElementById("themeLabel"),
+    themeSwatch: document.getElementById("themeSwatch"),
     viewer: document.getElementById("figureViewer"),
     viewerCanvas: document.getElementById("viewerCanvas"),
     viewerLevel: document.getElementById("viewerLevel"),
@@ -38,6 +48,15 @@
 
   var currentPath = "";
   var currentTheme = "system";
+  var currentWidth = "narrow";
+  // The document zoom as a fraction. The host owns the level and saves it;
+  // its web view stays at 100% so the toolbar and tabs keep their size.
+  var zoomLevel = 1;
+  var supportsCssZoom = !!(window.CSS && CSS.supports && CSS.supports("zoom", "2"));
+  // Shortcuts a host handles itself, such as menu items on macOS.
+  var hostShortcuts = [];
+  var hostIsMac = false;
+  var settingsReturnFocus = null;
   var searchRanges = [];
   var currentSearchIndex = -1;
   var toastTimer = 0;
@@ -143,6 +162,22 @@
     };
   }
 
+  function titleCase(name) {
+    return name.charAt(0).toUpperCase() + name.slice(1);
+  }
+
+  // The theme whose colours are on screen: System shows Light or Dark.
+  function shownTheme(theme) {
+    return theme === "system" ? (systemTheme.matches ? "dark" : "light") : theme;
+  }
+
+  // "Dusk", or "System (Dark)" so the name never depends on colour alone.
+  function themeDisplayName(theme) {
+    return theme === "system"
+      ? "System (" + titleCase(shownTheme(theme)) + ")"
+      : titleCase(theme);
+  }
+
   function applyTheme(theme, rerenderDiagrams) {
     currentTheme = themeCycle.indexOf(theme) > 0 ? theme : "system";
     if (currentTheme === "system") {
@@ -150,15 +185,15 @@
     } else {
       document.documentElement.setAttribute("data-theme", currentTheme);
     }
-    elements.themeButton.textContent =
-      currentTheme.charAt(0).toUpperCase() + currentTheme.slice(1);
+    // The dot has one fixed colour per theme (see .theme-swatch in the CSS).
+    elements.themeLabel.textContent = titleCase(currentTheme);
+    elements.themeSwatch.dataset.swatch = currentTheme;
+    var name = themeDisplayName(currentTheme);
     elements.themeButton.setAttribute(
-      "aria-label",
-      "Theme: " + elements.themeButton.textContent +
-        ". Activate to change theme."
-    );
+      "aria-label", "Theme: " + name + ". Activate to change theme.");
     elements.themeButton.title =
-      "Theme: " + elements.themeButton.textContent + " (Ctrl+Shift+T)";
+      "Theme: " + name + " (" + shortcutKeys("theme") + ")";
+    updateSettingsPanel();
 
     if (rerenderDiagrams && elements.article.querySelector(".diagram")) {
       renderDiagrams();
@@ -166,9 +201,70 @@
   }
 
   function cycleTheme() {
-    var next = themeCycle[(themeCycle.indexOf(currentTheme) + 1) % themeCycle.length];
-    applyTheme(next, true);
-    post("theme|" + next);
+    chooseTheme(themeCycle[(themeCycle.indexOf(currentTheme) + 1) % themeCycle.length]);
+  }
+
+  function chooseTheme(theme) {
+    applyTheme(theme, true);
+    post("theme|" + currentTheme);
+  }
+
+  // Width of the reading column; the widths themselves are in reader.css.
+  var widthCycle = ["narrow", "wide", "full"];
+
+  function applyWidth(width) {
+    var ratio = scrollRatio();
+    currentWidth = widthCycle.indexOf(width) >= 0 ? width : "narrow";
+    document.documentElement.dataset.width = currentWidth;
+    updateLayout();
+    scrollToRatio(ratio);
+    updateSettingsPanel();
+  }
+
+  function chooseWidth(width) {
+    applyWidth(width);
+    post("width|" + currentWidth);
+    showIndicator("Text width: " + titleCase(currentWidth));
+  }
+
+  function cycleWidth() {
+    chooseWidth(widthCycle[(widthCycle.indexOf(currentWidth) + 1) % widthCycle.length]);
+  }
+
+  // Zooms the document area only. CSS zoom keeps layout, find, the outline,
+  // and anchors in step; engines without it get a scale transform.
+  function applyZoom(percent) {
+    var level = Number(percent) / 100;
+    if (!Number.isFinite(level) || level < 0.25 || level > 5) {
+      level = 1;
+    }
+    var ratio = scrollRatio();
+    zoomLevel = level;
+    var root = document.documentElement;
+    root.style.setProperty("--reader-zoom", String(level));
+    root.dataset.zoom = String(Math.round(level * 100));
+    if (supportsCssZoom) {
+      root.removeAttribute("data-zoom-fallback");
+    } else {
+      root.setAttribute("data-zoom-fallback", "");
+    }
+    updateLayout();
+    scrollToRatio(ratio);
+    updateSettingsPanel();
+  }
+
+  // The layout follows the width left for the document once it is zoomed and
+  // the settings panel has taken its place, as the window width did when the
+  // whole page was zoomed.
+  function updateLayout() {
+    var panelWidth = elements.settingsPanel && !elements.settingsPanel.hidden
+      ? elements.settingsPanel.getBoundingClientRect().width
+      : 0;
+    var available = (window.innerWidth - panelWidth) / zoomLevel;
+    var layout = available >= 1180 ? "wide" : available <= 760 ? "compact" : "regular";
+    if (document.documentElement.dataset.layout !== layout) {
+      document.documentElement.dataset.layout = layout;
+    }
   }
 
   function formatBytes(bytes) {
@@ -1035,18 +1131,21 @@
     elements.progress.setAttribute("aria-valuenow", String(Math.round(percent)));
   }
 
+  function showIndicator(text) {
+    window.clearTimeout(zoomIndicatorTimer);
+    elements.zoomIndicator.textContent = text;
+    elements.zoomIndicator.hidden = false;
+    announce(text);
+    zoomIndicatorTimer = window.setTimeout(function () {
+      elements.zoomIndicator.hidden = true;
+    }, 1200);
+  }
+
   function showZoomLevel(percent) {
     if (!Number.isFinite(percent) || percent <= 0) {
       return;
     }
-    var text = String(Math.round(percent)) + "%";
-    window.clearTimeout(zoomIndicatorTimer);
-    elements.zoomIndicator.textContent = "Zoom " + text;
-    elements.zoomIndicator.hidden = false;
-    announce("Zoom " + text);
-    zoomIndicatorTimer = window.setTimeout(function () {
-      elements.zoomIndicator.hidden = true;
-    }, 1200);
+    showIndicator("Zoom " + String(Math.round(percent)) + "%");
   }
 
   function zoomPage(action) {
@@ -1252,36 +1351,25 @@
       .concat([elements.viewerStage]);
   }
 
-  function handleViewerKey(event) {
-    var key = event.key;
+  function panViewer(event) {
     var pan = event.shiftKey ? 240 : 60;
-    var handled = true;
-    if (key === "Escape") {
-      closeViewer(true);
-    } else if (key === "+" || key === "=" || key === "Add") {
-      viewerAction("in");
-    } else if (key === "-" || key === "_" || key === "Subtract") {
-      viewerAction("out");
-    } else if (key === "0") {
-      viewerAction("fit");
-    } else if (key === "1" && !event.ctrlKey && !event.metaKey) {
-      viewerAction("actual");
-    } else if (key === "ArrowLeft") {
+    if (event.key === "ArrowLeft") {
       elements.viewerStage.scrollLeft -= pan;
-    } else if (key === "ArrowRight") {
+    } else if (event.key === "ArrowRight") {
       elements.viewerStage.scrollLeft += pan;
-    } else if (key === "ArrowUp") {
+    } else if (event.key === "ArrowUp") {
       elements.viewerStage.scrollTop -= pan;
-    } else if (key === "ArrowDown") {
+    } else {
       elements.viewerStage.scrollTop += pan;
-    } else if (key === "Tab") {
-      // Keep focus inside the dialog.
-      var focusables = viewerFocusables();
-      var index = focusables.indexOf(document.activeElement);
-      var next = (index + (event.shiftKey ? -1 : 1) + focusables.length) %
-        focusables.length;
-      focusables[next].focus();
-    } else if ((key === "Enter" || key === " ") &&
+    }
+  }
+
+  function handleViewerKey(event) {
+    var handled = true;
+    var shortcut = findShortcut(viewerShortcuts, event);
+    if (shortcut) {
+      shortcut.run(event);
+    } else if ((event.key === "Enter" || event.key === " ") &&
                document.activeElement && document.activeElement.tagName === "BUTTON") {
       handled = false;
     } else {
@@ -1397,9 +1485,29 @@
     } else if (data.type === "host") {
       hostCopiesSource = data.copySource === true;
       hostHasTabs = data.tabs === true;
+      hostIsMac = data.platform === "macos";
+      hostShortcuts = (Array.isArray(data.shortcuts) ? data.shortcuts.slice(0, 100) : [])
+        .filter(function (entry) {
+          return entry && typeof entry.keys === "string" && typeof entry.label === "string" &&
+            entry.keys.length <= 40 && entry.label.length <= 80;
+        })
+        .map(function (entry) {
+          return { keys: entry.keys, label: entry.label };
+        });
       elements.copyButton.title = hostCopiesSource
-        ? "Copy the whole document as Markdown (Ctrl+Shift+C)"
-        : "Copy the whole document (Ctrl+Shift+C)";
+        ? "Copy the whole document as Markdown (" + shortcutKeys("copy") + ")"
+        : "Copy the whole document (" + shortcutKeys("copy") + ")";
+      elements.settingsButton.title =
+        "Settings and shortcuts (" + shortcutKeys("settings") + ")";
+      // The saved zoom and width arrive before the first document, so it is
+      // laid out once at its final size.
+      if (data.zoom !== undefined) {
+        applyZoom(data.zoom);
+      }
+      if (data.width !== undefined) {
+        applyWidth(String(data.width));
+      }
+      applyTheme(currentTheme, false);
     } else if (data.type === "empty") {
       applyTheme(data.theme || "system", false);
       showState(
@@ -1420,7 +1528,17 @@
     } else if (data.type === "theme") {
       applyTheme(data.value || "system", true);
     } else if (data.type === "zoom") {
+      applyZoom(Number(data.percent));
       showZoomLevel(Number(data.percent));
+    } else if (data.type === "width") {
+      applyWidth(String(data.value || ""));
+    } else if (data.type === "command") {
+      // Native menu commands (macOS View menu).
+      if (data.name === "settings") {
+        openSettings(false);
+      } else if (data.name === "width") {
+        cycleWidth();
+      }
     } else if (data.type === "zoom-command") {
       // A native menu command (macOS View menu) zooms whatever is in front.
       var action = data.action === "in" || data.action === "out"
@@ -1444,6 +1562,33 @@
     copySection(-1, elements.copyButton);
   });
   elements.themeButton.addEventListener("click", cycleTheme);
+  elements.settingsButton.addEventListener("click", function () {
+    if (elements.settingsPanel.hidden) {
+      openSettings(true);
+    } else {
+      closeSettings(true);
+    }
+  });
+  elements.settingsClose.addEventListener("click", function () {
+    closeSettings(true);
+  });
+  elements.settingsPanel.addEventListener("change", function (event) {
+    var input = event.target;
+    if (input.name === "settings-theme") {
+      chooseTheme(input.value);
+    } else if (input.name === "settings-width") {
+      chooseWidth(input.value);
+    }
+  });
+  elements.settingsZoomIn.addEventListener("click", function () {
+    zoomPage("in");
+  });
+  elements.settingsZoomOut.addEventListener("click", function () {
+    zoomPage("out");
+  });
+  elements.settingsZoomReset.addEventListener("click", function () {
+    zoomPage("reset");
+  });
   elements.article.addEventListener("click", handleArticleClick);
   elements.article.addEventListener("auxclick", handleArticleAuxClick);
   elements.tabStrip.addEventListener("click", function (event) {
@@ -1477,23 +1622,10 @@
     if (index < 0) {
       return;
     }
-    var next = -1;
-    if (event.key === "ArrowRight") {
-      next = (index + 1) % tabs.length;
-    } else if (event.key === "ArrowLeft") {
-      next = (index - 1 + tabs.length) % tabs.length;
-    } else if (event.key === "Home") {
-      next = 0;
-    } else if (event.key === "End") {
-      next = tabs.length - 1;
-    } else if (event.key === "Delete") {
+    var shortcut = findShortcut(tabStripShortcuts, event);
+    if (shortcut) {
       event.preventDefault();
-      closeTab(id);
-      return;
-    }
-    if (next >= 0) {
-      event.preventDefault();
-      selectTab(tabs[next].id, true);
+      shortcut.run(event, id, index);
     }
   });
   // Each search walks the whole article, so wait for a pause in typing.
@@ -1506,72 +1638,354 @@
     }, 120);
   });
   elements.findInput.addEventListener("keydown", function (event) {
-    if (event.key === "Enter") {
+    var shortcut = findShortcut(findShortcuts, event);
+    if (shortcut) {
       event.preventDefault();
-      moveSearch(event.shiftKey ? -1 : 1);
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      elements.findInput.value = "";
-      clearSearch();
-      elements.article.focus();
+      shortcut.run(event);
     }
   });
+
+  // Keyboard shortcuts. Each table is what its key handler acts on and what
+  // the settings panel lists, so the list cannot drift from the keys. keys is
+  // the label in Windows and Linux terms; macOS shows Cmd for Ctrl.
+  function isControl(event) {
+    return event.ctrlKey || event.metaKey;
+  }
+
+  function keyName(event) {
+    // Chromium sends keydown without a key for autofill; ignore those.
+    return typeof event.key === "string" ? event.key.toLocaleLowerCase() : "";
+  }
+
+  function plainControl(letter) {
+    return function (event) {
+      return isControl(event) && !event.altKey && keyName(event) === letter;
+    };
+  }
+
+  function isZoomInKey(event) {
+    return event.key === "+" || event.key === "=" || event.key === "Add";
+  }
+
+  function isZoomOutKey(event) {
+    return event.key === "-" || event.key === "_" || event.key === "Subtract";
+  }
+
+  function tabsAvailable() {
+    return hostHasTabs;
+  }
+
+  var readerShortcuts = [
+    { id: "open", group: "Reader", keys: "Ctrl+O", label: "Open a Markdown file",
+      match: plainControl("o"), run: function () { post("open-file"); } },
+    { id: "find", group: "Reader", keys: "Ctrl+F", label: "Find in the document",
+      match: plainControl("f"),
+      run: function () {
+        elements.findInput.focus();
+        elements.findInput.select();
+      } },
+    { id: "find-next", group: "Reader", keys: "F3", label: "Next match",
+      match: function (event) { return event.key === "F3" && !event.shiftKey; },
+      run: function () { moveSearch(1); } },
+    { id: "find-previous", group: "Reader", keys: "Shift+F3", label: "Previous match",
+      match: function (event) { return event.key === "F3" && event.shiftKey; },
+      run: function () { moveSearch(-1); } },
+    { id: "reload", group: "Reader", keys: "Ctrl+R", label: "Reload the document",
+      match: plainControl("r"), run: function () { post("reload"); } },
+    { id: "theme", group: "Reader", keys: "Ctrl+Shift+T", label: "Change the theme",
+      match: function (event) {
+        return isControl(event) && event.shiftKey && keyName(event) === "t";
+      },
+      run: cycleTheme },
+    { id: "width", group: "Reader", keys: "Ctrl+Shift+L",
+      label: "Change the text width",
+      match: function (event) {
+        return isControl(event) && event.shiftKey && !event.altKey && keyName(event) === "l";
+      },
+      run: cycleWidth },
+    { id: "copy", group: "Reader", keys: "Ctrl+Shift+C",
+      label: "Copy the whole document",
+      match: function (event) {
+        return isControl(event) && event.shiftKey && keyName(event) === "c";
+      },
+      run: function () { copySection(-1, elements.copyButton); } },
+    { id: "zoom-in", group: "Reader", keys: "Ctrl++", label: "Zoom in",
+      match: function (event) { return isControl(event) && !event.altKey && isZoomInKey(event); },
+      run: function () { zoomPage("in"); } },
+    { id: "zoom-out", group: "Reader", keys: "Ctrl+-", label: "Zoom out",
+      match: function (event) { return isControl(event) && !event.altKey && isZoomOutKey(event); },
+      run: function () { zoomPage("out"); } },
+    { id: "zoom-reset", group: "Reader", keys: "Ctrl+0", label: "Actual size",
+      match: function (event) { return isControl(event) && !event.altKey && event.key === "0"; },
+      run: function () { zoomPage("reset"); } },
+    { id: "settings", group: "Reader", keys: "Ctrl+/", label: "Settings and shortcuts",
+      match: function (event) { return isControl(event) && !event.altKey && event.key === "/"; },
+      run: function () { openSettings(false); } },
+    { id: "settings-help", group: "Reader", keys: "F1", label: "Settings and shortcuts",
+      match: function (event) { return event.key === "F1" && !isControl(event) && !event.altKey; },
+      run: function () { openSettings(false); } },
+    { id: "settings-close", group: "Settings panel", keys: "Esc",
+      label: "Close the settings panel",
+      match: function (event) {
+        return event.key === "Escape" && !elements.settingsPanel.hidden;
+      },
+      run: function () { closeSettings(true); } },
+    { id: "tab-next", group: "Tabs", keys: "Ctrl+Tab", label: "Next tab",
+      available: tabsAvailable,
+      match: function (event) {
+        return isControl(event) && !event.shiftKey && event.key === "Tab" && tabs.length > 1;
+      },
+      run: function () { cycleTab(1); } },
+    { id: "tab-previous", group: "Tabs", keys: "Ctrl+Shift+Tab", label: "Previous tab",
+      available: tabsAvailable,
+      match: function (event) {
+        return isControl(event) && event.shiftKey && event.key === "Tab" && tabs.length > 1;
+      },
+      run: function () { cycleTab(-1); } },
+    { id: "tab-page-down", group: "Tabs", keys: "Ctrl+Page Down", label: "Next tab",
+      available: tabsAvailable,
+      match: function (event) {
+        return isControl(event) && event.key === "PageDown" && tabs.length > 1;
+      },
+      run: function () { cycleTab(1); } },
+    { id: "tab-page-up", group: "Tabs", keys: "Ctrl+Page Up", label: "Previous tab",
+      available: tabsAvailable,
+      match: function (event) {
+        return isControl(event) && event.key === "PageUp" && tabs.length > 1;
+      },
+      run: function () { cycleTab(-1); } },
+    { id: "tab-close", group: "Tabs", keys: "Ctrl+W", label: "Close the tab",
+      available: tabsAvailable,
+      match: function (event) {
+        return isControl(event) && !event.shiftKey && !event.altKey &&
+          keyName(event) === "w" && activeTabId;
+      },
+      run: function () { closeTab(activeTabId); } },
+    { id: "tab-number", group: "Tabs", keys: "Ctrl+1 to Ctrl+8",
+      label: "Go to a tab by position", available: tabsAvailable,
+      match: function (event) {
+        return isControl(event) && !event.shiftKey && !event.altKey &&
+          /^[1-8]$/.test(event.key) && tabs.length > 1;
+      },
+      run: function (event) {
+        var target = tabs[Number(event.key) - 1];
+        if (target) {
+          selectTab(target.id, false);
+        }
+      } },
+    { id: "tab-last", group: "Tabs", keys: "Ctrl+9", label: "Go to the last tab",
+      available: tabsAvailable,
+      match: function (event) {
+        return isControl(event) && !event.shiftKey && !event.altKey &&
+          event.key === "9" && tabs.length > 1;
+      },
+      run: function () { selectTab(tabs[tabs.length - 1].id, false); } }
+  ];
+
+  var findShortcuts = [
+    { group: "Find box", keys: "Enter", label: "Next match",
+      match: function (event) { return event.key === "Enter" && !event.shiftKey; },
+      run: function () { moveSearch(1); } },
+    { group: "Find box", keys: "Shift+Enter", label: "Previous match",
+      match: function (event) { return event.key === "Enter" && event.shiftKey; },
+      run: function () { moveSearch(-1); } },
+    { group: "Find box", keys: "Esc", label: "Clear the search",
+      match: function (event) { return event.key === "Escape"; },
+      run: function () {
+        elements.findInput.value = "";
+        clearSearch();
+        elements.article.focus();
+      } }
+  ];
+
+  var tabStripShortcuts = [
+    { group: "Tab strip", keys: "Right arrow", label: "Next tab", available: tabsAvailable,
+      match: function (event) { return event.key === "ArrowRight"; },
+      run: function (_event, _id, index) { selectTab(tabs[(index + 1) % tabs.length].id, true); } },
+    { group: "Tab strip", keys: "Left arrow", label: "Previous tab", available: tabsAvailable,
+      match: function (event) { return event.key === "ArrowLeft"; },
+      run: function (_event, _id, index) {
+        selectTab(tabs[(index - 1 + tabs.length) % tabs.length].id, true);
+      } },
+    { group: "Tab strip", keys: "Home", label: "First tab", available: tabsAvailable,
+      match: function (event) { return event.key === "Home"; },
+      run: function () { selectTab(tabs[0].id, true); } },
+    { group: "Tab strip", keys: "End", label: "Last tab", available: tabsAvailable,
+      match: function (event) { return event.key === "End"; },
+      run: function () { selectTab(tabs[tabs.length - 1].id, true); } },
+    { group: "Tab strip", keys: "Delete", label: "Close the tab", available: tabsAvailable,
+      match: function (event) { return event.key === "Delete"; },
+      run: function (_event, id) { closeTab(id); } }
+  ];
+
+  var viewerShortcuts = [
+    { group: "Expanded figure", keys: "Esc", label: "Close the figure",
+      match: function (event) { return event.key === "Escape"; },
+      run: function () { closeViewer(true); } },
+    { group: "Expanded figure", keys: "+", label: "Zoom in", match: isZoomInKey,
+      run: function () { viewerAction("in"); } },
+    { group: "Expanded figure", keys: "-", label: "Zoom out", match: isZoomOutKey,
+      run: function () { viewerAction("out"); } },
+    { group: "Expanded figure", keys: "0", label: "Fit to the window",
+      match: function (event) { return event.key === "0"; },
+      run: function () { viewerAction("fit"); } },
+    { group: "Expanded figure", keys: "1", label: "Actual size",
+      match: function (event) { return event.key === "1" && !isControl(event); },
+      run: function () { viewerAction("actual"); } },
+    { group: "Expanded figure", keys: "Arrow keys", label: "Pan, faster with Shift",
+      match: function (event) {
+        return /^Arrow(Left|Right|Up|Down)$/.test(event.key);
+      },
+      run: panViewer },
+    { group: "Expanded figure", keys: "Tab", label: "Move between its controls",
+      match: function (event) { return event.key === "Tab"; },
+      run: function (event) {
+        // Keep focus inside the dialog.
+        var focusables = viewerFocusables();
+        var index = focusables.indexOf(document.activeElement);
+        var next = (index + (event.shiftKey ? -1 : 1) + focusables.length) %
+          focusables.length;
+        focusables[next].focus();
+      } }
+  ];
+
+  function findShortcut(table, event) {
+    for (var index = 0; index < table.length; index += 1) {
+      if (table[index].match(event)) {
+        return table[index];
+      }
+    }
+    return null;
+  }
+
+  function formatKeys(keys) {
+    return hostIsMac ? keys.replace(/\bCtrl\+/g, "Cmd+") : keys;
+  }
+
+  function shortcutKeys(id) {
+    var entry = readerShortcuts.find(function (shortcut) {
+      return shortcut.id === id;
+    });
+    return entry ? formatKeys(entry.keys) : "";
+  }
+
+  // Every shortcut this window acts on, in the order the panel shows them.
+  // Shortcuts the host adds, such as macOS menu items, follow, without the
+  // ones the page already lists.
+  function listedShortcuts() {
+    var listed = [];
+    [readerShortcuts, findShortcuts, tabStripShortcuts, viewerShortcuts]
+      .forEach(function (table) {
+        table.forEach(function (entry) {
+          if (!entry.available || entry.available()) {
+            listed.push({
+              group: entry.group,
+              keys: formatKeys(entry.keys),
+              label: entry.label
+            });
+          }
+        });
+      });
+    var seen = new Set(listed.map(function (entry) { return entry.keys; }));
+    hostShortcuts.forEach(function (entry) {
+      if (!seen.has(entry.keys)) {
+        seen.add(entry.keys);
+        listed.push({ group: "Menu", keys: entry.keys, label: entry.label });
+      }
+    });
+    return listed;
+  }
+
+  function renderShortcutList() {
+    var fragment = document.createDocumentFragment();
+    var currentGroup = "";
+    var list = null;
+    listedShortcuts().forEach(function (entry) {
+      if (entry.group !== currentGroup) {
+        currentGroup = entry.group;
+        var heading = document.createElement("h4");
+        heading.textContent = entry.group;
+        list = document.createElement("dl");
+        fragment.appendChild(heading);
+        fragment.appendChild(list);
+      }
+      var row = document.createElement("div");
+      row.className = "shortcut-row";
+      var keys = document.createElement("dt");
+      var kbd = document.createElement("kbd");
+      kbd.textContent = entry.keys;
+      keys.appendChild(kbd);
+      var label = document.createElement("dd");
+      label.textContent = entry.label;
+      row.appendChild(keys);
+      row.appendChild(label);
+      list.appendChild(row);
+    });
+    elements.shortcutList.replaceChildren(fragment);
+  }
+
+  // The settings panel sits beside the document, below the toolbar. It is
+  // not modal: the reader keeps working, and Esc returns focus.
+  function updateSettingsPanel() {
+    if (!elements.settingsPanel) {
+      return;
+    }
+    elements.settingsPanel.querySelectorAll('input[name="settings-theme"]')
+      .forEach(function (input) {
+        input.checked = input.value === currentTheme;
+      });
+    elements.settingsPanel.querySelectorAll('input[name="settings-width"]')
+      .forEach(function (input) {
+        input.checked = input.value === currentWidth;
+      });
+    elements.settingsZoomValue.textContent = Math.round(zoomLevel * 100) + "%";
+  }
+
+  function openSettings(fromButton) {
+    if (elements.settingsPanel.hidden) {
+      settingsReturnFocus = fromButton ? elements.settingsButton : document.activeElement;
+      renderShortcutList();
+      elements.settingsPanel.hidden = false;
+      document.documentElement.setAttribute("data-settings-open", "");
+      elements.settingsButton.setAttribute("aria-expanded", "true");
+      updateSettingsPanel();
+      updateLayout();
+    }
+    var checked = elements.settingsPanel.querySelector('input[name="settings-theme"]:checked');
+    (checked || elements.settingsClose).focus({ preventScroll: true });
+  }
+
+  function closeSettings(restoreFocus) {
+    if (elements.settingsPanel.hidden) {
+      return;
+    }
+    elements.settingsPanel.hidden = true;
+    document.documentElement.removeAttribute("data-settings-open");
+    elements.settingsButton.setAttribute("aria-expanded", "false");
+    updateLayout();
+    var target = settingsReturnFocus && settingsReturnFocus.isConnected &&
+      settingsReturnFocus !== document.body
+      ? settingsReturnFocus
+      : elements.settingsButton;
+    settingsReturnFocus = null;
+    if (restoreFocus) {
+      target.focus({ preventScroll: true });
+    }
+  }
 
   document.addEventListener("keydown", function (event) {
     if (viewerState) {
       handleViewerKey(event);
       return;
     }
-    var control = event.ctrlKey || event.metaKey;
-    // Chromium sends keydown without a key for autofill; ignore those.
-    var key = typeof event.key === "string" ? event.key.toLocaleLowerCase() : "";
-    if (control && !event.altKey && key === "o") {
+    // A key a focused control already acted on, such as Esc in the find box.
+    if (event.defaultPrevented) {
+      return;
+    }
+    var shortcut = findShortcut(readerShortcuts, event);
+    if (shortcut) {
       event.preventDefault();
-      post("open-file");
-    } else if (control && !event.altKey && key === "f") {
-      event.preventDefault();
-      elements.findInput.focus();
-      elements.findInput.select();
-    } else if (event.key === "F3") {
-      event.preventDefault();
-      moveSearch(event.shiftKey ? -1 : 1);
-    } else if (control && !event.altKey && key === "r") {
-      event.preventDefault();
-      post("reload");
-    } else if (control && event.shiftKey && key === "t") {
-      event.preventDefault();
-      cycleTheme();
-    } else if (control && event.shiftKey && key === "c") {
-      event.preventDefault();
-      copySection(-1, elements.copyButton);
-    } else if (control && event.key === "Tab" && tabs.length > 1) {
-      event.preventDefault();
-      cycleTab(event.shiftKey ? -1 : 1);
-    } else if (control && tabs.length > 1 &&
-               (event.key === "PageDown" || event.key === "PageUp")) {
-      event.preventDefault();
-      cycleTab(event.key === "PageDown" ? 1 : -1);
-    } else if (control && !event.shiftKey && !event.altKey && key === "w" &&
-               activeTabId) {
-      event.preventDefault();
-      closeTab(activeTabId);
-    } else if (control && !event.shiftKey && !event.altKey &&
-               /^[1-9]$/.test(event.key) && tabs.length > 1) {
-      event.preventDefault();
-      var target = event.key === "9"
-        ? tabs[tabs.length - 1]
-        : tabs[Number(event.key) - 1];
-      if (target) {
-        selectTab(target.id, false);
-      }
-    } else if (control && !event.altKey &&
-               (event.key === "+" || event.key === "=" || event.key === "Add" ||
-                event.key === "-" || event.key === "_" || event.key === "Subtract" ||
-                event.key === "0")) {
-      event.preventDefault();
-      zoomPage(event.key === "-" || event.key === "_" || event.key === "Subtract"
-        ? "out"
-        : event.key === "0" ? "reset" : "in");
+      shortcut.run(event);
     }
   });
 
@@ -1589,6 +2003,7 @@
 
   window.addEventListener("scroll", scheduleReadingProgress, { passive: true });
   window.addEventListener("resize", function () {
+    updateLayout();
     scheduleReadingProgress();
     if (viewerState && viewerState.mode === "fit") {
       setViewerScale(viewerFitScale(), "fit");
@@ -1621,6 +2036,7 @@
       );
     },
     sectionText: renderedSectionText,
+    shortcuts: listedShortcuts,
     openViewer: function (index) {
       var frames = elements.article.querySelectorAll(".figure-frame[data-expandable]");
       if (frames[index || 0]) {
@@ -1635,6 +2051,8 @@
     }
   });
 
+  applyZoom(100);
+  applyWidth("narrow");
   applyTheme("system", false);
   updateReadingProgress();
   post("ready");

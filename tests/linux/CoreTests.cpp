@@ -405,6 +405,46 @@ void TestThemes() {
            "the system canvas should follow the system setting");
 }
 
+// Text width (issue #6 follow-up): Narrow is the 0.5.0 column and the default.
+void TestTextWidths() {
+    using leanmark::core::kDefaultTextWidth;
+    using leanmark::core::NextTextWidth;
+    using leanmark::core::ParseTextWidth;
+    using leanmark::core::TextWidth;
+    using leanmark::core::TextWidthName;
+
+    Expect(kDefaultTextWidth == TextWidth::Narrow,
+           "the default text width should be Narrow, the 0.5.0 column");
+    Expect(ParseTextWidth("narrow") == TextWidth::Narrow &&
+               ParseTextWidth("wide") == TextWidth::Wide &&
+               ParseTextWidth("full") == TextWidth::Full,
+           "each saved width name should parse to its width");
+    Expect(ParseTextWidth("WIDE") == TextWidth::Wide &&
+               ParseTextWidth("Full") == TextWidth::Full,
+           "width names should parse without regard to ASCII case");
+    // A settings file from 0.5.0 has no width; a later version may save a
+    // name this one does not know. Both read as Narrow.
+    Expect(ParseTextWidth("") == TextWidth::Narrow &&
+               ParseTextWidth("huge") == TextWidth::Narrow &&
+               ParseTextWidth("wide ") == TextWidth::Narrow &&
+               ParseTextWidth("fuller") == TextWidth::Narrow &&
+               ParseTextWidth(std::string_view("full\0", 5)) == TextWidth::Narrow,
+           "an unknown or missing width should fall back to Narrow");
+    Expect(std::string(TextWidthName(TextWidth::Narrow)) == "narrow" &&
+               std::string(TextWidthName(TextWidth::Wide)) == "wide" &&
+               std::string(TextWidthName(TextWidth::Full)) == "full",
+           "width names are what every host saves and the page reads");
+    for (const TextWidth width :
+         {TextWidth::Narrow, TextWidth::Wide, TextWidth::Full}) {
+        Expect(ParseTextWidth(TextWidthName(width)) == width,
+               "a saved width name should read back as the same width");
+    }
+    Expect(NextTextWidth(TextWidth::Narrow) == TextWidth::Wide &&
+               NextTextWidth(TextWidth::Wide) == TextWidth::Full &&
+               NextTextWidth(TextWidth::Full) == TextWidth::Narrow,
+           "the width shortcut should cycle Narrow, Wide, Full, then Narrow");
+}
+
 void TestFilesAndPaths() {
     TemporaryDirectory temporary;
     const auto notes = temporary.path / "notes";
@@ -470,6 +510,7 @@ int main() {
     TestWordAtATimeScans();
     TestZoomLevels();
     TestThemes();
+    TestTextWidths();
     TestFilesAndPaths();
     if (failures != 0) {
         std::cerr << failures << " portable core assertion(s) failed.\n";
