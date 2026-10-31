@@ -345,11 +345,18 @@ flowchart LR
             <span>From the Microsoft Store, with winget</span>
             <code>winget install --id 9MSS4WKJ22ZV --source msstore</code>
           </div>
+          <div class="install-command">
+            <span>With Chocolatey, from an administrator shell</span>
+            <code>choco install leanmark -y</code>
+          </div>
           <p class="store-note">
             LeanMark is also in the
             <a href="https://apps.microsoft.com/detail/9MSS4WKJ22ZV">Microsoft Store</a>.
             The Store build is signed by Microsoft, so Windows installs it
             without the SmartScreen warning that the GitHub ZIP can show.
+            The <a href="https://community.chocolatey.org/packages/leanmark">Chocolatey package</a>
+            installs the portable build; a new version reaches it once
+            Chocolatey's moderators have approved it.
           </p>
         </div>
         <ol class="install-steps">
@@ -398,7 +405,7 @@ flowchart LR
           </div>
           <div class="faq-item">
             <h3>Is LeanMark free?</h3>
-            <p>Yes. It is MIT licensed and free on GitHub, the Microsoft Store, winget, Scoop, and Homebrew.</p>
+            <p>Yes. It is MIT licensed and free on GitHub, the Microsoft Store, winget, Chocolatey, Scoop, and Homebrew.</p>
           </div>
           <div class="faq-item">
             <h3>How heavy is it?</h3>
@@ -490,7 +497,8 @@ flowchart LR
           <p>
             On Windows, use Settings &gt; Apps &gt; Installed apps &gt; LeanMark,
             delete the folder of a portable copy, or run
-            <code>winget uninstall abooodbah.LeanMark</code>. On Linux, run
+            <code>winget uninstall abooodbah.LeanMark</code> or
+            <code>choco uninstall leanmark</code>. On Linux, run
             <code>sudo apt remove leanmark</code>. On macOS, move LeanMark.app
             to the Trash.
           </p>
