@@ -271,6 +271,7 @@ const THEME_DOCUMENT_HTML = [
     "<li>Core checks</li>\n</ul>\n</li>\n</ul>",
   "<ol>\n<li>Tag the release</li>\n<li>Publish it</li>\n</ol>",
   "<blockquote>\n<p>Read-only, offline, and quick to open.</p>\n</blockquote>",
+  '<p><img src="missing-screenshot.png" alt="A screenshot that is not in the folder"></p>',
   "<h2>Code</h2>",
   '<pre><code class="language-js">function add(a, b) {\n  return a + b;\n}\n</code></pre>',
   "<h3>Platforms</h3>",
@@ -381,6 +382,8 @@ const READ_THEME = `(function () {
     headerCellBackground: style("th").backgroundColor,
     quote: style("blockquote").color,
     quoteRule: style("blockquote").borderLeftColor,
+    blockedImage: style(".blocked-image").color,
+    blockedImageBackground: style(".blocked-image").backgroundColor,
     diagramFill: shape ? getComputedStyle(shape).fill : "",
     diagramLabel: label ? (label.tagName.toLowerCase() === "text"
       ? getComputedStyle(label).fill : getComputedStyle(label).color) : "",
@@ -854,6 +857,7 @@ async function run() {
         tableBorder: contrast(r.cellBorder, r.canvas),
         blockquote: contrast(r.quote, r.canvas),
         quoteRule: contrast(r.quoteRule, r.canvas),
+        blockedImage: contrast(r.blockedImage, r.blockedImageBackground),
         selection: contrast(r.tokens["--text-primary"], r.tokens["--selection"]),
         find: contrast(r.tokens["--find-text"], r.tokens["--find"]),
         findCurrent: contrast(r.tokens["--find-text"], r.tokens["--find-current"]),
@@ -867,6 +871,19 @@ async function run() {
     for (const part of Object.keys(ratios.dim)) {
       console.log("  " + part.padEnd(13) + Object.keys(ratios).map((name) =>
         (name + " " + ratios[name][part].toFixed(2)).padEnd(13)).join(""));
+    }
+
+    // The note shown in place of an image that cannot load follows the theme:
+    // it sits on the theme's muted surface in its secondary text colour, so a
+    // dark theme does not show a bright light box, and it stays readable.
+    for (const [name, r] of Object.entries(readings)) {
+      check(parseColor(r.blockedImageBackground).join() ===
+          parseColor(r.tokens["--surface-muted"]).join() &&
+        parseColor(r.blockedImage).join() === parseColor(r.tokens["--text-secondary"]).join() &&
+        ratios[name].blockedImage >= 4.5,
+        "the image-unavailable note in " + name + " uses the theme's surface and text (" +
+        r.blockedImageBackground + " / " + r.blockedImage + ", " +
+        ratios[name].blockedImage.toFixed(2) + ":1)");
     }
 
     check(readings.dark.tokens["--canvas"] === "#0e0d0b" &&
