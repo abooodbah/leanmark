@@ -1751,6 +1751,59 @@ async function run() {
       JSON.stringify(outlineState));
     await deliver({ type: "theme", value: "system" });
 
+    // A window resize into or out of the compact layout, at 100% with the
+    // settings panel closed, lays the page out once more, as a resize within
+    // one layout does. 0.6.0 set data-layout in the resize handler, after the
+    // browser had laid the page out at the new size, so it was laid out a
+    // second time (LeanMark Android saw rotation go from 137-221 ms to
+    // 515-686 ms). Zoom and the open panel still pick the layout from the
+    // width left for the document.
+    await showOutlineDocument("/fixtures/resize.md");
+    await client.send("Performance.enable");
+    const layoutCount = async () => (await client.send("Performance.getMetrics"))
+      .metrics.find((metric) => metric.name === "LayoutCount").value;
+    const articleSize = () => client.evaluate(
+      'getComputedStyle(document.getElementById("article")).fontSize');
+    const layoutsFor = async (from, to) => {
+      await setViewport(from);
+      await frames();
+      await delay(200);
+      const before = await layoutCount();
+      await setViewport(to);
+      await frames();
+      await delay(200);
+      return (await layoutCount()) - before;
+    };
+    const withinLayout = await layoutsFor(1000, 1100);
+    const intoCompact = await layoutsFor(1000, 700);
+    const compactSize = await articleSize();
+    const outOfCompact = await layoutsFor(700, 1000);
+    const regularSize = await articleSize();
+    check(intoCompact <= withinLayout && outOfCompact <= withinLayout,
+      "a resize into or out of the compact layout lays the page out no more often than a " +
+      "resize within one layout " + JSON.stringify({ withinLayout, intoCompact, outOfCompact }));
+    check(compactSize === "17px" && regularSize === "18px",
+      "the compact layout still applies at 700 px and not at 1000 px " +
+      JSON.stringify([compactSize, regularSize]));
+    await setViewport(1400);
+    await deliver({ type: "zoom", percent: 200 });
+    const zoomedSize = await articleSize();
+    await deliver({ type: "zoom", percent: 100 });
+    await setViewport(1000);
+    await clickSelector(client, "#settingsButton");
+    const panelSize = await articleSize();
+    await press(client, "Escape");
+    await setViewport(1300);
+    const wideOutline = await client.evaluate(
+      'getComputedStyle(document.getElementById("outline")).display');
+    check(zoomedSize === "17px" && panelSize === "17px" && wideOutline === "block" &&
+      await articleSize() === "18px",
+      "zoom and the open panel still give the compact layout, and a wide window the outline " +
+      JSON.stringify({ zoomedSize, panelSize, wideOutline }));
+    await waitFor(client, 'document.getElementById("zoomIndicator").hidden',
+      "the zoom indicator to fade", 5);
+    await setViewport(1200);
+
     // The diagram cap leaves diagrams past the fiftieth unrendered.
     const many = [];
     for (let index = 0; index < 51; index += 1) {
