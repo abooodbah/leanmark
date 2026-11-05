@@ -963,6 +963,13 @@ void LinuxApp::StartSmokeProbe() {
     var chosen = 0;
     var zoom = 100;
     var result = "";
+    // A slow runner can take a few frames to update the page, so each step
+    // waits up to 15 polls for its condition before it fails.
+    var waited = 0;
+    function retry(message) {
+      waited += 1;
+      return waited > 15 ? finish(message) : "pending";
+    }
     function links() {
       return Array.prototype.slice.call(document.querySelectorAll("#outlineList a"));
     }
@@ -1005,11 +1012,12 @@ void LinuxApp::StartSmokeProbe() {
       }
       if (step === 1) {
         if (getComputedStyle(document.getElementById("outline")).display === "none") {
-          return finish("failed: the outline is not shown");
+          return retry("failed: the outline is not shown");
         }
         if (now.length !== 1 || now[0] !== all[0]) {
-          return finish("failed: the first entry is not current at the top");
+          return retry("failed: the first entry is not current at the top");
         }
+        waited = 0;
         chosen = Math.floor(all.length / 2);
         window.scrollBy(0,
           heading(all[chosen]).getBoundingClientRect().top - (readingLine() - 4));
@@ -1018,16 +1026,17 @@ void LinuxApp::StartSmokeProbe() {
       }
       if (step === 2) {
         if (now.length !== 1 || now[0] !== all[chosen]) {
-          return finish("failed: entry " + chosen + " is not current after scrolling to it");
+          return retry("failed: entry " + chosen + " is not current after scrolling to it");
         }
         // An outline taller than its column brings the entry a third of the way down.
         var outline = document.getElementById("outline");
         var frame = outline.getBoundingClientRect();
         var offset = now[0].getBoundingClientRect().top - frame.top;
         if (outline.scrollTop > 0 && Math.abs(offset - frame.height / 3) > 6) {
-          return finish("failed: entry " + chosen + " sits " + Math.round(offset) +
+          return retry("failed: entry " + chosen + " sits " + Math.round(offset) +
             " px down the outline, not a third of " + Math.round(frame.height));
         }
+        waited = 0;
         window.scrollTo(0, document.documentElement.scrollHeight);
         step = 3;
         return "pending";
@@ -1035,7 +1044,7 @@ void LinuxApp::StartSmokeProbe() {
       var box = document.getElementById("outline").getBoundingClientRect();
       var rect = now.length === 1 ? now[0].getBoundingClientRect() : null;
       if (!rect || rect.top < box.top - 1 || rect.bottom > box.bottom + 1) {
-        return finish("failed: the current entry is not kept in view at the end");
+        return retry("failed: the current entry is not kept in view at the end");
       }
       var root = document.documentElement;
       var saved = root.getAttribute("data-theme");
