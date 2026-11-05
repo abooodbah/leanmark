@@ -124,7 +124,7 @@ window.__leanmarkOutlineProbe = window.__leanmarkOutlineProbe || (function () {
       return link.color !== tokens.color ||
         link.backgroundColor !== tokens.backgroundColor ||
         link.boxShadow.indexOf(tokens.borderLeftColor) < 0 ||
-        Number(link.fontWeight) !== 500;
+        Number(link.fontWeight) !== 400;
     });
     sample.remove();
     if (saved === null) {

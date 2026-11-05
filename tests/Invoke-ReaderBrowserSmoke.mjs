@@ -1654,6 +1654,8 @@ async function run() {
     await setViewport(1200);
 
     // The look in every theme. System is checked on a light and a dark system.
+    // The weight stays at 400: only paint changes, so the page is not laid
+    // out again when the current entry changes.
     const LOOK = {
       light: { background: "#f4f2ee", text: "#1a1917", bar: "#1d4ed8", other: "#5a554c" },
       dark: { background: "#2b2924", text: "#faf9f7", bar: "#60a5fa", other: "#d5cfc3" },
@@ -1696,7 +1698,7 @@ async function run() {
       const label = theme + " on a " + scheme + " system";
       check(same(look.color, want.text) && same(look.background, want.background) &&
         look.shadow.indexOf(rgbOf(want.bar)) === 0 && / 2px 0px 0px 0px inset$/.test(look.shadow) &&
-        Number(look.weight) === 500,
+        Number(look.weight) === 400,
         "in " + label + " the current entry has the theme's highlight " + JSON.stringify(look));
       check(same(look.otherColor, want.other) && look.otherBackground === "rgba(0, 0, 0, 0)" &&
         look.otherShadow === "none" && Number(look.otherWeight) === 400,
