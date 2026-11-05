@@ -157,6 +157,14 @@ if(BUILD_TESTING)
             --smoke-test
             "${LEANMARK_REPOSITORY_ROOT}/tests/fixtures/showcase.md")
   set_tests_properties(LeanMarkMacWebKitFigures PROPERTIES TIMEOUT 45)
+  # Enough sections for the outline to scroll: the smoke check also checks
+  # the current-section highlight and that it stays in view.
+  add_test(
+    NAME LeanMarkMacWebKitOutline
+    COMMAND "$<TARGET_FILE:LeanMark>"
+            --smoke-test
+            "${LEANMARK_REPOSITORY_ROOT}/tests/fixtures/long-outline.md")
+  set_tests_properties(LeanMarkMacWebKitOutline PROPERTIES TIMEOUT 45)
 endif()
 
 add_custom_target(package_macos
