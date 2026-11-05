@@ -637,12 +637,14 @@ button {
 
 /* The section being read, set by reader.js as the page scrolls. Theme tokens
    only, so every theme has it: text 8.2:1 or more on the background, and the
-   bar 5.7:1 or more. LeanDoc and the Android apps use the same look. */
+   bar 5.7:1 or more. Only paint changes, not the font weight: a wider weight
+   lays the page out again on every change, which took a second of layout per
+   80 wheel steps on an 8 MiB file. LeanDoc and the Android apps use the same
+   look. */
 .outline a[aria-current="location"] {
   background: var(--surface-muted);
   box-shadow: inset 2px 0 0 var(--link);
   color: var(--text-primary);
-  font-weight: 500;
 }
 
 .article {
