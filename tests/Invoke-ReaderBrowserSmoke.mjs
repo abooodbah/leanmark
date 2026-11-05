@@ -964,6 +964,36 @@ async function run() {
     check((await applyTheme("dim")).tokens["--canvas"] === "#1e2023",
       "the soft themes keep their colours when the system is light");
 
+    // A theme change redraws the diagrams only when their colours change.
+    // On a light system, System and Light draw them the same way.
+    await client.send("Emulation.setEmulatedMedia", { features: mediaFeatures("light") });
+    await applyTheme("system");
+    await client.evaluate(`(function () {
+      var mermaid = window.mermaid;
+      var render = mermaid.render;
+      window.__diagramRenders = 0;
+      mermaid.render = function () {
+        window.__diagramRenders += 1;
+        return render.apply(mermaid, arguments);
+      };
+      return true;
+    }())`);
+    const rendersAfter = async (name) => {
+      await applyTheme(name);
+      await delay(300);
+      await waitFor(client, 'document.documentElement.dataset.renderState === "ready"',
+        "the " + name + " theme to settle");
+      return client.evaluate("window.__diagramRenders");
+    };
+    const redraws = [];
+    for (const name of ["light", "dark", "dark", "dim", "dim", "system"]) {
+      redraws.push(await rendersAfter(name));
+    }
+    check(JSON.stringify(redraws) === JSON.stringify([0, 1, 1, 2, 2, 3]) &&
+      await client.evaluate('!!document.querySelector("#article figure.diagram svg")'),
+      "a theme change redraws the diagram only when its colours change " +
+      "(renders after Light, Dark, Dark, Dim, Dim, System: " + JSON.stringify(redraws) + ")");
+
     // An unknown theme from a host or an old setting falls back to System.
     const unknown = await applyTheme("neon");
     check(unknown.attribute === null && unknown.button === "System" &&
