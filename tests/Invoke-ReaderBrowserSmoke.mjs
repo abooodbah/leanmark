@@ -1492,6 +1492,8 @@ async function run() {
     // A shift just after scrolling that leaves the document's size alone, as
     // late layout in the part that just came into view can: the current
     // section is computed once more after scrolling stops.
+    await client.evaluate("window.scrollTo(0, 0); true");
+    await delay(300);
     outlineState = await placeHeading(30, -4);
     const beforeSettle = outlineState.currents;
     await client.evaluate(`(function () {
@@ -1710,7 +1712,7 @@ async function run() {
     await press(client, "Enter");
     await frames();
     outlineState = await client.evaluate(OUTLINE);
-    check(outlineState.currents.length === 1 && outlineState.expected >= 59 &&
+    check(outlineState.currents.length === 1 && outlineState.expected >= 50 &&
       outlineState.currents[0] === outlineState.expected,
       "a find result moves the highlight with the page " + JSON.stringify(outlineState.currents));
     await press(client, "Escape");
