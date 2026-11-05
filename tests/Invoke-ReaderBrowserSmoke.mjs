@@ -1786,14 +1786,17 @@ async function run() {
       "the compact layout still applies at 700 px and not at 1000 px " +
       JSON.stringify([compactSize, regularSize]));
     await setViewport(1400);
+    await frames();
     await deliver({ type: "zoom", percent: 200 });
     const zoomedSize = await articleSize();
     await deliver({ type: "zoom", percent: 100 });
     await setViewport(1000);
+    await frames();
     await clickSelector(client, "#settingsButton");
     const panelSize = await articleSize();
     await press(client, "Escape");
     await setViewport(1300);
+    await frames();
     const wideOutline = await client.evaluate(
       'getComputedStyle(document.getElementById("outline")).display');
     check(zoomedSize === "17px" && panelSize === "17px" && wideOutline === "block" &&
