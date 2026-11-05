@@ -1807,6 +1807,42 @@ async function run() {
       "the zoom indicator to fade", 5);
     await setViewport(1200);
 
+    // Heading ids. A repeated heading text gets -2, -3, and so on, and a
+    // heading whose own text ends that way never takes an id already given.
+    // Finding the next free id must not walk past every earlier copy again:
+    // with 2,000 copies of one heading that was about two million lookups.
+    const idDocument = (html) => ({
+      type: "document", tabId: 1, theme: "light", fileName: "ids.md",
+      path: "/fixtures/ids.md", documentBaseUrl: "", sourceBytes: 100,
+      hasMermaid: false, html,
+    });
+    await deliver(idDocument("<h2>Setup</h2><h2>Setup</h2><h2>Setup 2</h2><h2>Setup</h2>" +
+      "<h3>Setup-2</h3><h2>Setup</h2><h2>Other</h2><h2>Other</h2>"));
+    const ids = await client.evaluate(
+      'Array.from(document.querySelectorAll("#article h2, #article h3")).map(function (h) { return h.id; })');
+    check(JSON.stringify(ids) === JSON.stringify(
+      ["setup", "setup-2", "setup-2-2", "setup-3", "setup-2-3", "setup-4", "other", "other-2"]),
+      "repeated headings keep the ids they had in 0.6.0 " + JSON.stringify(ids));
+    const repeated = [];
+    for (let index = 0; index < 2000; index += 1) {
+      repeated.push("<h2>Usage</h2>");
+    }
+    const lookups = await client.evaluate(`(function () {
+      var count = 0;
+      var has = Set.prototype.has;
+      Set.prototype.has = function (value) { count += 1; return has.call(this, value); };
+      try {
+        window.__deliver(${JSON.stringify(idDocument(repeated.join("\n")))});
+      } finally {
+        Set.prototype.has = has;
+      }
+      var headings = document.querySelectorAll("#article h2");
+      return { count: count, last: headings[headings.length - 1].id };
+    }())`);
+    check(lookups.last === "usage-2000" && lookups.count < 10000,
+      "2,000 copies of one heading get their ids in " + lookups.count +
+      " lookups, not about two million (last id " + lookups.last + ")");
+
     // The diagram cap leaves diagrams past the fiftieth unrendered.
     const many = [];
     for (let index = 0; index < 51; index += 1) {
