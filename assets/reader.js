@@ -63,6 +63,10 @@
   var toastTimer = 0;
   var mermaidLoader = null;
   var diagramGeneration = 0;
+  // The Mermaid colours the diagrams on the page were drawn with, so a theme
+  // change that keeps them (System to Light on a light system, or the same
+  // theme again) leaves the diagrams alone.
+  var drawnDiagramLook = "";
   // Relative images resolve against the folder host the native side names for
   // the document on screen. With no valid host they show as unavailable.
   var documentAssetBase = "";
@@ -206,7 +210,8 @@
       "Theme: " + name + " (" + shortcutKeys("theme") + ")";
     updateSettingsPanel();
 
-    if (rerenderDiagrams && elements.article.querySelector(".diagram")) {
+    if (rerenderDiagrams && elements.article.querySelector(".diagram") &&
+        JSON.stringify(diagramTheme()) !== drawnDiagramLook) {
       renderDiagrams();
     }
   }
@@ -687,6 +692,7 @@
         return;
       }
       var diagramLook = diagramTheme();
+      drawnDiagramLook = JSON.stringify(diagramLook);
       var diagramConfig = {
         startOnLoad: false,
         securityLevel: "strict",
@@ -771,6 +777,7 @@
     closeViewer(false);
     clearSearch();
     diagramGeneration += 1;
+    drawnDiagramLook = "";
     displayedTabId = tabId;
     currentPath = data.path || "";
     documentAssetBase = selectDocumentAssetBase(data.documentBaseUrl);
