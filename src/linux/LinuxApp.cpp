@@ -665,10 +665,10 @@ void LinuxApp::HandleMessage(std::string_view message) {
         return;
     }
     if (StartsWithInsensitive(message, "theme|")) {
+        // The page already shows the theme it chose. Sending it back made
+        // the page draw every diagram a second time, as on no other host.
         theme_ = core::ParseTheme(message.substr(6));
         SaveSettings();
-        SendJson(
-            "{\"type\":\"theme\",\"value\":\"" + ThemeName() + "\"}");
         return;
     }
     if (StartsWithInsensitive(message, "width|")) {
