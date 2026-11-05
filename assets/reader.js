@@ -9,6 +9,7 @@
   var headingSelector = "h1, h2, h3, h4, h5, h6";
   var elements = {
     article: document.getElementById("article"),
+    chrome: document.querySelector(".chrome"),
     copyButton: document.getElementById("copyButton"),
     fileName: document.getElementById("fileName"),
     fileMeta: document.getElementById("fileMeta"),
@@ -78,6 +79,16 @@
   var nextCopyRequest = 0;
   var renderedHeadingCount = 0;
   var progressFrame = 0;
+  var settleTimer = 0;
+  // "On this page": one entry per h2 and h3, in document order. The entry
+  // for the section being read carries aria-current="location".
+  var outlineEntries = [];
+  var currentOutlineIndex = -1;
+  // After a click in the outline: { index, scrollY }, scrollY null until the
+  // link's own jump has happened.
+  var pinnedOutline = null;
+  // Set when the outline column appears, so its current entry is shown.
+  var outlineNeedsReveal = false;
   var searchTimer = 0;
   var zoomIndicatorTimer = 0;
   var wheelZoomDelta = 0;
@@ -264,7 +275,10 @@
     var layout = available >= 1180 ? "wide" : available <= 760 ? "compact" : "regular";
     if (document.documentElement.dataset.layout !== layout) {
       document.documentElement.dataset.layout = layout;
+      outlineNeedsReveal = layout === "wide";
     }
+    // Headings move with the layout, so the current section may change.
+    scheduleReadingProgress();
   }
 
   function formatBytes(bytes) {
@@ -541,7 +555,9 @@
       ? "Copy this section as Markdown"
       : "Copy this section";
     var outline = document.createDocumentFragment();
-    var outlineCount = 0;
+    outlineEntries = [];
+    currentOutlineIndex = -1;
+    releaseOutlinePin();
     renderedHeadingCount = headings.length;
 
     headings.forEach(function (heading, index) {
@@ -552,10 +568,11 @@
         var link = document.createElement("a");
         link.href = "#" + heading.id;
         link.dataset.level = heading.tagName.slice(1);
+        link.dataset.index = String(outlineEntries.length);
         link.textContent = text;
         item.appendChild(link);
         outline.appendChild(item);
-        outlineCount += 1;
+        outlineEntries.push({ link: link, heading: heading });
       }
       text = text.trim();
       if (text) {
@@ -569,7 +586,8 @@
       }
     });
 
-    if (outlineCount < 2) {
+    if (outlineEntries.length < 2) {
+      outlineEntries = [];
       elements.outlineList.replaceChildren();
       elements.outline.hidden = true;
       return;
@@ -779,6 +797,7 @@
         window.scrollTo(0, 0);
       }
       updateReadingProgress();
+      updateOutlineCurrent();
     });
 
     if (data.hasMermaid) {
@@ -787,6 +806,7 @@
           scrollToRatio(ratio);
         }
         updateReadingProgress();
+        updateOutlineCurrent();
       });
     }
   }
@@ -1129,6 +1149,107 @@
       : Math.max(0, Math.min(100, window.scrollY / available * 100));
     elements.progress.style.width = percent.toFixed(2) + "%";
     elements.progress.setAttribute("aria-valuenow", String(Math.round(percent)));
+  }
+
+  // The current section, as in LeanDoc's outline: the last heading at or
+  // above the reading line, a quarter of the way down the page below the
+  // toolbar (at least 48 px), or the first entry at the top of the page.
+  // Headings are in document order, so a binary search finds it.
+  function updateOutlineCurrent() {
+    if (!outlineEntries.length || elements.readerPane.hidden) {
+      return;
+    }
+    if (pinnedOutline) {
+      if (pinnedOutline.scrollY === null ||
+          Math.abs(window.scrollY - pinnedOutline.scrollY) <= window.innerHeight / 2) {
+        return;
+      }
+      releaseOutlinePin();
+    }
+    var toolbar = elements.chrome.getBoundingClientRect().bottom;
+    var line = toolbar + Math.max(48, (window.innerHeight - toolbar) * 0.25);
+    var low = 0;
+    var high = outlineEntries.length - 1;
+    var found = 0;
+    while (low <= high) {
+      var middle = (low + high) >> 1;
+      if (outlineEntries[middle].heading.getBoundingClientRect().top <= line) {
+        found = middle;
+        low = middle + 1;
+      } else {
+        high = middle - 1;
+      }
+    }
+    setOutlineCurrent(window.scrollY <= 1 ? 0 : found);
+  }
+
+  function setOutlineCurrent(index) {
+    var entry = outlineEntries[index];
+    if (index !== currentOutlineIndex) {
+      var previous = outlineEntries[currentOutlineIndex];
+      if (previous) {
+        previous.link.removeAttribute("aria-current");
+      }
+      currentOutlineIndex = index;
+      if (entry) {
+        entry.link.setAttribute("aria-current", "location");
+        keepOutlineEntryInView(entry.link);
+      }
+    } else if (entry && outlineNeedsReveal) {
+      keepOutlineEntryInView(entry.link);
+    }
+    outlineNeedsReveal = false;
+  }
+
+  // An outline taller than its column scrolls on its own. When the current
+  // entry is outside its visible part, scroll it a third of the way down;
+  // otherwise leave the outline where the reader put it. Rectangles are on
+  // screen, scrollTop is in the outline's own pixels, and the two differ by
+  // the document zoom, so the outline's own size converts between them.
+  function keepOutlineEntryInView(link) {
+    var outline = elements.outline;
+    if (outline.hidden || outline.scrollHeight <= outline.clientHeight) {
+      return;
+    }
+    var box = outline.getBoundingClientRect();
+    var scale = box.height / outline.clientHeight || 1;
+    var rect = link.getBoundingClientRect();
+    var top = (rect.top - box.top) / scale;
+    var bottom = (rect.bottom - box.top) / scale;
+    if (top < 0 || bottom > outline.clientHeight) {
+      outline.scrollTop = Math.max(0, outline.scrollTop + top - outline.clientHeight / 3);
+    }
+  }
+
+  // A clicked entry stays current, even when its heading is too near the end
+  // to reach the reading line, until the page moves more than half a window
+  // or the reader uses the wheel, touch, a pointer, or a key.
+  var unpinEvents = ["wheel", "touchstart", "pointerdown", "keydown"];
+
+  function pinOutline(index) {
+    releaseOutlinePin();
+    setOutlineCurrent(index);
+    pinnedOutline = { index: index, scrollY: null };
+    unpinEvents.forEach(function (type) {
+      window.addEventListener(type, releaseOutlinePin, { capture: true, passive: true });
+    });
+    // The link's jump to its heading runs after this click handler.
+    requestAnimationFrame(function () {
+      if (pinnedOutline && pinnedOutline.scrollY === null) {
+        pinnedOutline.scrollY = window.scrollY;
+      }
+    });
+  }
+
+  function releaseOutlinePin() {
+    if (!pinnedOutline) {
+      return;
+    }
+    pinnedOutline = null;
+    unpinEvents.forEach(function (type) {
+      window.removeEventListener(type, releaseOutlinePin, { capture: true, passive: true });
+    });
+    scheduleReadingProgress();
   }
 
   function showIndicator(text) {
@@ -1590,6 +1711,16 @@
     zoomPage("reset");
   });
   elements.article.addEventListener("click", handleArticleClick);
+  // The link itself still jumps to its heading.
+  elements.outlineList.addEventListener("click", function (event) {
+    var link = event.target && event.target.closest
+      ? event.target.closest("a[data-index]")
+      : null;
+    var entry = link ? outlineEntries[Number(link.dataset.index)] : null;
+    if (entry && entry.link === link) {
+      pinOutline(Number(link.dataset.index));
+    }
+  });
   elements.article.addEventListener("auxclick", handleArticleAuxClick);
   elements.tabStrip.addEventListener("click", function (event) {
     var id = tabIdFrom(event.target);
@@ -1990,18 +2121,35 @@
   });
 
 
-  // Reading scrollHeight forces layout, so measure at most once per frame
-  // rather than once per scroll event.
+  // Reading scrollHeight and heading positions forces layout, so measure at
+  // most once per frame rather than once per scroll event.
   function scheduleReadingProgress() {
     if (!progressFrame) {
       progressFrame = requestAnimationFrame(function () {
         progressFrame = 0;
         updateReadingProgress();
+        updateOutlineCurrent();
       });
     }
   }
 
-  window.addEventListener("scroll", scheduleReadingProgress, { passive: true });
+  // Once more when scrolling stops: layout that settles just after a long
+  // jump moves headings without another scroll event.
+  function handleScroll() {
+    scheduleReadingProgress();
+    window.clearTimeout(settleTimer);
+    settleTimer = window.setTimeout(function () {
+      settleTimer = 0;
+      scheduleReadingProgress();
+    }, 120);
+  }
+
+  window.addEventListener("scroll", handleScroll, { passive: true });
+  // Images and diagrams that finish later change the document's height and
+  // move the headings without a scroll event.
+  if (window.ResizeObserver) {
+    new ResizeObserver(scheduleReadingProgress).observe(elements.article);
+  }
   window.addEventListener("resize", function () {
     updateLayout();
     scheduleReadingProgress();
