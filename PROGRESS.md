@@ -11,10 +11,15 @@ when this round started.
   workflow, and the reader, host and test sources.
 - Efficiency review (below), with numbers from release builds.
 - Checked the shared design items against 0.6.0 (below).
+- Step 1: this file, merged in #26.
+- Step 2: the Compare launch time workflow builds v0.4.2 and later tags as
+  they are and measures memory with an 8 MiB file and the size of each
+  build, merged in #27. Run 41982450100 is its A/A check.
 
 ## In progress
 
-- This file: the plan, the review and the highlight look.
+- Step 3: the current-section highlight in "On this page" (branch
+  `outline-highlight`).
 
 ## Remaining
 
@@ -138,7 +143,6 @@ look uses theme tokens that already exist, so it needs no new colours.
   background: var(--surface-muted);
   box-shadow: inset 2px 0 0 var(--link);
   color: var(--text-primary);
-  font-weight: 500;
 }
 
 @media (forced-colors: active) {
@@ -150,6 +154,12 @@ look uses theme tokens that already exist, so it needs no new colours.
 
 The "On this page" label gets the same 12 px left padding, so it lines up
 with the entries.
+
+The font weight does not change (it stays 400, like the other entries).
+An earlier draft used 500, as LeanDoc 0.1.4 does. A weight change makes the
+browser lay the page out again each time the current entry changes: on the
+8 MiB test file, 80 wheel steps cost 1,022 ms of layout instead of 18 ms.
+Background, bar and text colour change only paint.
 
 Token values per theme. System uses Light or Dark, as the system does.
 
@@ -165,25 +175,69 @@ and the bar, a non-text mark, 3 to 1. `--accent-500` is not used for the bar
 because it is the same blue in every theme and falls to about 2 to 1 in the
 three dark themes.
 
-Behaviour, matched to LeanDoc's `updateOutlineCurrent`:
+Behaviour, matched to LeanDoc's `updateOutlineCurrent`. The code is in
+assets/reader.js: `updateOutlineCurrent`, `setOutlineCurrent`,
+`keepOutlineEntryInView`, `pinOutline` and `handleScroll`.
 
 - The reading line is the bottom of the toolbar plus 25% of the height below
   it, and at least 48 px.
 - The current entry is the last one whose heading top is at or above the
-  line. When none is, or the page is at the top, it is the first entry.
+  line (a binary search over the headings). When none is, or the page is at
+  the top, it is the first entry. Exactly one entry is current.
 - After a click in the outline, the clicked entry stays current, even when
   its heading is too near the end to reach the line. It lets go once the
   page moves more than half a window height, or on wheel, touch, pointer
   or key input.
 - When the current entry changes and is outside the outline's visible part,
   the outline scrolls so the entry sits a third of the way down. The outline
-  does not move otherwise.
-- At most one update per frame, from the scroll event.
+  does not move otherwise. When the outline column appears again (a wider
+  window, a lower zoom), its current entry is brought into view the same
+  way. Under document zoom, the outline's own size converts between screen
+  pixels and its scroll position.
+- While the outline is hidden (narrow window), the current section is still
+  tracked.
+- Updates run at most once per frame, from the scroll event.
+- Stale highlight after a jump: the current section is computed once more
+  120 ms after the last scroll event (on the next frame). Layout that
+  settles just after a long jump moves headings without another scroll
+  event; in LeanDoc that is `content-visibility: auto`. LeanMark does not
+  use `content-visibility`, but its images load lazily and Mermaid diagrams
+  draw after the page, which can move headings at any time with no scroll
+  at all. So LeanMark also computes it again when the article's size
+  changes (a `ResizeObserver` on the article). Both are tested: content that
+  grows after a jump with no scroll event, and a shift just after scrolling
+  that leaves the size alone.
+- A new document starts with its first entry current.
 
 ## Measured numbers
 
 Main (0.6.0 code), from the review above. Later rows are added with each
 merge.
+
+Step 3, the highlight, against main, measured the same way on both:
+
+| What | Main | Branch | Where it came from |
+| --- | ---: | ---: | --- |
+| Windows, simple.md, document ready, median of 8 | 578.0 ms | 574.0 ms | launch-time run 41987604628 |
+| Windows, showcase.md, document ready, median of 8 | 760.8 ms | 745.0 ms | same run |
+| Windows, 8 MiB file, peak working set, median of 3 | 1,759.9 MiB | 1,761.4 MiB | same run |
+| Windows, 8 MiB file, peak private, median of 3 | 1,575.0 MiB | 1,575.3 MiB | same run |
+| Windows LeanMark.exe | 457,216 bytes | 457,216 bytes | same run |
+| Windows files in dist | 4,439,728 bytes | 4,446,204 bytes | same run |
+| Linux, simple.md, start to smoke-test exit, median of 20 | 515.6 ms | 518.6 ms | local, Release, Xvfb |
+| Linux, 8 MiB file, peak PSS in 30 s, median of 3 | 1,414.9 MiB | 1,410.8 MiB | local, Release, Xvfb |
+| Linux binary, stripped | 338,224 bytes | 342,320 bytes | local |
+| Reader, 8 MiB file, 80 wheel steps: script | 21.3 ms | 51.3 ms | local, headless Chrome, median of 3 |
+| Same: layout | 17.3 ms | 17.3 ms | same |
+| Same: style | 18.0 ms | 65.0 ms | same |
+| reader.js, bytes and gzip | 72,002 / 17,466 | 77,696 / 19,080 | |
+| reader.css, bytes and gzip | 30,590 / 7,265 | 31,372 / 7,514 | |
+
+The scroll rows are higher because the highlight is new work: a binary
+search over 11,410 headings each frame, and a style pass each time the
+current entry moves. It adds about 1 ms of main-thread time per wheel step on
+this file, which has a far longer outline than real documents. Without the
+attribute change (tried, not kept) style time is 18.8 ms, as on main.
 
 | What | Main | Where it came from |
 | --- | ---: | --- |
