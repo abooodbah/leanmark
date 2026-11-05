@@ -21,6 +21,133 @@ NSString *const LMThemePreferenceKey = @"LeanMarkTheme";
 NSString *const LMZoomPreferenceKey = @"LeanMarkZoom";
 NSString *const LMTextWidthPreferenceKey = @"LeanMarkTextWidth";
 
+// The outline highlight on this engine: the first entry is current at the
+// top, a heading just above the reading line makes its entry current, the
+// current entry stays in view at the end, and its colours come from each
+// theme's tokens. The page is zoomed out just enough for the outline column
+// to show. Each call does one step and returns "pending", "none", "ok", or
+// "failed: ...". The Linux host runs the same steps; keep the two in step.
+constexpr char kOutlineProbe[] = R"JS(
+window.__leanmarkOutlineProbe = window.__leanmarkOutlineProbe || (function () {
+  var step = 0;
+  var chosen = 0;
+  var zoom = 100;
+  var result = "";
+  // A slow runner can take a few frames to update the page, so each step
+  // waits up to 15 polls for its condition before it fails.
+  var waited = 0;
+  function retry(message) {
+    waited += 1;
+    return waited > 15 ? finish(message) : "pending";
+  }
+  function links() {
+    return Array.prototype.slice.call(document.querySelectorAll("#outlineList a"));
+  }
+  function current() {
+    return links().filter(function (link) {
+      return link.getAttribute("aria-current") === "location";
+    });
+  }
+  function readingLine() {
+    var top = document.querySelector(".chrome").getBoundingClientRect().bottom;
+    return top + Math.max(48, (window.innerHeight - top) * 0.25);
+  }
+  function heading(link) {
+    return document.getElementById(
+      decodeURIComponent(link.getAttribute("href").slice(1)));
+  }
+  function finish(outcome) {
+    window.LeanMarkHost.receive({ type: "zoom", percent: zoom });
+    window.scrollTo(0, 0);
+    result = outcome;
+    return result;
+  }
+  return function () {
+    if (result) {
+      return result;
+    }
+    var all = links();
+    if (all.length < 2) {
+      result = "none";
+      return result;
+    }
+    var now = current();
+    if (step === 0) {
+      zoom = Number(document.documentElement.dataset.zoom) || 100;
+      window.LeanMarkHost.receive({ type: "zoom",
+        percent: Math.min(100, Math.floor(window.innerWidth / 1200 * 100)) });
+      window.scrollTo(0, 0);
+      step = 1;
+      return "pending";
+    }
+    if (step === 1) {
+      if (getComputedStyle(document.getElementById("outline")).display === "none") {
+        return retry("failed: the outline is not shown");
+      }
+      if (now.length !== 1 || now[0] !== all[0]) {
+        return retry("failed: the first entry is not current at the top");
+      }
+      waited = 0;
+      chosen = Math.floor(all.length / 2);
+      window.scrollBy(0,
+        heading(all[chosen]).getBoundingClientRect().top - (readingLine() - 4));
+      step = 2;
+      return "pending";
+    }
+    if (step === 2) {
+      if (now.length !== 1 || now[0] !== all[chosen]) {
+        return retry("failed: entry " + chosen + " is not current after scrolling to it");
+      }
+      // An outline taller than its column brings the entry a third of the way down.
+      var outline = document.getElementById("outline");
+      var frame = outline.getBoundingClientRect();
+      var offset = now[0].getBoundingClientRect().top - frame.top;
+      if (outline.scrollTop > 0 && Math.abs(offset - frame.height / 3) > 6) {
+        return retry("failed: entry " + chosen + " sits " + Math.round(offset) +
+          " px down the outline, not a third of " + Math.round(frame.height));
+      }
+      waited = 0;
+      window.scrollTo(0, document.documentElement.scrollHeight);
+      step = 3;
+      return "pending";
+    }
+    var box = document.getElementById("outline").getBoundingClientRect();
+    var rect = now.length === 1 ? now[0].getBoundingClientRect() : null;
+    if (!rect || rect.top < box.top - 1 || rect.bottom > box.bottom + 1) {
+      return retry("failed: the current entry is not kept in view at the end");
+    }
+    var root = document.documentElement;
+    var saved = root.getAttribute("data-theme");
+    var sample = document.createElement("span");
+    sample.style.cssText = "color: var(--text-primary); " +
+      "background-color: var(--surface-muted); border-left: 2px solid var(--link)";
+    now[0].parentNode.appendChild(sample);
+    var wrong = ["system", "light", "dark", "dim", "dusk"].filter(function (theme) {
+      if (theme === "system") {
+        root.removeAttribute("data-theme");
+      } else {
+        root.setAttribute("data-theme", theme);
+      }
+      var link = getComputedStyle(now[0]);
+      var tokens = getComputedStyle(sample);
+      return link.color !== tokens.color ||
+        link.backgroundColor !== tokens.backgroundColor ||
+        link.boxShadow.indexOf(tokens.borderLeftColor) < 0 ||
+        Number(link.fontWeight) !== 400;
+    });
+    sample.remove();
+    if (saved === null) {
+      root.removeAttribute("data-theme");
+    } else {
+      root.setAttribute("data-theme", saved);
+    }
+    return finish(wrong.length
+      ? "failed: the highlight look is wrong in " + wrong.join(", ")
+      : "ok");
+  };
+}());
+)JS";
+
 BOOL StringContainsNUL(NSString *value) {
     const unichar nul = 0;
     NSString *needle = [NSString stringWithCharacters:&nul length:1];
@@ -633,10 +760,13 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
             completion:(void (^)(BOOL success, NSString *detail))completion {
     // Once the page is ready, a document with a figure also has it expanded
     // and closed again: the viewer must fit it and put it back.
-    NSString *script =
+    // The outline check runs first, a step per poll, and puts the zoom back
+    // when it is done; the other checks wait for it.
+    NSString *script = [@(kOutlineProbe) stringByAppendingString:
         @"(function(){var root=document.documentElement;var article=document.getElementById('article');"
          @"var ready=root.dataset.renderState==='ready';var viewer='none';"
-         @"if(ready&&document.querySelector('#article .figure-frame[data-expandable]')){"
+         @"var outline=ready?window.__leanmarkOutlineProbe():'pending';"
+         @"if(ready&&outline!=='pending'&&document.querySelector('#article .figure-frame[data-expandable]')){"
          @"var opened=window.LeanMarkTest.openViewer(0);var s=window.LeanMarkTest.viewerState();"
          @"var moved=!!document.querySelector('#viewerCanvas > svg, #viewerCanvas > img');"
          @"document.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true,cancelable:true}));"
@@ -644,7 +774,7 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
          @"!document.querySelector('.viewer-placeholder'))?'ok':'failed';}"
          @"return {state:root.dataset.renderState||'', zoom:root.dataset.zoom||'', bridge:!!(window.LeanMarkHost&&window.LeanMarkHost.receive),"
          @"content:!!(article&&article.textContent.trim().length), remote:Array.from(document.images).some(function(i){return /^https?:/i.test(i.src);}),"
-         @"viewer:viewer};}())";
+         @"viewer:viewer, outline:outline};}())"];
     [_webView evaluateJavaScript:script completionHandler:^(id result, NSError *error) {
       NSDictionary *values = [result isKindOfClass:NSDictionary.class] ? result : nil;
       BOOL ready = [values[@"state"] isEqualToString:@"ready"];
@@ -652,6 +782,22 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
       BOOL content = [values[@"content"] boolValue];
       BOOL remote = [values[@"remote"] boolValue];
       NSString *viewer = values[@"viewer"];
+      NSString *outline = values[@"outline"];
+      if (ready && [outline isEqualToString:@"pending"]) {
+          if (NSProcessInfo.processInfo.systemUptime >= deadline) {
+              completion(NO, @"the outline check did not finish");
+              return;
+          }
+          dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.2 * NSEC_PER_SEC)),
+                         dispatch_get_main_queue(), ^{
+            [self pollSmokeUntil:deadline completion:completion];
+          });
+          return;
+      }
+      if ([outline hasPrefix:@"failed"]) {
+          completion(NO, [@"outline: " stringByAppendingString:outline]);
+          return;
+      }
       // Zoom is the page's job: the web view stays at 100% and the page
       // shows the saved level.
       NSString *expectedZoom =
@@ -668,9 +814,12 @@ NSString *StringFromUTF8(const std::string &value, NSString *fallback) {
           return;
       }
       if (error == nil && ready && bridge && content && !remote) {
-          completion(YES, [viewer isEqualToString:@"ok"]
+          NSString *detail = [viewer isEqualToString:@"ok"]
               ? @"reader ready, bridge active, content rendered, remote images absent, figure viewer works"
-              : @"reader ready, bridge active, content rendered, remote images absent");
+              : @"reader ready, bridge active, content rendered, remote images absent";
+          completion(YES, [outline isEqualToString:@"ok"]
+              ? [detail stringByAppendingString:@", outline highlight works"]
+              : detail);
           return;
       }
       if (NSProcessInfo.processInfo.systemUptime >= deadline) {

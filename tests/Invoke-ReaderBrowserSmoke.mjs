@@ -1368,6 +1368,389 @@ async function run() {
     await deliver({ type: "theme", value: "system" });
     await deliver({ type: "width", value: "narrow" });
 
+    // "On this page" follows the reader (0.7.0), as LeanDoc's outline does.
+    // The entry for the section being read has aria-current="location": the
+    // last heading at or above the reading line, which is the toolbar's bottom
+    // plus a quarter of the height below it, and at least 48 px. The look is
+    // the contract in PROGRESS.md that LeanDoc and the Android apps copy.
+    const OUTLINE_SECTIONS = 80;
+    const outlineDocument = ["<h1>Outline fixture</h1>", "<p>Before the first part.</p>"];
+    for (let index = 1; index <= OUTLINE_SECTIONS; index += 1) {
+      const tag = index % 4 === 0 ? "h3" : "h2";
+      outlineDocument.push("<" + tag + ">Part " + index + "</" + tag + ">");
+      const paragraphs = index === OUTLINE_SECTIONS ? 1 : 2 + (index % 3);
+      for (let count = 0; count < paragraphs; count += 1) {
+        outlineDocument.push("<p>" + ("Words for part " + index + ". ").repeat(24) + "</p>");
+      }
+    }
+    const frames = () => client.evaluate("new Promise(function (done) { " +
+      "requestAnimationFrame(function () { requestAnimationFrame(function () { done(true); }); }); })");
+    const showOutlineDocument = async (path = "/fixtures/outline.md") => {
+      await deliver({
+        type: "document", tabId: 1, theme: "light", fileName: "outline.md", path,
+        documentBaseUrl: "", sourceBytes: 50000, hasMermaid: false,
+        html: outlineDocument.join("\n"),
+      });
+      await waitFor(client, 'document.documentElement.dataset.renderState === "ready"',
+        "the outline document");
+      await frames();
+    };
+    const OUTLINE = `(function () {
+      var links = Array.from(document.querySelectorAll("#outlineList a"));
+      var outline = document.getElementById("outline");
+      var box = outline.getBoundingClientRect();
+      var currents = links.filter(function (link) {
+        return link.getAttribute("aria-current") === "location";
+      });
+      var chrome = document.querySelector(".chrome").getBoundingClientRect().bottom;
+      var line = chrome + Math.max(48, (innerHeight - chrome) * 0.25);
+      var expected = 0;
+      links.forEach(function (link, index) {
+        var heading = document.getElementById(decodeURIComponent(link.getAttribute("href").slice(1)));
+        if (heading.getBoundingClientRect().top <= line) { expected = index; }
+      });
+      if (scrollY <= 1) { expected = 0; }
+      var rect = currents.length === 1 ? currents[0].getBoundingClientRect() : null;
+      return {
+        count: links.length,
+        currents: currents.map(function (link) { return links.indexOf(link); }),
+        expected: expected,
+        visible: getComputedStyle(outline).display !== "none",
+        inView: !!rect && rect.top >= box.top - 1 && rect.bottom <= box.bottom + 1,
+        offset: rect ? Math.round(rect.top - box.top) : null,
+        boxHeight: Math.round(box.height),
+        outlineScroll: outline.scrollTop,
+        scrollable: outline.scrollHeight > outline.clientHeight + 1
+      };
+    }())`;
+    const placeHeading = async (index, offset) => {
+      await client.evaluate(`(function () {
+        var link = document.querySelectorAll("#outlineList a")[${index}];
+        var heading = document.getElementById(decodeURIComponent(link.getAttribute("href").slice(1)));
+        var chrome = document.querySelector(".chrome").getBoundingClientRect().bottom;
+        var line = chrome + Math.max(48, (innerHeight - chrome) * 0.25);
+        window.scrollBy(0, heading.getBoundingClientRect().top - (line + ${offset}));
+        return true;
+      }())`);
+      await frames();
+      return client.evaluate(OUTLINE);
+    };
+    const only = (state, index) => JSON.stringify(state.currents) === JSON.stringify([index]);
+
+    await setViewport(1200);
+    await showOutlineDocument();
+    let outlineState = await client.evaluate(OUTLINE);
+    check(outlineState.visible && outlineState.count === OUTLINE_SECTIONS && outlineState.scrollable,
+      "the long document has an outline taller than its column " + JSON.stringify(outlineState));
+    check(only(outlineState, 0),
+      "at the top the first entry is the current section " + JSON.stringify(outlineState.currents));
+    outlineState = await placeHeading(1, -4);
+    check(only(outlineState, 1) && outlineState.outlineScroll === 0,
+      "a heading just above the reading line makes its entry current, and the outline " +
+      "stays put while that entry is in view " + JSON.stringify(outlineState));
+    outlineState = await placeHeading(10, -4);
+    check(only(outlineState, 10), "scrolling on moves the highlight to entry 10 " +
+      JSON.stringify(outlineState.currents));
+    outlineState = await placeHeading(10, 4);
+    check(only(outlineState, 9),
+      "a heading just below the reading line leaves the entry before it current " +
+      JSON.stringify(outlineState.currents));
+
+    // At the top of the page the first entry is current, even when the next
+    // heading is already above the reading line.
+    await deliver({
+      type: "document", tabId: 1, theme: "light", fileName: "top.md",
+      path: "/fixtures/top.md", documentBaseUrl: "", sourceBytes: 50000,
+      hasMermaid: false, html: "<h2>Alpha</h2>\n<h2>Beta</h2>\n" +
+        outlineDocument.slice(2).join("\n"),
+    });
+    await waitFor(client, 'document.documentElement.dataset.renderState === "ready"',
+      "the document with two headings at the top");
+    await frames();
+    outlineState = await client.evaluate(OUTLINE);
+    check(only(outlineState, 0),
+      "at the top the first entry is current although the second heading is above the line " +
+      JSON.stringify(outlineState.currents));
+    await showOutlineDocument();
+
+    // Layout that changes after a jump moves the headings without a scroll
+    // event, as an image or a diagram does when it finishes loading. The
+    // highlight follows the new layout. Scroll anchoring is off here so the
+    // browser does not answer the change with a scroll of its own.
+    await client.evaluate('document.documentElement.style.overflowAnchor = "none"; true');
+    outlineState = await placeHeading(30, -4);
+    const beforeShift = outlineState.currents;
+    // Past the settle pass below, so only the size change can catch this.
+    await delay(300);
+    const growAbove = (padding) => client.evaluate(`(function () {
+      var link = document.querySelectorAll("#outlineList a")[30];
+      var heading = document.getElementById(decodeURIComponent(link.getAttribute("href").slice(1)));
+      heading.previousElementSibling.style.paddingBottom = ${JSON.stringify(padding)};
+      window.__scrolled = false;
+      window.addEventListener("scroll", function () { window.__scrolled = true; }, { once: true });
+      return true;
+    }())`);
+    await growAbove("60px");
+    await frames();
+    await frames();
+    outlineState = await client.evaluate(OUTLINE);
+    const shiftScrolled = await client.evaluate("window.__scrolled");
+    check(JSON.stringify(beforeShift) === "[30]" && !shiftScrolled && outlineState.expected === 29 &&
+      only(outlineState, 29),
+      "content that grows above a heading after a jump moves the highlight back, with no " +
+      "scroll event " + JSON.stringify({ before: beforeShift, after: outlineState.currents,
+        scrolled: shiftScrolled }));
+    await growAbove("");
+    await frames();
+    await frames();
+    outlineState = await client.evaluate(OUTLINE);
+    check(only(outlineState, 30) && !(await client.evaluate("window.__scrolled")),
+      "and forward again when it shrinks " + JSON.stringify(outlineState.currents));
+    // A shift just after scrolling that leaves the document's size alone, as
+    // late layout in the part that just came into view can: the current
+    // section is computed once more after scrolling stops.
+    await client.evaluate("window.scrollTo(0, 0); true");
+    await delay(300);
+    outlineState = await placeHeading(30, -4);
+    const beforeSettle = outlineState.currents;
+    await client.evaluate(`(function () {
+      var links = document.querySelectorAll("#outlineList a");
+      var heading = function (index) {
+        return document.getElementById(decodeURIComponent(links[index].getAttribute("href").slice(1)));
+      };
+      var above = heading(30).previousElementSibling;
+      var below = heading(31).previousElementSibling;
+      above.style.paddingBottom = "60px";
+      below.style.overflow = "hidden";
+      below.style.height = (below.getBoundingClientRect().height - 60) + "px";
+      return true;
+    }())`);
+    await delay(300);
+    await frames();
+    outlineState = await client.evaluate(OUTLINE);
+    check(JSON.stringify(beforeSettle) === "[30]" && outlineState.expected === 29 &&
+      only(outlineState, 29),
+      "a shift just after scrolling is picked up once scrolling stops " +
+      JSON.stringify({ before: beforeSettle, after: outlineState.currents }));
+    await client.evaluate(`(function () {
+      document.querySelectorAll("#article p[style]").forEach(function (node) {
+        node.removeAttribute("style");
+      });
+      document.documentElement.style.overflowAnchor = "";
+      return true;
+    }())`);
+    await frames();
+
+    // On a short window the line is still 48 px below the toolbar.
+    await setViewport(1200, 200);
+    outlineState = await placeHeading(20, -4);
+    const shortAbove = outlineState.currents;
+    outlineState = await placeHeading(20, 4);
+    check(JSON.stringify(shortAbove) === "[20]" && only(outlineState, 19),
+      "on a short window the reading line is 48 px below the toolbar " +
+      JSON.stringify([shortAbove, outlineState.currents]));
+    await setViewport(1200);
+
+    // The current entry is kept in view when the outline is taller than its
+    // column, a third of the way down, and the outline moves only for that.
+    await client.evaluate("window.scrollTo(0, 0); true");
+    await frames();
+    outlineState = await placeHeading(40, -4);
+    check(only(outlineState, 40) && outlineState.inView && outlineState.outlineScroll > 0 &&
+      Math.abs(outlineState.offset - outlineState.boxHeight / 3) < 4,
+      "an entry outside the outline's visible part is scrolled to a third of the way down " +
+      JSON.stringify(outlineState));
+    const keptAt = outlineState.outlineScroll;
+    outlineState = await placeHeading(41, -4);
+    check(only(outlineState, 41) && outlineState.outlineScroll === keptAt,
+      "the next entry, already in view, leaves the outline where it is " +
+      JSON.stringify(outlineState));
+    await client.evaluate("window.scrollTo(0, 0); true");
+    await frames();
+    outlineState = await client.evaluate(OUTLINE);
+    check(only(outlineState, 0) && outlineState.inView && outlineState.outlineScroll === 0,
+      "back at the top the first entry is current and shown again " + JSON.stringify(outlineState));
+
+    // Real wheel input.
+    for (let step = 0; step < 6; step += 1) {
+      await client.send("Input.dispatchMouseEvent", {
+        type: "mouseWheel", x: 600, y: 500, deltaX: 0, deltaY: 500,
+      });
+    }
+    await delay(600);
+    await frames();
+    outlineState = await client.evaluate(OUTLINE);
+    check(outlineState.currents.length === 1 && outlineState.expected > 0 &&
+      outlineState.currents[0] === outlineState.expected && outlineState.inView,
+      "the wheel moves the highlight with the page " + JSON.stringify(outlineState));
+
+    // A click in the outline keeps its entry current, even when its heading is
+    // too near the end to reach the reading line, until the page moves on.
+    const last = OUTLINE_SECTIONS - 1;
+    await clickSelector(client, "#outlineList li:last-child a");
+    await delay(150);
+    await frames();
+    outlineState = await client.evaluate(OUTLINE);
+    check(only(outlineState, last) && outlineState.expected < last && outlineState.inView,
+      "clicking the last entry makes it current though its heading cannot reach the line " +
+      JSON.stringify(outlineState));
+    await client.evaluate("window.scrollBy(0, -100); true");
+    await frames();
+    check(only(await client.evaluate(OUTLINE), last),
+      "a small move after the click keeps the clicked entry current");
+    await client.send("Input.dispatchMouseEvent", {
+      type: "mouseWheel", x: 600, y: 500, deltaX: 0, deltaY: -120,
+    });
+    await delay(600);
+    await frames();
+    outlineState = await client.evaluate(OUTLINE);
+    check(outlineState.currents.length === 1 && outlineState.expected < last &&
+      outlineState.currents[0] === outlineState.expected,
+      "the wheel lets go of the clicked entry " + JSON.stringify(outlineState));
+    await clickSelector(client, "#outlineList li:last-child a");
+    await delay(150);
+    await frames();
+    await client.evaluate("window.scrollBy(0, -(innerHeight / 2 + 40)); true");
+    await frames();
+    outlineState = await client.evaluate(OUTLINE);
+    check(outlineState.currents.length === 1 && outlineState.expected < last &&
+      outlineState.currents[0] === outlineState.expected,
+      "moving more than half a window after the click lets go of it " +
+      JSON.stringify(outlineState));
+
+    // Zoomed, the highlight follows the page and its entry is kept in view.
+    await setViewport(1800);
+    await deliver({ type: "zoom", percent: 125 });
+    await waitFor(client, 'document.getElementById("zoomIndicator").hidden',
+      "the zoom indicator to fade", 5);
+    await client.evaluate("window.scrollTo(0, 0); true");
+    await frames();
+    outlineState = await placeHeading(40, -4);
+    check(outlineState.visible && only(outlineState, 40) && outlineState.inView &&
+      Math.abs(outlineState.offset - outlineState.boxHeight / 3) < 5,
+      "at 125% the highlight follows the page and is kept a third of the way down " +
+      JSON.stringify(outlineState));
+    outlineState = await placeHeading(40, 4);
+    check(only(outlineState, 39), "at 125% the reading line is where it is at 100% " +
+      JSON.stringify(outlineState.currents));
+    await deliver({ type: "zoom", percent: 100 });
+    await waitFor(client, 'document.getElementById("zoomIndicator").hidden',
+      "the zoom indicator to fade", 5);
+
+    // A narrow window hides the outline; the current section is still tracked
+    // and shown as soon as the outline returns.
+    await setViewport(1000);
+    outlineState = await placeHeading(60, -4);
+    check(!outlineState.visible && only(outlineState, 60),
+      "with the outline hidden the current section is still tracked " +
+      JSON.stringify(outlineState));
+    await setViewport(1800);
+    await delay(100);
+    await frames();
+    outlineState = await client.evaluate(OUTLINE);
+    check(outlineState.visible && outlineState.currents.length === 1 &&
+      outlineState.currents[0] === outlineState.expected && outlineState.inView,
+      "when the outline returns its current entry is in view " + JSON.stringify(outlineState));
+    await setViewport(1200);
+
+    // The look in every theme. System is checked on a light and a dark system.
+    // The weight stays at 400: only paint changes, so the page is not laid
+    // out again when the current entry changes.
+    const LOOK = {
+      light: { background: "#f4f2ee", text: "#1a1917", bar: "#1d4ed8", other: "#5a554c" },
+      dark: { background: "#2b2924", text: "#faf9f7", bar: "#60a5fa", other: "#d5cfc3" },
+      dim: { background: "#2d3035", text: "#c8ccd2", bar: "#86aee6", other: "#9ea4ac" },
+      dusk: { background: "#322c25", text: "#d4c8b4", bar: "#e0a86e", other: "#a99c87" },
+    };
+    const HIGHLIGHT = `(function () {
+      var current = document.querySelector('#outlineList a[aria-current="location"]');
+      var other = document.querySelector('#outlineList a[data-level="2"]:not([aria-current])');
+      var level3 = document.querySelector('#outlineList a[data-level="3"]:not([aria-current])');
+      var label = document.querySelector("#outline .outline-label");
+      var a = getComputedStyle(current);
+      var b = getComputedStyle(other);
+      return {
+        color: a.color, background: a.backgroundColor, shadow: a.boxShadow,
+        weight: a.fontWeight, decoration: a.textDecorationLine,
+        padding: [a.paddingTop, a.paddingRight, a.paddingBottom, a.paddingLeft].join(" "),
+        radius: a.borderTopLeftRadius,
+        otherColor: b.color, otherBackground: b.backgroundColor, otherShadow: b.boxShadow,
+        otherWeight: b.fontWeight, otherPadding: b.paddingLeft,
+        level3Padding: getComputedStyle(level3).paddingLeft,
+        labelPadding: getComputedStyle(label).paddingLeft
+      };
+    }())`;
+    const rgbOf = (hex) => "rgb(" + parseColor(hex).join(", ") + ")";
+    const plainMotion = process.argv.includes("--reduced-motion")
+      ? [{ name: "prefers-reduced-motion", value: "reduce" }] : [];
+    outlineState = await placeHeading(1, -4);
+    check(only(outlineState, 1), "entry 1 is current for the look checks");
+    for (const [theme, shown, scheme] of [["light", "light", "light"], ["dark", "dark", "light"],
+      ["dim", "dim", "light"], ["dusk", "dusk", "light"], ["system", "light", "light"],
+      ["system", "dark", "dark"], ["dim", "dim", "dark"], ["dusk", "dusk", "dark"]]) {
+      await client.send("Emulation.setEmulatedMedia", {
+        features: [{ name: "prefers-color-scheme", value: scheme }].concat(plainMotion),
+      });
+      await deliver({ type: "theme", value: theme });
+      await frames();
+      const look = await client.evaluate(HIGHLIGHT);
+      const want = LOOK[shown];
+      const label = theme + " on a " + scheme + " system";
+      check(same(look.color, want.text) && same(look.background, want.background) &&
+        look.shadow.indexOf(rgbOf(want.bar)) === 0 && / 2px 0px 0px 0px inset$/.test(look.shadow) &&
+        Number(look.weight) === 400,
+        "in " + label + " the current entry has the theme's highlight " + JSON.stringify(look));
+      check(same(look.otherColor, want.other) && look.otherBackground === "rgba(0, 0, 0, 0)" &&
+        look.otherShadow === "none" && Number(look.otherWeight) === 400,
+        "in " + label + " the other entries keep the plain look");
+      check(contrast(look.color, look.background) >= 4.5 &&
+        contrast(rgbOf(want.bar), look.background) >= 3,
+        "in " + label + " the highlight text is at least 4.5:1 and its bar at least 3:1 (" +
+        contrast(look.color, look.background).toFixed(2) + ", " +
+        contrast(rgbOf(want.bar), look.background).toFixed(2) + ")");
+    }
+    const geometry = await client.evaluate(HIGHLIGHT);
+    check(geometry.padding === "5px 8px 5px 12px" && geometry.radius === "4px" &&
+      geometry.otherPadding === "12px" && geometry.level3Padding === "28px" &&
+      geometry.labelPadding === "12px",
+      "outline entries leave 12 px for the bar, level 3 is indented to 28 px, and the label " +
+      "lines up " + JSON.stringify(geometry));
+    await client.send("Emulation.setEmulatedMedia", {
+      features: [{ name: "forced-colors", value: "active" }].concat(plainMotion),
+    });
+    const forced = await client.evaluate(HIGHLIGHT);
+    check(/underline/.test(forced.decoration),
+      "with forced colours the current entry is underlined " + JSON.stringify(forced.decoration));
+    await client.send("Emulation.setEmulatedMedia", { features: plainMotion });
+    await deliver({ type: "theme", value: "system" });
+
+    // Find moves the page, and the highlight follows it.
+    await client.evaluate(
+      'var input = document.getElementById("findInput"); input.focus(); ' +
+      'input.value = "part 60."; input.dispatchEvent(new Event("input")); true');
+    await press(client, "Enter");
+    await frames();
+    outlineState = await client.evaluate(OUTLINE);
+    check(outlineState.currents.length === 1 && outlineState.expected >= 50 &&
+      outlineState.currents[0] === outlineState.expected,
+      "a find result moves the highlight with the page " + JSON.stringify(outlineState.currents));
+    await press(client, "Escape");
+
+    // A newly opened document starts with its first entry current, and only one.
+    await deliver({
+      type: "document", tabId: 1, theme: "light", fileName: "themes.md",
+      path: "/fixtures/themes.md", documentBaseUrl: "", sourceBytes: 900,
+      hasMermaid: true, html: THEME_DOCUMENT_HTML,
+    });
+    await waitFor(client, 'document.documentElement.dataset.renderState === "ready" && ' +
+      '!!document.querySelector("#article figure.diagram svg")', "the theme document");
+    await frames();
+    outlineState = await client.evaluate(OUTLINE);
+    check(outlineState.count === 4 && only(outlineState, 0),
+      "a newly opened document starts with its first entry current " +
+      JSON.stringify(outlineState));
+    await deliver({ type: "theme", value: "system" });
+
     // The diagram cap leaves diagrams past the fiftieth unrendered.
     const many = [];
     for (let index = 0; index < 51; index += 1) {

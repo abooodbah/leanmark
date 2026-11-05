@@ -644,6 +644,10 @@ void LinuxApp::HandleMessage(std::string_view message) {
         CompleteSmoke(false, "Reader DOM did not reach the expected ready state.");
         return;
     }
+    if (StartsWithInsensitive(message, "smoke-failed|") && smokeTest_) {
+        CompleteSmoke(false, message.substr(13));
+        return;
+    }
     if (StartsWithInsensitive(message, "open-link|")) {
         HandleLink(message.substr(10));
         return;
@@ -949,6 +953,139 @@ void LinuxApp::StartSmokeProbe() {
       window.setTimeout(wait, 100);
     }());
   }
+  // The outline highlight on this engine: the first entry is current at the
+  // top, a heading just above the reading line makes its entry current, the
+  // current entry stays in view at the end, and its colours come from each
+  // theme's tokens. The page is zoomed out just enough for the outline column
+  // to show. The macOS host runs the same steps; keep the two in step.
+  window.__leanmarkOutlineProbe = window.__leanmarkOutlineProbe || (function () {
+    var step = 0;
+    var chosen = 0;
+    var zoom = 100;
+    var result = "";
+    // A slow runner can take a few frames to update the page, so each step
+    // waits up to 15 polls for its condition before it fails.
+    var waited = 0;
+    function retry(message) {
+      waited += 1;
+      return waited > 15 ? finish(message) : "pending";
+    }
+    function links() {
+      return Array.prototype.slice.call(document.querySelectorAll("#outlineList a"));
+    }
+    function current() {
+      return links().filter(function (link) {
+        return link.getAttribute("aria-current") === "location";
+      });
+    }
+    function readingLine() {
+      var top = document.querySelector(".chrome").getBoundingClientRect().bottom;
+      return top + Math.max(48, (window.innerHeight - top) * 0.25);
+    }
+    function heading(link) {
+      return document.getElementById(
+        decodeURIComponent(link.getAttribute("href").slice(1)));
+    }
+    function finish(outcome) {
+      window.LeanMarkHost.receive({ type: "zoom", percent: zoom });
+      window.scrollTo(0, 0);
+      result = outcome;
+      return result;
+    }
+    return function () {
+      if (result) {
+        return result;
+      }
+      var all = links();
+      if (all.length < 2) {
+        result = "none";
+        return result;
+      }
+      var now = current();
+      if (step === 0) {
+        zoom = Number(document.documentElement.dataset.zoom) || 100;
+        window.LeanMarkHost.receive({ type: "zoom",
+          percent: Math.min(100, Math.floor(window.innerWidth / 1200 * 100)) });
+        window.scrollTo(0, 0);
+        step = 1;
+        return "pending";
+      }
+      if (step === 1) {
+        if (getComputedStyle(document.getElementById("outline")).display === "none") {
+          return retry("failed: the outline is not shown");
+        }
+        if (now.length !== 1 || now[0] !== all[0]) {
+          return retry("failed: the first entry is not current at the top");
+        }
+        waited = 0;
+        chosen = Math.floor(all.length / 2);
+        window.scrollBy(0,
+          heading(all[chosen]).getBoundingClientRect().top - (readingLine() - 4));
+        step = 2;
+        return "pending";
+      }
+      if (step === 2) {
+        if (now.length !== 1 || now[0] !== all[chosen]) {
+          return retry("failed: entry " + chosen + " is not current after scrolling to it");
+        }
+        // An outline taller than its column brings the entry a third of the way down.
+        var outline = document.getElementById("outline");
+        var frame = outline.getBoundingClientRect();
+        var offset = now[0].getBoundingClientRect().top - frame.top;
+        if (outline.scrollTop > 0 && Math.abs(offset - frame.height / 3) > 6) {
+          return retry("failed: entry " + chosen + " sits " + Math.round(offset) +
+            " px down the outline, not a third of " + Math.round(frame.height));
+        }
+        waited = 0;
+        window.scrollTo(0, document.documentElement.scrollHeight);
+        step = 3;
+        return "pending";
+      }
+      var box = document.getElementById("outline").getBoundingClientRect();
+      var rect = now.length === 1 ? now[0].getBoundingClientRect() : null;
+      if (!rect || rect.top < box.top - 1 || rect.bottom > box.bottom + 1) {
+        return retry("failed: the current entry is not kept in view at the end");
+      }
+      var root = document.documentElement;
+      var saved = root.getAttribute("data-theme");
+      var sample = document.createElement("span");
+      sample.style.cssText = "color: var(--text-primary); " +
+        "background-color: var(--surface-muted); border-left: 2px solid var(--link)";
+      now[0].parentNode.appendChild(sample);
+      var wrong = ["system", "light", "dark", "dim", "dusk"].filter(function (theme) {
+        if (theme === "system") {
+          root.removeAttribute("data-theme");
+        } else {
+          root.setAttribute("data-theme", theme);
+        }
+        var link = getComputedStyle(now[0]);
+        var tokens = getComputedStyle(sample);
+        return link.color !== tokens.color ||
+          link.backgroundColor !== tokens.backgroundColor ||
+          link.boxShadow.indexOf(tokens.borderLeftColor) < 0 ||
+          Number(link.fontWeight) !== 400;
+      });
+      sample.remove();
+      if (saved === null) {
+        root.removeAttribute("data-theme");
+      } else {
+        root.setAttribute("data-theme", saved);
+      }
+      return finish(wrong.length
+        ? "failed: the highlight look is wrong in " + wrong.join(", ")
+        : "ok");
+    };
+  }());
+  function outlineWorks(done) {
+    (function next() {
+      var state = window.__leanmarkOutlineProbe();
+      if (state === "pending") {
+        window.setTimeout(next, 150);
+        return;
+      }
+      done(state === "ok" || state === "none", state);
+    }());
+  }
   function inspect() {
     attempts += 1;
     var ready = document.documentElement.dataset.renderState === "ready";
@@ -958,8 +1095,14 @@ void LinuxApp::StartSmokeProbe() {
         return;
       }
       settingsWork(function (ok) {
-        window.webkit.messageHandlers.leanmark.postMessage(
-          ok ? "smoke-ok" : "smoke-failed");
+        if (!ok) {
+          window.webkit.messageHandlers.leanmark.postMessage("smoke-failed");
+          return;
+        }
+        outlineWorks(function (outlineOk, state) {
+          window.webkit.messageHandlers.leanmark.postMessage(
+            outlineOk ? "smoke-ok" : "smoke-failed|Outline: " + state);
+        });
       });
       return;
     }
