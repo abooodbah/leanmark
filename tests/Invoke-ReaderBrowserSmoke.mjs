@@ -1456,6 +1456,23 @@ async function run() {
       "a heading just below the reading line leaves the entry before it current " +
       JSON.stringify(outlineState.currents));
 
+    // At the top of the page the first entry is current, even when the next
+    // heading is already above the reading line.
+    await deliver({
+      type: "document", tabId: 1, theme: "light", fileName: "top.md",
+      path: "/fixtures/top.md", documentBaseUrl: "", sourceBytes: 50000,
+      hasMermaid: false, html: "<h2>Alpha</h2>\n<h2>Beta</h2>\n" +
+        outlineDocument.slice(2).join("\n"),
+    });
+    await waitFor(client, 'document.documentElement.dataset.renderState === "ready"',
+      "the document with two headings at the top");
+    await frames();
+    outlineState = await client.evaluate(OUTLINE);
+    check(only(outlineState, 0),
+      "at the top the first entry is current although the second heading is above the line " +
+      JSON.stringify(outlineState.currents));
+    await showOutlineDocument();
+
     // Layout that changes after a jump moves the headings without a scroll
     // event, as an image or a diagram does when it finishes loading. The
     // highlight follows the new layout. Scroll anchoring is off here so the

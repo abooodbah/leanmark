@@ -1020,6 +1020,14 @@ void LinuxApp::StartSmokeProbe() {
         if (now.length !== 1 || now[0] !== all[chosen]) {
           return finish("failed: entry " + chosen + " is not current after scrolling to it");
         }
+        // An outline taller than its column brings the entry a third of the way down.
+        var outline = document.getElementById("outline");
+        var frame = outline.getBoundingClientRect();
+        var offset = now[0].getBoundingClientRect().top - frame.top;
+        if (outline.scrollTop > 0 && Math.abs(offset - frame.height / 3) > 6) {
+          return finish("failed: entry " + chosen + " sits " + Math.round(offset) +
+            " px down the outline, not a third of " + Math.round(frame.height));
+        }
         window.scrollTo(0, document.documentElement.scrollHeight);
         step = 3;
         return "pending";
