@@ -1,10 +1,12 @@
 name: Compare launch time
 
 # Times release tags and this branch to a rendered document on one Windows
-# runner, taking turns launch by launch. Each tag is rebuilt from source with
-# this branch's test DevTools hook, the only change, so every build is timed
-# the same way. Run it from the Actions tab; the median table appears on the
-# run's summary page.
+# runner, taking turns launch by launch. Each tag is rebuilt from source. A tag
+# from before v0.4.2 gets this branch's test DevTools hook, the only change;
+# later tags already have it and are built as they are. So every build is
+# timed the same way. The same run measures each build's peak memory with a
+# generated 8 MiB document and the size of its files. Run it from the Actions
+# tab; the tables appear on the run's summary page.
 
 on:
   workflow_dispatch:
@@ -12,7 +14,7 @@ on:
       releases:
         description: Release tags to compare, separated by spaces
         required: true
-        default: v0.3.0 v0.4.0
+        default: v0.6.0
         type: string
       iterations:
         description: Measured launches per build and document
@@ -27,7 +29,7 @@ jobs:
   compare:
     name: Windows x64 launch time
     runs-on: windows-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Check out source
@@ -48,10 +50,10 @@ jobs:
         shell: pwsh
         run: ./scripts/build.ps1 -Configuration Release -Platform x64
 
-      - name: Build the release tags with the test hook
+      - name: Build the release tags
         shell: pwsh
         env:
-          LEANMARK_RELEASES: ${{ inputs.releases || 'v0.3.0 v0.4.0' }}
+          LEANMARK_RELEASES: ${{ inputs.releases || 'v0.6.0' }}
         run: |
           $app = Get-Content -Raw ./src/App.cpp
           $begin = $app.IndexOf('// BEGIN test DevTools hook')
@@ -64,13 +66,18 @@ jobs:
             git worktree add --detach $tree $tag
             $source = Join-Path $tree 'src/App.cpp'
             $text = Get-Content -Raw $source
-            if ($text -notmatch 'options->put_AdditionalBrowserArguments\(kBrowserArguments\);') {
-              throw "$tag does not set its browser arguments where the hook expects."
+            if ($text.Contains('// BEGIN test DevTools hook')) {
+              # v0.4.2 and later ship the hook: build them unchanged.
+              Write-Host "$tag already has the test DevTools hook."
+            } else {
+              if ($text -notmatch 'options->put_AdditionalBrowserArguments\(kBrowserArguments\);') {
+                throw "$tag does not set its browser arguments where the hook expects."
+              }
+              $text = $text.Replace('void LeanMarkApp::InitializeWebView() {', $hook + 'void LeanMarkApp::InitializeWebView() {')
+              $text = $text.Replace('options->put_AdditionalBrowserArguments(kBrowserArguments);',
+                'options->put_AdditionalBrowserArguments(LeanMarkBrowserArguments().c_str());')
+              Set-Content -LiteralPath $source -Value $text -NoNewline
             }
-            $text = $text.Replace('void LeanMarkApp::InitializeWebView() {', $hook + 'void LeanMarkApp::InitializeWebView() {')
-            $text = $text.Replace('options->put_AdditionalBrowserArguments(kBrowserArguments);',
-              'options->put_AdditionalBrowserArguments(LeanMarkBrowserArguments().c_str());')
-            Set-Content -LiteralPath $source -Value $text -NoNewline
             Push-Location $tree
             try { ./scripts/build.ps1 -Configuration Release -Platform x64 }
             finally { Pop-Location }
@@ -79,7 +86,7 @@ jobs:
       - name: Compare launch time
         shell: pwsh
         env:
-          LEANMARK_RELEASES: ${{ inputs.releases || 'v0.3.0 v0.4.0' }}
+          LEANMARK_RELEASES: ${{ inputs.releases || 'v0.6.0' }}
           LEANMARK_ITERATIONS: ${{ inputs.iterations || '8' }}
         run: |
           $builds = @()
@@ -103,6 +110,83 @@ jobs:
             -DocumentPath ./tests/fixtures/simple.md -BesideRunning $first `
             -Scenario ('Beside a running, minimized ' + ($builds[0] -split '=', 2)[0]) `
             -OutputPath launch-time/beside.json -MarkdownSummaryPath $env:GITHUB_STEP_SUMMARY
+
+      # Peak memory with a large document: README.md and the showcase fixture
+      # repeated to 8 MiB, the file the efficiency review in PROGRESS.md uses.
+      # Builds take turns launch by launch after one warm-up round.
+      - name: Measure memory with a large document and the size of each build
+        shell: pwsh
+        env:
+          LEANMARK_RELEASES: ${{ inputs.releases || 'v0.6.0' }}
+          LEANMARK_MEMORY_ROUNDS: '3'
+        run: |
+          $builds = [ordered]@{}
+          foreach ($tag in ($env:LEANMARK_RELEASES -split '\s+' | Where-Object { $_ })) {
+            $builds[$tag] = Join-Path $env:RUNNER_TEMP "$tag/dist/LeanMark.exe"
+          }
+          $builds['branch'] = (Resolve-Path ./dist/LeanMark.exe).Path
+          $unit = (Get-Content -Raw -LiteralPath ./README.md) + "`n`n" +
+            (Get-Content -Raw -LiteralPath ./tests/fixtures/showcase.md) + "`n`n"
+          $copies = [int][Math]::Ceiling(8MB / [System.Text.Encoding]::UTF8.GetByteCount($unit))
+          $large = Join-Path $env:RUNNER_TEMP 'large-8mib.md'
+          [System.IO.File]::WriteAllText($large, ($unit * $copies), [System.Text.UTF8Encoding]::new($false))
+          $largeBytes = (Get-Item -LiteralPath $large).Length
+          New-Item -ItemType Directory -Path launch-time -Force | Out-Null
+          $samples = [System.Collections.Generic.List[object]]::new()
+          $rounds = [int]$env:LEANMARK_MEMORY_ROUNDS
+          for ($round = 0; $round -le $rounds; $round += 1) {
+            foreach ($label in $builds.Keys) {
+              $out = Join-Path $env:RUNNER_TEMP ('memory-{0}-{1}.json' -f $label, $round)
+              ./tests/Measure-Performance.ps1 -ExePath $builds[$label] -DocumentPath $large `
+                -Iterations 1 -WarmupIterations 0 -ObservationSeconds 30 -OutputPath $out -Force | Out-Null
+              $iteration = @((Get-Content -Raw -LiteralPath $out | ConvertFrom-Json).Iterations)[0]
+              Write-Host ('{0,-8} round {1}: peak working set {2} MiB, peak private {3} MiB' -f
+                $label, $round, $iteration.PeakWorkingSetMiB, $iteration.PeakPrivateMiB)
+              if ($round -ge 1) {
+                $samples.Add([pscustomobject]@{
+                  Build = $label; Round = $round
+                  PeakWorkingSetMiB = [double]$iteration.PeakWorkingSetMiB
+                  PeakPrivateMiB = [double]$iteration.PeakPrivateMiB
+                  SettledWorkingSetMiB = [double]$iteration.SettledWorkingSetMiB
+                  PeakProcessCount = [int]$iteration.PeakProcessCount
+                })
+              }
+            }
+          }
+          function Get-Median([double[]]$Values) {
+            $sorted = @($Values | Sort-Object)
+            $middle = [int][Math]::Floor($sorted.Count / 2)
+            if ($sorted.Count % 2) { return $sorted[$middle] }
+            ($sorted[$middle - 1] + $sorted[$middle]) / 2
+          }
+          $lines = [System.Collections.Generic.List[string]]::new()
+          $lines.Add(('### Memory with an {0:N0}-byte document: median of {1} launches, 30 s each' -f $largeBytes, $rounds))
+          $lines.Add('')
+          $lines.Add('| Build | Peak working set | Peak private | Working set after 30 s | Processes | LeanMark.exe | All files |')
+          $lines.Add('| --- | ---: | ---: | ---: | ---: | ---: | ---: |')
+          $summary = foreach ($label in $builds.Keys) {
+            $own = @($samples | Where-Object { $_.Build -eq $label })
+            $exe = Get-Item -LiteralPath $builds[$label]
+            $files = [int64](Get-ChildItem -LiteralPath $exe.DirectoryName -Recurse -File | Measure-Object -Property Length -Sum).Sum
+            $row = [pscustomobject]@{
+              Build = $label
+              PeakWorkingSetMiB = Get-Median ([double[]]@($own | ForEach-Object { $_.PeakWorkingSetMiB }))
+              PeakPrivateMiB = Get-Median ([double[]]@($own | ForEach-Object { $_.PeakPrivateMiB }))
+              SettledWorkingSetMiB = Get-Median ([double[]]@($own | ForEach-Object { $_.SettledWorkingSetMiB }))
+              PeakProcessCount = ($own | Measure-Object -Property PeakProcessCount -Maximum).Maximum
+              ExeBytes = $exe.Length
+              DistBytes = $files
+            }
+            $lines.Add(('| {0} | {1} MiB | {2} MiB | {3} MiB | {4} | {5:N0} bytes | {6:N0} bytes |' -f
+              $row.Build, $row.PeakWorkingSetMiB, $row.PeakPrivateMiB, $row.SettledWorkingSetMiB,
+              $row.PeakProcessCount, $row.ExeBytes, $row.DistBytes))
+            $row
+          }
+          $lines.Add('')
+          Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Value $lines -Encoding UTF8
+          $lines | Write-Host
+          [ordered]@{ DocumentBytes = $largeBytes; Rounds = $rounds; Summary = @($summary); Samples = @($samples) } |
+            ConvertTo-Json -Depth 5 | Set-Content -LiteralPath launch-time/memory.json -Encoding utf8
 
       - name: Upload measurements
         if: always()
