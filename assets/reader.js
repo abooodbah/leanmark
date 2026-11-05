@@ -541,7 +541,11 @@
     });
   }
 
-  function slugifyHeading(text, usedSlugs) {
+  // lastSuffix holds, per heading text, the suffix last tried for it. Every
+  // id up to that one is taken, so the next copy starts there instead of at
+  // -2 again: n copies of one heading cost n lookups, not n squared. The ids
+  // are the same as before.
+  function slugifyHeading(text, usedSlugs, lastSuffix) {
     var base = text
       .toLocaleLowerCase()
       .trim()
@@ -550,11 +554,12 @@
       .replace(/-+/g, "-")
       .replace(/^-|-$/g, "") || "section";
     var slug = base;
-    var suffix = 1;
+    var suffix = lastSuffix.get(base) || 1;
     while (usedSlugs.has(slug)) {
       suffix += 1;
       slug = base + "-" + suffix;
     }
+    lastSuffix.set(base, suffix);
     usedSlugs.add(slug);
     return slug;
   }
@@ -565,6 +570,7 @@
   // the heading unchanged.
   function prepareHeadings() {
     var usedSlugs = new Set();
+    var lastSuffix = new Map();
     var headings = elements.article.querySelectorAll(headingSelector);
     var copyTitle = hostCopiesSource
       ? "Copy this section as Markdown"
@@ -577,7 +583,7 @@
 
     headings.forEach(function (heading, index) {
       var text = heading.textContent || "";
-      heading.id = slugifyHeading(text, usedSlugs);
+      heading.id = slugifyHeading(text, usedSlugs, lastSuffix);
       if (heading.tagName === "H2" || heading.tagName === "H3") {
         var item = document.createElement("li");
         var link = document.createElement("a");
