@@ -3,6 +3,16 @@
 All notable LeanMark changes are recorded here. The project follows semantic
 versioning.
 
+## [0.7.1] - 2026-11-06
+
+### Fixed
+
+- A document with fewer than two H2 or H3 headings, so no "On this page"
+  outline, was shown in a 220 px column in windows 1180 px wide or wider,
+  whatever the text width setting. The wide layout kept its outline columns
+  and put the text in the first one. The side columns now apply only when
+  there is an outline. Present since 0.1.0.
+
 ## [0.7.0] - 2026-11-06
 
 ### Added
@@ -260,6 +270,7 @@ versioning.
 - WebView2 keeps the package small but uses a browser-process memory footprint.
 - LeanMark reads Markdown; it does not edit or manage a document vault.
 
+[0.7.1]: https://github.com/abooodbah/leanmark/releases/tag/v0.7.1
 [0.7.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.7.0
 [0.6.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.6.0
 [0.5.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.5.0
