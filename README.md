@@ -117,18 +117,19 @@ for 14 days. The APK is also attached to each
 
 ## Platform releases
 
-| Operating system | Architecture | v0.7.0 artifact | Runtime and verification |
+| Operating system | Architecture | v0.7.1 artifact | Runtime and verification |
 | --- | --- | --- | --- |
-| Windows 10 / 11 | x64 | [ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.7.0/LeanMark-v0.7.0-windows-x64.zip) | Evergreen WebView2; CI-built, with source checks and the reader page tested in Edge |
-| Ubuntu 24.04 / compatible Debian-based systems | x86-64 | [DEB](https://github.com/abooodbah/leanmark/releases/download/v0.7.0/LeanMark-v0.7.0-linux-x86_64.deb) | GTK 4 + WebKitGTK 6.0; package and WebKit smoke-verified in CI |
-| macOS 12 or later | Intel + Apple silicon | [Universal app preview ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.7.0/LeanMark-v0.7.0-macos-universal-preview.zip) | Preview: system WKWebView; CI verifies both Mach-O slices and a real WebKit smoke test |
+| Windows 10 / 11 | x64 | [ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.7.1/LeanMark-v0.7.1-windows-x64.zip) | Evergreen WebView2; CI-built, with source checks and the reader page tested in Edge |
+| Ubuntu 24.04 / compatible Debian-based systems | x86-64 | [DEB](https://github.com/abooodbah/leanmark/releases/download/v0.7.1/LeanMark-v0.7.1-linux-x86_64.deb) | GTK 4 + WebKitGTK 6.0; package and WebKit smoke-verified in CI |
+| macOS 12 or later | Intel + Apple silicon | [Universal app preview ZIP](https://github.com/abooodbah/leanmark/releases/download/v0.7.1/LeanMark-v0.7.1-macos-universal-preview.zip) | Preview: system WKWebView; CI verifies both Mach-O slices and a real WebKit smoke test |
 
 Each artifact has an adjacent <code>.sha256</code> sidecar on the
-[v0.7.0 release](https://github.com/abooodbah/leanmark/releases/tag/v0.7.0).
+[v0.7.1 release](https://github.com/abooodbah/leanmark/releases/tag/v0.7.1).
 The verification column records tested coverage; it does not imply publisher
 signing. The Windows column reflects CI; the WebView2 window itself was
-runtime-verified on Windows 11 for 0.6.0, from a CI build of the same source;
-0.7.0 was tested in CI only.
+runtime-verified on Windows 11 for 0.6.0, from a CI build of the same source.
+0.7.0 was tested in CI only. The 0.7.1 column fix was also checked in the
+WebView2 window on Windows 11, from a CI build of the fix branch.
 Windows ARM64, Linux ARM64, and distro-independent Linux packages are not part
 of this release.
 
@@ -183,7 +184,7 @@ The Debian package declares its GTK 4 and WebKitGTK 6.0 dependencies. A local
 download can be installed through APT:
 
 ~~~sh
-sudo apt install ./LeanMark-v0.7.0-linux-x86_64.deb
+sudo apt install ./LeanMark-v0.7.1-linux-x86_64.deb
 ~~~
 
 The package installs <code>/usr/bin/leanmark</code>, desktop and AppStream
@@ -198,7 +199,7 @@ slices. The application bundle may be placed in <code>/Applications</code> or
 another application directory. Finder recognizes the four supported Markdown
 extensions and offers LeanMark as a viewer.
 
-Because the v0.7.0 preview is not notarized, Gatekeeper may block the first launch.
+Because the v0.7.1 preview is not notarized, Gatekeeper may block the first launch.
 macOS records any explicit approval under **System Settings > Privacy &
 Security**. Environments that require a Developer ID/notarized application are
 not supported by this release.
@@ -447,7 +448,7 @@ WebView2 Runtime, and Node.js.
 ~~~powershell
 .\scripts\build.ps1 -Configuration Release -Platform x64
 .\tests\Test-LeanMark.ps1 -DistPath .\dist
-.\scripts\package-release.ps1 -Version 0.7.0
+.\scripts\package-release.ps1 -Version 0.7.1
 ~~~
 
 ### Linux
@@ -458,7 +459,7 @@ WebKitGTK 6.0, Node.js, and Debian packaging tools. Ubuntu 24.04 build packages:
 ~~~sh
 sudo apt install build-essential cmake ninja-build pkg-config \
   libgtk-4-dev libwebkitgtk-6.0-dev
-./scripts/package-linux.sh --version 0.7.0
+./scripts/package-linux.sh --version 0.7.1
 ~~~
 
 ### macOS
