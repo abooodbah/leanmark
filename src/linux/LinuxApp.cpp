@@ -665,10 +665,10 @@ void LinuxApp::HandleMessage(std::string_view message) {
         return;
     }
     if (StartsWithInsensitive(message, "theme|")) {
+        // The page already shows the theme it chose. Sending it back made
+        // the page draw every diagram a second time, as on no other host.
         theme_ = core::ParseTheme(message.substr(6));
         SaveSettings();
-        SendJson(
-            "{\"type\":\"theme\",\"value\":\"" + ThemeName() + "\"}");
         return;
     }
     if (StartsWithInsensitive(message, "width|")) {
@@ -942,7 +942,7 @@ void LinuxApp::StartSmokeProbe() {
     var waited = 0;
     (function wait() {
       if (root.dataset.width === "full" && root.dataset.zoom !== before) {
-        done(true);
+        themeWork(done);
         return;
       }
       waited += 1;
@@ -1085,6 +1085,17 @@ void LinuxApp::StartSmokeProbe() {
       }
       done(state === "ok" || state === "none", state);
     }());
+  }
+  // The host saves a theme the page chose and does not send it back: the
+  // page already shows it, and an answer would draw every diagram again.
+  // Here the page posts Dim without showing it, so an answer would show.
+  function themeWork(done) {
+    var root = document.documentElement;
+    var shown = root.dataset.theme || "system";
+    window.webkit.messageHandlers.leanmark.postMessage("theme|dim");
+    window.setTimeout(function () {
+      done((root.dataset.theme || "system") === shown);
+    }, 600);
   }
   function inspect() {
     attempts += 1;

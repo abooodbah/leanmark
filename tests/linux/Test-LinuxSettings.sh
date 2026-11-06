@@ -6,8 +6,10 @@
 # Each case writes a settings file into a private XDG_CONFIG_HOME, starts the
 # host in smoke mode, and passes the theme, width, and zoom the page must show
 # in LEANMARK_SMOKE_SETTINGS. The smoke probe then picks Full width and zooms
-# in one step, and the host saves them. The host's own smoke check also fails
-# when the web view's zoom level is not 1.0.
+# in one step, and the host saves them. Last it posts the Dim theme without
+# showing it: the host must save Dim and must not send it back to the page.
+# The host's own smoke check also fails when the web view's zoom level is not
+# 1.0.
 set -euo pipefail
 
 if (($# != 2)); then
@@ -26,12 +28,14 @@ run_case() {
   printf '%b' "$contents" > "$settings"
   if ! XDG_CONFIG_HOME="$config" LEANMARK_SMOKE_SETTINGS="$expected" \
       "$executable" --smoke-test "$fixture"; then
-    printf 'FAIL %s: the host did not show %s\n' "$name" "$expected" >&2
+    printf 'FAIL %s: the host did not show %s, or sent the theme back\n' \
+      "$name" "$expected" >&2
     exit 1
   fi
   if ! grep -qx "Width=$saved_width" "$settings" ||
-     ! grep -qx "Zoom=$saved_zoom" "$settings"; then
-    printf 'FAIL %s: expected Width=%s and Zoom=%s, saved:\n' \
+     ! grep -qx "Zoom=$saved_zoom" "$settings" ||
+     ! grep -qx "Theme=dim" "$settings"; then
+    printf 'FAIL %s: expected Width=%s, Zoom=%s and Theme=dim, saved:\n' \
       "$name" "$saved_width" "$saved_zoom" >&2
     cat "$settings" >&2
     exit 1
