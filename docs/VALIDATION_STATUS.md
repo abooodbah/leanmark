@@ -4,19 +4,18 @@
 **Scope:** LeanMark 0.7.0, tested in CI on GitHub runners for Windows,
 Linux and macOS, and in a Linux session with the reader in headless Chrome
 and the GTK and WebKitGTK host under Xvfb<br>
-**Current public release:** LeanMark 0.7.0, once the owner has pushed the
-tag (see below)
+**Current public release:** LeanMark 0.7.0
 
 ## v0.7.0 publication
 
 | Check | Result |
 | --- | --- |
 | Release pull request | [#33](https://github.com/abooodbah/leanmark/pull/33) |
-| Tag | To be pushed by the owner: annotated `v0.7.0` on the merge commit of #33. The build session could not create tags. |
-| Tag build | Not run yet. `build.yml` builds Windows, Linux and macOS and publishes the release from `docs/releases/v0.7.0.md`. |
-| Assets | Expected: `LeanMark-v0.7.0-windows-x64.zip`, `LeanMark-v0.7.0-linux-x86_64.deb`, `LeanMark-v0.7.0-macos-universal-preview.zip`, each with a `.sha256`, and the macOS `.metadata.json`. |
-| Checksums | To be filled in from the published `.sha256` files. |
-| Store package | `store-msix.yml` runs on the tag push and uploads `LeanMark-v0.7.0-store-msix`. Not run yet. |
+| Tag | Annotated `v0.7.0` on `5b391584d38683c2aafadaf788e6a09d472eee75`, the merge commit of #33, pushed 2026-11-06. |
+| Tag build | [Run 42229623419](https://github.com/abooodbah/leanmark/actions/runs/42229623419) built Windows, Linux and macOS, passed, and published the [release](https://github.com/abooodbah/leanmark/releases/tag/v0.7.0) from `docs/releases/v0.7.0.md`. |
+| Assets | `LeanMark-v0.7.0-windows-x64.zip` (1,452,566 bytes), `LeanMark-v0.7.0-linux-x86_64.deb` (1,262,764 bytes), `LeanMark-v0.7.0-macos-universal-preview.zip` (1,368,648 bytes), each with a `.sha256`, and the macOS `.metadata.json`. |
+| Checksums | Windows ZIP `333624ddf3005d6b98ee72552607710aa40e0d5f18e807aa49a393fe4b128820`; Linux .deb `960c0592a79c0a91b69cea667900d506066f7d8e03f359c04982f20a462e01f2`; macOS ZIP `fe887b76d2dda188734f1f30d84e06b17f1d1fa2d7dc573b4f648c712514d21d`. The downloaded Windows ZIP matched its `.sha256`. |
+| Store package | [Run 42229623420](https://github.com/abooodbah/leanmark/actions/runs/42229623420) passed and uploaded `LeanMark-v0.7.0-store-msix`. |
 
 ## Test state
 
