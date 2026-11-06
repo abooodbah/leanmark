@@ -3,6 +3,36 @@
 All notable LeanMark changes are recorded here. The project follows semantic
 versioning.
 
+## [0.7.0] - 2026-11-06
+
+### Added
+
+- The "On this page" outline marks the section you are reading as you
+  scroll, and keeps that entry in view when the outline is taller than the
+  window. The entry gets the theme's muted background, a bar in the link
+  colour and the main text colour, in all five themes; with Windows high
+  contrast it is underlined. Screen readers hear it as the current location.
+  A clicked entry stays marked until you scroll on, and the mark follows
+  find, zoom, text width and pictures that finish loading.
+
+### Fixed
+
+- A resize into or out of the narrow (compact) layout laid the page out
+  twice since 0.6.0. On a 1 MiB file in Chrome, resizing from 1000 to 700 px
+  went from 1,375 to 962 ms.
+- On Linux each theme change drew every Mermaid diagram twice, because the
+  host sent the theme back to the page.
+
+### Changed
+
+- Opening a document with many repeated headings is faster: on an 8 MiB
+  file with 326 copies of each heading, the reader's open script went from
+  1,001 to 493 ms. Heading ids stay the same.
+- A theme change no longer redraws diagrams when their colours stay the
+  same, for example System to Light on a light system.
+- The Compare launch time workflow can time v0.4.2 and later, and also
+  measures memory with an 8 MiB file and the size of each build.
+
 ## [0.6.0] - 2026-10-31
 
 ### Added
@@ -230,6 +260,8 @@ versioning.
 - WebView2 keeps the package small but uses a browser-process memory footprint.
 - LeanMark reads Markdown; it does not edit or manage a document vault.
 
+[0.7.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.7.0
+[0.6.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.6.0
 [0.5.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.5.0
 [0.4.2]: https://github.com/abooodbah/leanmark/releases/tag/v0.4.2
 [0.4.1]: https://github.com/abooodbah/leanmark/releases/tag/v0.4.1
