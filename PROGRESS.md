@@ -18,12 +18,19 @@ when this round started.
 
 - Step 3: the current-section highlight in "On this page", merged in #28.
 
+- Resize fix (reported by the LeanMark Android agent): a resize into or
+  out of the compact layout was laid out twice since 0.6.0. Merged in #29.
+- Step 4: heading ids in linear time, merged in #30 (open script on the
+  8 MiB file 1,001 to 493 ms).
+- Step 5: the Linux host no longer sends the theme back, merged in #31
+  (4 to 2 diagram renders per theme change on showcase.md).
+- Step 6: no redraw when the diagram colours stay, merged in #32 (System to
+  Light: 2 renders and 52 to 74 ms, to none and 1 ms).
+- Step 7: no design gaps needed code.
+
 ## In progress
 
-- Resize fix (reported by the LeanMark Android agent): since 0.6.0 a resize
-  into or out of the compact layout was laid out twice. Branch
-  `resize-single-layout`. Then steps 4 to 6, the release and the
-  post-release update.
+- Step 8: release 0.7.0 (branch `release/v0.7.0`).
 
 ## Remaining
 
@@ -39,6 +46,9 @@ See the plan below. Every step is one branch and one pull request.
 - The Linux numbers come from a 4-core shared machine under Xvfb with
   software rendering. They compare builds measured the same way, side by
   side, not absolute speed on a desktop.
+- This session cannot create tags: a tag push gets HTTP 403 and the tag API
+  is refused. Steps 9 and 10 (tag, release, Store package, post-release
+  update) are left for the owner, with the commands in the report.
 - `docs/VALIDATION_STATUS.md` does not exist in this repository. The
   post-release pull request creates it with the published facts of 0.7.0,
   in the form LeanDoc and LeanRows use.
@@ -263,5 +273,21 @@ of two alternating runs:
 | 1300 to 1000 px | 530 ms | 562 ms | 3 and 3 |
 | 1000 to 1100 px | 177 ms | 166 ms | 2 and 2 |
 
-Test counts on main: `ctest` 7 of 7 on Linux; the reader browser test has
+Release 0.7.0 against v0.6.0:
+
+| What | v0.6.0 | 0.7.0 | Where it came from |
+| --- | ---: | ---: | --- |
+| Windows, simple.md, document ready | 572.0 ms | 573.3 ms | launch-time run 42178492623 |
+| Windows, showcase.md, document ready | 712.0 ms | 700.9 ms | same run |
+| Windows, 8 MiB file, peak working set | 1,759.0 MiB | 1,779.8 MiB | same run |
+| Windows LeanMark.exe | 457,216 bytes | 457,216 bytes | same run |
+| Windows files in dist | 4,439,728 bytes | 4,448,263 bytes | same run |
+| Linux, simple.md, start, median of 20 | 422.1 ms | 421.5 ms | local, Release, Xvfb |
+| Linux, 8 MiB file, peak PSS, median of 3 | 1,408.5 MiB | 1,343.1 MiB | local, Release, Xvfb |
+
+Test counts on main after this round: `ctest` 8 of 8 on Linux (7 before);
+the reader browser test has 194 checks (137 before); macOS CTest 4 tests
+(3 before); the core tests are unchanged (8 groups, 82 `Expect` calls).
+
+Test counts on main at the start: `ctest` 7 of 7 on Linux; the reader browser test has
 137 checks; the core tests run 8 groups with 82 `Expect` calls.
