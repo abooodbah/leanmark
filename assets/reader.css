@@ -1266,6 +1266,19 @@ button {
   font-size: 17px;
 }
 
+/* At 100% with the settings panel closed, reader.js leaves data-layout off
+   below 1180 px and this query gives the compact layout, so a resize into or
+   out of it is laid out once. */
+@media (max-width: 760px) {
+  :root:not([data-layout]) .content-grid {
+    padding: var(--space-8) var(--space-5) var(--space-12);
+  }
+
+  :root:not([data-layout]) .article {
+    font-size: 17px;
+  }
+}
+
 @media (max-width: 760px) {
   .topbar {
     padding-right: var(--space-3);

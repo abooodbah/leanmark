@@ -16,10 +16,14 @@ when this round started.
   they are and measures memory with an 8 MiB file and the size of each
   build, merged in #27. Run 41982450100 is its A/A check.
 
+- Step 3: the current-section highlight in "On this page", merged in #28.
+
 ## In progress
 
-- Step 3: the current-section highlight in "On this page" (branch
-  `outline-highlight`).
+- Resize fix (reported by the LeanMark Android agent): since 0.6.0 a resize
+  into or out of the compact layout was laid out twice. Branch
+  `resize-single-layout`. Then steps 4 to 6, the release and the
+  post-release update.
 
 ## Remaining
 
@@ -246,6 +250,18 @@ attribute change (tried, not kept) style time is 18.8 ms, as on main.
 | Reader, 8 MiB file, open script | 827 ms | local, headless Chrome |
 | Windows LeanMark.exe | 457,216 bytes | v0.6.0 release ZIP |
 | Windows ZIP | 1,449,935 bytes | v0.6.0 release |
+
+Resize fix, 1 MiB file (README and showcase repeated, 1,056,611 bytes) in
+headless Chrome, window resize to the next two frames, median of 5, second
+of two alternating runs:
+
+| Resize | Main | Branch | Layout passes, main and branch |
+| --- | ---: | ---: | --- |
+| 700 to 1000 px | 1,264 ms | 1,006 ms | 3 and 2 |
+| 1000 to 700 px | 1,375 ms | 962 ms | 3 and 2 |
+| 1000 to 1300 px | 416 ms | 430 ms | 3 and 3 |
+| 1300 to 1000 px | 530 ms | 562 ms | 3 and 3 |
+| 1000 to 1100 px | 177 ms | 166 ms | 2 and 2 |
 
 Test counts on main: `ctest` 7 of 7 on Linux; the reader browser test has
 137 checks; the core tests run 8 groups with 82 `Expect` calls.

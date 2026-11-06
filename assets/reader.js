@@ -89,6 +89,8 @@
   var pinnedOutline = null;
   // Set when the outline column appears, so its current entry is shown.
   var outlineNeedsReveal = false;
+  // compact, regular, or wide, from the width left for the zoomed document.
+  var currentLayout = "";
   var searchTimer = 0;
   var zoomIndicatorTimer = 0;
   var wheelZoomDelta = 0;
@@ -268,13 +270,26 @@
   // the settings panel has taken its place, as the window width did when the
   // whole page was zoomed.
   function updateLayout() {
-    var panelWidth = elements.settingsPanel && !elements.settingsPanel.hidden
-      ? elements.settingsPanel.getBoundingClientRect().width
-      : 0;
+    var panelOpen = !!elements.settingsPanel && !elements.settingsPanel.hidden;
+    var panelWidth = panelOpen ? elements.settingsPanel.getBoundingClientRect().width : 0;
     var available = (window.innerWidth - panelWidth) / zoomLevel;
     var layout = available >= 1180 ? "wide" : available <= 760 ? "compact" : "regular";
-    if (document.documentElement.dataset.layout !== layout) {
-      document.documentElement.dataset.layout = layout;
+    var root = document.documentElement;
+    // At 100% with the panel closed the window width decides, and the media
+    // query in reader.css already gives the compact layout below 761 px. The
+    // resize event comes after the browser has laid the page out at the new
+    // size, so setting the attribute here for compact laid it out a second
+    // time (0.6.0). Wide still needs the attribute: a media query for it
+    // would restyle the whole page.
+    if (zoomLevel === 1 && !panelOpen && layout !== "wide") {
+      if (root.hasAttribute("data-layout")) {
+        root.removeAttribute("data-layout");
+      }
+    } else if (root.dataset.layout !== layout) {
+      root.dataset.layout = layout;
+    }
+    if (layout !== currentLayout) {
+      currentLayout = layout;
       outlineNeedsReveal = layout === "wide";
     }
     // Headings move with the layout, so the current section may change.
