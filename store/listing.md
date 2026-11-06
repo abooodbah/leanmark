@@ -7,7 +7,7 @@ Paste each field into Partner Center > your app > Submission > Store listings > 
 - Product name (reserve this exact name): LeanMark
 - Publisher display name: Lean Apps Studio
 - Short title (50 characters or fewer): LeanMark: Markdown viewer
-- Version in this pack: 0.6.0 (package version 0.6.0.0)
+- Version in this pack: 0.7.0 (package version 0.7.0.0)
 - File types it opens: Markdown files (.md, .markdown, .mdown, .mkd)
 
 ## Short description
@@ -35,7 +35,7 @@ LeanMark is free and open source under the MIT License. The source code, release
 - Expand any diagram or image to full window, with zoom and panning
 - Every opened file joins one window as a tab
 - Refreshes when the file changes on disk and keeps your place
-- Heading outline, find, and reading progress
+- Heading outline that marks the section you are reading, find, and reading progress
 - Copy one section or the whole file as Markdown
 - Light, dark, and system themes, plus two softer dark themes (Dim and Dusk)
 - Zoom from 50 to 300 percent
@@ -61,7 +61,7 @@ LeanMark is free and open source under the MIT License. The source code, release
 
 ## What's new in this version
 
-Adds a text width setting (Narrow, Wide, Full) and a settings panel that lists every keyboard shortcut. Zoom now enlarges only the document, not the toolbar. The theme button shows a coloured dot for the current theme.
+The heading outline now marks the section you are reading as you scroll and keeps it in view. Resizing the window is faster again, and documents with many repeated headings open faster.
 
 ## Copyright and trademark info
 
