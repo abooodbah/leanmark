@@ -612,14 +612,18 @@
       }
     });
 
+    // The wide layout has side columns only for a document with an outline;
+    // without one the text keeps the single column (reader.css).
     if (outlineEntries.length < 2) {
       outlineEntries = [];
       elements.outlineList.replaceChildren();
       elements.outline.hidden = true;
+      elements.readerPane.removeAttribute("data-outline");
       return;
     }
     elements.outlineList.replaceChildren(outline);
     elements.outline.hidden = false;
+    elements.readerPane.setAttribute("data-outline", "");
   }
 
   function prepareDiagrams() {

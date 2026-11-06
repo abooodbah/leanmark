@@ -289,6 +289,33 @@ const THEME_DOCUMENT_HTML = [
     "    C --&gt;|yes| D[Ship]\n</code></pre>",
 ].join("\n");
 
+// A short status note with one H1 and no H2 or H3, so it has no outline:
+// four short paragraphs, three opening in bold, and one diagram. It has the
+// shape of the 2.1 KB file that 0.7.0 showed in a 220 px column in a wide
+// window; the text is made up.
+const SHORT_STATUS_HTML = [
+  "<h1>Harbor relay 10.30.100.40 status</h1>",
+  "<p>Checked Nov 2, 2026, at 09:15 UTC. This is the logical view: relay, " +
+    "then two workers, then two sensors each. Physically, the sensors all " +
+    "plug into the site switch, and each worker's software sets which " +
+    "sensors it reads.</p>",
+  "<p><strong>Result: all hardware is connected and on its listed address, " +
+    "and all four sensors report directly to their worker.</strong></p>",
+  "<p><strong>Changed since the 08:50 UTC check:</strong> sensor_4 is online " +
+    "and sensor_3's main feed works on worker 2.</p>",
+  "<p><strong>Note on sensor_3:</strong> its second feed is out of scope for " +
+    "this test, so the sensor is marked correct on its main feed. The monitor " +
+    "still reports it as offline overall because the second feed returns 404.</p>",
+  '<pre><code class="language-mermaid">flowchart TD\n' +
+    '    hub["Hub"] --&gt;|"VPN"| relay["Relay"]\n' +
+    '    relay --&gt; w1["Worker 1"]\n' +
+    '    relay --&gt; w2["Worker 2"]\n' +
+    '    w1 --&gt; s1["Sensor 1"]\n' +
+    '    w1 --&gt; s2["Sensor 2"]\n' +
+    '    w2 --&gt; s3["Sensor 3"]\n' +
+    '    w2 --&gt; s4["Sensor 4"]\n</code></pre>',
+].join("\n");
+
 // The softer dark themes from issue #6. The reader must apply exactly these
 // token values; they are the contract a later shared theme system reuses.
 const SOFT_THEME_TOKENS = {
@@ -1082,6 +1109,71 @@ async function run() {
     column = await client.evaluate(COLUMN);
     check(Math.abs(column.width - column.full) < 1 && column.scroll <= 0,
       "Full fills a narrower window too, with no sideways scroll");
+
+    // A document with no outline gets the same column as any other, in every
+    // layout. In 0.7.0 the wide layout kept its outline columns when there was
+    // no outline, so the text went into the 220 px outline column.
+    const SHORT_COLUMN = `(function () {
+      var pane = document.getElementById("readerPane");
+      var style = getComputedStyle(pane);
+      var main = document.getElementById("mainContent").getBoundingClientRect();
+      var box = pane.getBoundingClientRect();
+      var left = box.left + pane.clientLeft + parseFloat(style.paddingLeft);
+      var space = pane.clientWidth - parseFloat(style.paddingLeft) -
+        parseFloat(style.paddingRight);
+      return {
+        width: main.width,
+        space: space,
+        leftGap: main.left - left,
+        rightGap: left + space - main.right,
+        rows: style.gridTemplateRows.split(" ").length,
+        outline: getComputedStyle(document.getElementById("outline")).display,
+        layout: document.documentElement.dataset.layout || "",
+        scroll: document.documentElement.scrollWidth - window.innerWidth
+      };
+    }())`;
+    const COLUMN_FOR = { narrow: NARROW_PX, wide: WIDE_PX, full: Infinity };
+    const showShortStatus = async (width) => {
+      await deliver({ type: "host", copySource: true, tabs: true, zoom: 100, width });
+      await deliver({
+        type: "document", tabId: 1, theme: "dusk", fileName: "status.md",
+        path: "/fixtures/status.md", documentBaseUrl: "", sourceBytes: 2144,
+        hasMermaid: true, html: SHORT_STATUS_HTML,
+      });
+      await waitFor(client, 'document.documentElement.dataset.renderState === "ready" && ' +
+        '!!document.querySelector("#article figure.diagram svg")', "the short status note");
+    };
+    // 966 px is the window of the report; 760 and 761, 1179 and 1180 are the
+    // two sides of the compact and wide breakpoints; 1880 is a maximised window.
+    for (const width of ["narrow", "wide", "full"]) {
+      for (const [viewport, layout] of [[966, ""], [760, ""], [761, ""],
+        [1179, ""], [1180, "wide"], [1880, "wide"]]) {
+        await setViewport(viewport);
+        await showShortStatus(width);
+        const short = await client.evaluate(SHORT_COLUMN);
+        const expected = Math.min(COLUMN_FOR[width], short.space);
+        check(Math.abs(short.width - expected) < 1 && Math.abs(short.leftGap - short.rightGap) < 1 &&
+          short.rows === 1 && short.outline === "none" && short.layout === layout &&
+          short.scroll <= 0,
+          "with no outline, " + width + " at " + viewport + " px is a centred " +
+          Math.round(expected) + " px column in one row " + JSON.stringify(short));
+      }
+    }
+    // Going from a document with an outline to one without, and back.
+    await showWidthDocument({ zoom: 100, width: "narrow" });
+    check(await client.evaluate(
+      'getComputedStyle(document.getElementById("outline")).display === "block" && ' +
+      'getComputedStyle(document.getElementById("readerPane")).gridTemplateColumns === "220px 720px 220px"'),
+      "a document with an outline still gets the outline column at 1880 px");
+    await showShortStatus("narrow");
+    const switched = await client.evaluate(SHORT_COLUMN);
+    check(Math.round(switched.width) === NARROW_PX && switched.rows === 1,
+      "the next document without an outline gets the " + NARROW_PX + " px column " +
+      JSON.stringify(switched));
+    await showWidthDocument({ zoom: 100, width: "narrow" });
+    check(Math.round((await client.evaluate(COLUMN)).width) === NARROW_PX && await client.evaluate(
+        'getComputedStyle(document.getElementById("outline")).display === "block"'),
+      "and the outline comes back with the next document that has one");
 
     // Zoom. The host keeps its web view at 100% and the page zooms only the
     // document, so the toolbar and tabs keep their size.

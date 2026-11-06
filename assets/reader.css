@@ -1248,13 +1248,15 @@ button {
 }
 
 /* The layout follows the width left for the zoomed document (set by
-   reader.js), not the window, so zooming in still gives the text room. */
-:root[data-layout="wide"] .content-grid {
+   reader.js), not the window, so zooming in still gives the text room. The
+   side columns are only for a document with an outline (data-outline, set by
+   reader.js): without one the text would go into the 220 px outline column. */
+:root[data-layout="wide"] .content-grid[data-outline] {
   grid-template-columns: 220px var(--column) 220px;
 }
 
 :root[data-layout="wide"] .outline:not([hidden]),
-:root[data-layout="wide"] .layout-balance {
+:root[data-layout="wide"] .content-grid[data-outline] .layout-balance {
   display: block;
 }
 
