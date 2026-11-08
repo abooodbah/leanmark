@@ -4,6 +4,8 @@ Read .md files and Mermaid diagrams offline, without opening an editor. About 74
 
 [Website](https://abooodbah.github.io/leanmark/) · [Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) · `winget install abooodbah.LeanMark` · `choco install leanmark` · [All Lean apps](https://abooodbah.github.io/)
 
+[![winget version](https://img.shields.io/winget/v/abooodbah.LeanMark?label=winget)](https://github.com/microsoft/winget-pkgs/tree/master/manifests/a/abooodbah/LeanMark) [![Microsoft Store](https://img.shields.io/badge/Microsoft%20Store-9MSS4WKJ22ZV-0078d4)](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) [![License: MIT](https://img.shields.io/github/license/abooodbah/leanmark)](LICENSE) [![GitHub release downloads](https://img.shields.io/github/downloads/abooodbah/leanmark/total)](https://github.com/abooodbah/leanmark/releases)
+
 **Read Markdown and Mermaid diagrams without opening an IDE. Everything renders
 offline, with no Electron and no telemetry.**
 
@@ -98,7 +100,9 @@ Security. Later launches open normally.
 ### GitHub Releases
 
 Windows, Linux (.deb), and macOS builds are also on the
-[Releases](https://github.com/abooodbah/leanmark/releases) page.
+[Releases](https://github.com/abooodbah/leanmark/releases) page. To hear about
+new versions, follow the [releases feed](https://github.com/abooodbah/leanmark/releases.atom)
+in a feed reader.
 
 ### Android (closed test)
 
