@@ -102,7 +102,58 @@ Assert-Equal ([string]$structured.'@type') 'SoftwareApplication' 'JSON-LD must d
 Assert-Equal ([string]$structured.softwareVersion) $version 'JSON-LD softwareVersion must match package.json.'
 Assert-Equal ([string]$structured.offers.price) '0' 'JSON-LD must offer LeanMark at price 0.'
 Assert-Equal ([string]$structured.author.name) 'Abdulfatah Bahbouh' 'JSON-LD must name the author.'
+function Get-JsonProperty {
+    param($Object, [string]$Name)
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) { return $null }
+    $property.Value
+}
+Assert-Equal ([string](Get-JsonProperty $structured.author 'url')) 'https://abooodbah.github.io/' 'JSON-LD author must link the Lean Apps page.'
+# codeRepository belongs to SoftwareSourceCode, not SoftwareApplication; the
+# repository and the package listings go in sameAs instead.
+Assert-True ($null -eq $structured.PSObject.Properties['codeRepository']) 'JSON-LD must not use codeRepository on a SoftwareApplication.'
+# There are no real ratings or reviews; never claim any.
+Assert-NotMatch $jsonLd.Groups[1].Value '(?i)aggregateRating|"review' 'JSON-LD must not carry ratings or reviews.'
+$sameAs = @(Get-JsonProperty $structured 'sameAs' | ForEach-Object { [string]$_ })
+foreach ($listing in @(
+        'https://github.com/abooodbah/leanmark',
+        'https://apps.microsoft.com/detail/9MSS4WKJ22ZV',
+        'https://github.com/microsoft/winget-pkgs/tree/master/manifests/a/abooodbah/LeanMark',
+        'https://community.chocolatey.org/packages/leanmark',
+        'https://github.com/abooodbah/homebrew-tap')) {
+    Assert-True ($sameAs -contains $listing) "JSON-LD sameAs is missing $listing"
+}
+Assert-Equal ([string](Get-JsonProperty $structured 'screenshot')) 'https://abooodbah.github.io/leanmark/assets/leanmark-window.png' 'JSON-LD screenshot must be the real product screenshot on the page.'
+Assert-Equal ([string](Get-JsonProperty $structured 'image')) 'https://abooodbah.github.io/leanmark/assets/social-preview.png' 'JSON-LD image must be the social preview.'
+Assert-Match $html '<link\s+rel="alternate"\s+type="application/atom\+xml"\s+title="LeanMark releases"\s+href="https://github\.com/abooodbah/leanmark/releases\.atom">' 'The page must point feed readers to the releases feed.'
+Assert-Match $html '<code>scoop install lean/leanmark</code>' 'The install section must give the Scoop command.'
+Assert-Match $html '<code>brew install --cask abooodbah/tap/leanmark</code>' 'The install section must give the Homebrew command.'
+Assert-Match $html 'href="open-md-files-on-windows/"' 'The landing page must link the task page.'
 Write-TestPass 'semantic metadata, release CTA, and script-free markup'
+
+# The task page: one plain-HTML page that answers "how do I open .md files on
+# Windows" with every real option, LeanMark being one of them.
+$taskRelative = 'open-md-files-on-windows/index.html'
+$taskPath = Join-Path $resolvedSite $taskRelative
+Assert-True (Test-Path -LiteralPath $taskPath -PathType Leaf) "Task page is missing: $taskRelative"
+$taskHtml = Read-TextFile $taskPath
+Assert-Match $taskHtml '<html\s+lang="en">' 'The task page language must be explicit.'
+Assert-Equal ([regex]::Matches($taskHtml, '(?is)<h1(?:\s|>)').Count) 1 'The task page must have exactly one H1.'
+Assert-Match $taskHtml '<title>[^<]*\.md files on Windows[^<]*</title>' 'The task page title must name the task.'
+Assert-Match $taskHtml '<meta\s+name="description"\s+content="[^"]{50,}"' 'The task page needs its own description.'
+Assert-Match $taskHtml '<link\s+rel="canonical"\s+href="https://abooodbah\.github\.io/leanmark/open-md-files-on-windows/"' 'The task page canonical URL is missing or inconsistent.'
+Assert-Match $taskHtml '<link\s+rel="stylesheet"\s+href="\.\./styles\.css">' 'The task page must use the site stylesheet.'
+Assert-Match $taskHtml '<a\s+class="skip-link"\s+href="#main-content">' 'The task page needs the skip link.'
+Assert-Match $taskHtml '<main\s+id="main-content">' 'The task page needs a main landmark.'
+Assert-Match $taskHtml 'href="\.\./"' 'The task page must link back to the LeanMark page.'
+Assert-Match $taskHtml 'href="https://abooodbah\.github\.io/"' 'The task page must link the Lean Apps hub.'
+Assert-Match $taskHtml '74\.15(?:\s|<span>)*ms' 'The task page must quote the measured window time as published.'
+Assert-Match $taskHtml '96\.79(?:\s|<span>)*MiB' 'The task page must quote the measured memory as published.'
+Assert-Match $taskHtml '0\.3\.0' 'Measured numbers must keep the version they were measured on.'
+Assert-NotMatch $taskHtml '(?is)<script[^>]+\bsrc\s*=' 'The task page must not execute external or bundled JavaScript.'
+Assert-NotMatch $taskHtml '(?i)javascript\s*:' 'The task page must not contain javascript: URLs.'
+Assert-NotMatch $taskHtml '(?i)aggregateRating' 'The task page must not carry ratings.'
+Write-TestPass 'task page metadata, landmarks, and sourced numbers'
 
 Assert-Match $css ':focus-visible' 'Visible keyboard focus styling is required.'
 Assert-Match $css '@media\s*\(prefers-reduced-motion:\s*reduce\)' 'Reduced-motion support is required.'
@@ -116,20 +167,28 @@ Write-TestPass 'responsive, motion-safe, keyboard-visible local styling'
 
 $sitePrefix = $resolvedSite.TrimEnd([char[]]@('\', '/')) +
     [System.IO.Path]::DirectorySeparatorChar
-$references = [regex]::Matches($html, '(?is)(?:href|src)\s*=\s*"([^"]+)"')
-foreach ($reference in $references) {
-    $value = $reference.Groups[1].Value
-    if ($value.StartsWith('#') -or
-        $value.StartsWith('https://') -or
-        $value.StartsWith('http://') -or
-        $value.StartsWith('mailto:') -or
-        $value.StartsWith('data:')) {
-        continue
+foreach ($page in @(
+        @{ Html = $html; Directory = $resolvedSite },
+        @{ Html = $taskHtml; Directory = (Split-Path -Parent $taskPath) })) {
+    $references = [regex]::Matches($page.Html, '(?is)(?:href|src)\s*=\s*"([^"]+)"')
+    foreach ($reference in $references) {
+        $value = $reference.Groups[1].Value
+        if ($value.StartsWith('#') -or
+            $value.StartsWith('https://') -or
+            $value.StartsWith('http://') -or
+            $value.StartsWith('mailto:') -or
+            $value.StartsWith('data:')) {
+            continue
+        }
+        $relativePath = ($value -split '[?#]', 2)[0]
+        # A link to a folder is served as that folder's index.html.
+        if ($relativePath.EndsWith('/')) {
+            $relativePath += 'index.html'
+        }
+        $candidate = [System.IO.Path]::GetFullPath((Join-Path $page.Directory $relativePath))
+        Assert-True ($candidate.StartsWith($sitePrefix, [StringComparison]::OrdinalIgnoreCase)) "A local site reference escapes the site root: $value"
+        Assert-True (Test-Path -LiteralPath $candidate -PathType Leaf) "A local site reference is broken: $value"
     }
-    $relativePath = ($value -split '[?#]', 2)[0]
-    $candidate = [System.IO.Path]::GetFullPath((Join-Path $resolvedSite $relativePath))
-    Assert-True ($candidate.StartsWith($sitePrefix, [StringComparison]::OrdinalIgnoreCase)) "A local site reference escapes the site root: $value"
-    Assert-True (Test-Path -LiteralPath $candidate -PathType Leaf) "A local site reference is broken: $value"
 }
 Write-TestPass 'all local page references resolve inside the deployable site'
 
@@ -152,7 +211,18 @@ try {
 } catch {
     throw "sitemap.xml is not well-formed XML: $($_.Exception.Message)"
 }
-Assert-Match ([string]$sitemap.urlset.url.lastmod) '^\d{4}-\d{2}-\d{2}$' 'sitemap.xml must give a lastmod date.'
+$sitemapUrls = @($sitemap.urlset.url)
+foreach ($entry in $sitemapUrls) {
+    $lastmod = $entry['lastmod']
+    $lastmodText = if ($null -eq $lastmod) { '' } else { [string]$lastmod.InnerText }
+    Assert-Match $lastmodText '^\d{4}-\d{2}-\d{2}$' ("sitemap.xml must give a lastmod date for {0}." -f $entry.loc)
+}
+$sitemapLocs = @($sitemapUrls | ForEach-Object { [string]$_.loc })
+foreach ($loc in @(
+        'https://abooodbah.github.io/leanmark/',
+        'https://abooodbah.github.io/leanmark/open-md-files-on-windows/')) {
+    Assert-True ($sitemapLocs -contains $loc) "sitemap.xml must list $loc"
+}
 $manifest = Get-Content -LiteralPath (Join-Path $resolvedSite 'site.webmanifest') -Raw |
     ConvertFrom-Json
 Assert-Equal ([string]$manifest.name) 'LeanMark' 'Web app manifest name changed unexpectedly.'

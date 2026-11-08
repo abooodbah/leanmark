@@ -70,8 +70,9 @@ async function startStaticServer(siteRoot) {
 
       const requestUrl = new URL(request.url || "/", "http://127.0.0.1/");
       let pathname = decodeURIComponent(requestUrl.pathname);
-      if (pathname === "/") {
-        pathname = "/index.html";
+      // A folder URL is served as that folder's index.html, as on Pages.
+      if (pathname.endsWith("/")) {
+        pathname += "index.html";
       }
       const candidate = resolve(siteRoot, "." + pathname.split("/").join(sep));
       if (candidate !== siteRoot && !candidate.startsWith(rootPrefix)) {
@@ -536,51 +537,65 @@ async function main() {
       { name: "tablet", width: 820, height: 1000, scheme: "light" },
       { name: "mobile", width: 390, height: 844, scheme: "dark" },
     ];
+    // The landing page and the task page share the header, buttons, and
+    // stylesheet, so the same audit applies to both.
+    const pages = [
+      { name: "", path: "" },
+      { name: "task page ", path: "open-md-files-on-windows/" },
+    ];
 
-    for (const viewport of viewports) {
-      await client.send("Emulation.setDeviceMetricsOverride", {
-        width: viewport.width,
-        height: viewport.height,
-        deviceScaleFactor: 1,
-        mobile: viewport.width <= 390,
-        screenWidth: viewport.width,
-        screenHeight: viewport.height,
-      });
-      await client.send("Emulation.setEmulatedMedia", {
-        features: [{
-          name: "prefers-color-scheme",
-          value: viewport.scheme,
-        }],
-      });
-      await client.send("Page.navigate", {
-        url: staticServer.url + "?viewport=" + viewport.name,
-      });
-      await waitForDocument(client);
-      const audit = await evaluate(client, PAGE_AUDIT_EXPRESSION);
-      assertAudit(viewport.name, viewport, audit);
-      if (captureRoot) {
-        const screenshot = await client.send("Page.captureScreenshot", {
-          captureBeyondViewport: true,
-          format: "png",
-          fromSurface: true,
+    for (const page of pages) {
+      for (const viewport of viewports) {
+        await client.send("Emulation.setDeviceMetricsOverride", {
+          width: viewport.width,
+          height: viewport.height,
+          deviceScaleFactor: 1,
+          mobile: viewport.width <= 390,
+          screenWidth: viewport.width,
+          screenHeight: viewport.height,
         });
-        await fs.writeFile(
-          join(captureRoot, "site-" + viewport.name + ".png"),
-          Buffer.from(screenshot.data, "base64"),
-        );
+        await client.send("Emulation.setEmulatedMedia", {
+          features: [{
+            name: "prefers-color-scheme",
+            value: viewport.scheme,
+          }],
+        });
+        await client.send("Page.navigate", {
+          url: staticServer.url + page.path + "?viewport=" + viewport.name,
+        });
+        await waitForDocument(client);
+        const audit = await evaluate(client, PAGE_AUDIT_EXPRESSION);
+        assertAudit(page.name + viewport.name, viewport, audit);
+        if (captureRoot) {
+          const screenshot = await client.send("Page.captureScreenshot", {
+            captureBeyondViewport: true,
+            format: "png",
+            fromSurface: true,
+          });
+          await fs.writeFile(
+            join(
+              captureRoot,
+              "site-" + (page.path ? "task-" : "") + viewport.name + ".png",
+            ),
+            Buffer.from(screenshot.data, "base64"),
+          );
+        }
       }
-    }
 
-    const accessibility = await client.send("Accessibility.getFullAXTree");
-    const interactiveWithoutName = accessibility.nodes.filter((node) => {
-      const role = node.role && node.role.value;
-      const name = node.name && node.name.value;
-      return (role === "link" || role === "button") && !String(name || "").trim();
-    });
-    if (interactiveWithoutName.length > 0) {
-      fail("The accessibility tree contains an unnamed link or button.");
+      const accessibility = await client.send("Accessibility.getFullAXTree");
+      const interactiveWithoutName = accessibility.nodes.filter((node) => {
+        const role = node.role && node.role.value;
+        const name = node.name && node.name.value;
+        return (role === "link" || role === "button") && !String(name || "").trim();
+      });
+      if (interactiveWithoutName.length > 0) {
+        fail("The " + (page.name || "landing page ") +
+          "accessibility tree contains an unnamed link or button.");
+      }
+      console.log(
+        "PASS  " + page.name + "accessibility tree exposes names for every link and button",
+      );
     }
-    console.log("PASS  accessibility tree exposes names for every link and button");
 
     if (browserErrors.length > 0) {
       fail("Browser console or resource errors: " + browserErrors.join(" | "));
