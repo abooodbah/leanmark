@@ -13,6 +13,7 @@
   <link rel="preload" href="assets/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="assets/fonts/ibm-plex-serif-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="styles.css">
+  <link rel="alternate" type="application/atom+xml" title="LeanMark releases" href="https://github.com/abooodbah/leanmark/releases.atom">
   <meta property="og:type" content="website">
   <meta property="og:title" content="LeanMark: free Markdown viewer for Windows, Linux and macOS">
   <meta property="og:description" content="Read .md files and Mermaid diagrams offline. LeanMark is an MIT-licensed Markdown viewer for Windows, Linux and macOS: about 74 ms to a window, no Electron.">
@@ -32,9 +33,17 @@
     "softwareVersion": "0.7.1",
     "license": "https://opensource.org/license/mit",
     "downloadUrl": "https://github.com/abooodbah/leanmark/releases/latest",
-    "codeRepository": "https://github.com/abooodbah/leanmark",
     "description": "A free, read-only Markdown viewer for Windows, Linux, and macOS with offline GitHub-flavored Markdown and Mermaid rendering.",
     "url": "https://abooodbah.github.io/leanmark/",
+    "screenshot": "https://abooodbah.github.io/leanmark/assets/leanmark-window.png",
+    "image": "https://abooodbah.github.io/leanmark/assets/social-preview.png",
+    "sameAs": [
+      "https://github.com/abooodbah/leanmark",
+      "https://apps.microsoft.com/detail/9MSS4WKJ22ZV",
+      "https://github.com/microsoft/winget-pkgs/tree/master/manifests/a/abooodbah/LeanMark",
+      "https://community.chocolatey.org/packages/leanmark",
+      "https://github.com/abooodbah/homebrew-tap"
+    ],
     "offers": {
       "@type": "Offer",
       "price": "0",
@@ -42,7 +51,8 @@
     },
     "author": {
       "@type": "Person",
-      "name": "Abdulfatah Bahbouh"
+      "name": "Abdulfatah Bahbouh",
+      "url": "https://abooodbah.github.io/"
     }
   }
   </script>
@@ -156,7 +166,7 @@
             <li>Live refresh after the file changes on disk</li>
           </ul>
         </div>
-        <div class="markdown-sample" aria-label="Markdown source and rendered result">
+        <div class="markdown-sample" role="group" aria-label="Markdown source and rendered result">
           <div class="sample-bar">
             <span class="sample-name">architecture.md</span>
             <span class="sample-label">local file</span>
@@ -176,7 +186,7 @@ flowchart LR
 
     <section class="section section-muted">
       <div class="container split-section split-reverse">
-        <div class="diagram-surface" aria-label="LeanMark local rendering flow">
+        <div class="diagram-surface" role="group" aria-label="LeanMark local rendering flow">
           <svg viewBox="0 0 720 420" role="img" aria-labelledby="diagram-title diagram-desc">
             <title id="diagram-title">LeanMark rendering flow</title>
             <desc id="diagram-desc">A Markdown file is parsed by MD4C, shown in a trusted local view, and diagrams are rendered by the bundled Mermaid library only when needed.</desc>
@@ -349,6 +359,15 @@ flowchart LR
             <span>With Chocolatey, from an administrator shell</span>
             <code>choco install leanmark -y</code>
           </div>
+          <div class="install-command">
+            <span>With Scoop, adding the Lean bucket first</span>
+            <code>scoop bucket add lean https://github.com/abooodbah/scoop-bucket</code>
+            <code>scoop install lean/leanmark</code>
+          </div>
+          <div class="install-command">
+            <span>On macOS, with Homebrew</span>
+            <code>brew install --cask abooodbah/tap/leanmark</code>
+          </div>
           <p class="store-note">
             LeanMark is also in the
             <a href="https://apps.microsoft.com/detail/9MSS4WKJ22ZV">Microsoft Store</a>.
@@ -385,7 +404,7 @@ flowchart LR
         <div class="faq-list">
           <div class="faq-item">
             <h3>How do I open an .md file on Windows?</h3>
-            <p>Install LeanMark from the <a href="https://apps.microsoft.com/detail/9MSS4WKJ22ZV">Microsoft Store</a>, with <code>winget install abooodbah.LeanMark</code>, or from <a href="https://github.com/abooodbah/leanmark/releases/latest">GitHub Releases</a>, then open the file. Headings, tables, task lists, local images, and Mermaid diagrams render as a formatted page.</p>
+            <p>Install LeanMark from the <a href="https://apps.microsoft.com/detail/9MSS4WKJ22ZV">Microsoft Store</a>, with <code>winget install abooodbah.LeanMark</code>, or from <a href="https://github.com/abooodbah/leanmark/releases/latest">GitHub Releases</a>, then open the file. Headings, tables, task lists, local images, and Mermaid diagrams render as a formatted page. <a href="open-md-files-on-windows/">How to open .md files on Windows</a> compares LeanMark with Notepad, VS Code, and browser extensions.</p>
           </div>
           <div class="faq-item">
             <h3>How do I read a Markdown file that Claude, ChatGPT, or a coding agent saved?</h3>
