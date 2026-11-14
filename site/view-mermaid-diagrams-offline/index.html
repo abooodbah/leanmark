@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#faf9f7" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0e0d0b" media="(prefers-color-scheme: dark)">
+  <title>How to view Mermaid diagrams offline: LeanMark, VS Code, Typora, Obsidian</title>
+  <meta name="description" content="See the Mermaid diagrams in a Markdown file as drawings, without a website. A short comparison of LeanMark, VS Code, Typora, Obsidian and Notepad.">
+  <link rel="canonical" href="https://abooodbah.github.io/leanmark/view-mermaid-diagrams-offline/">
+  <link rel="icon" href="../assets/leanmark-icon.png" sizes="256x256">
+  <link rel="preload" href="../assets/fonts/ibm-plex-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="../assets/fonts/ibm-plex-serif-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="alternate" type="application/atom+xml" title="LeanMark releases" href="https://github.com/abooodbah/leanmark/releases.atom">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="How to view Mermaid diagrams offline: LeanMark, VS Code, Typora, Obsidian">
+  <meta property="og:description" content="See the Mermaid diagrams in a Markdown file as drawings, without a website. A short comparison of LeanMark, VS Code, Typora, Obsidian and Notepad.">
+  <meta property="og:url" content="https://abooodbah.github.io/leanmark/view-mermaid-diagrams-offline/">
+  <meta property="og:image" content="https://abooodbah.github.io/leanmark/assets/social-preview.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:image:alt" content="LeanMark, a Markdown viewer, showing a document with Mermaid diagrams and an outline.">
+  <meta name="twitter:card" content="summary_large_image">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to content</a>
+
+  <header class="site-header">
+    <div class="container header-row">
+      <a class="brand" href="../" aria-label="LeanMark home">
+        <img src="../assets/leanmark-icon.png" width="36" height="36" alt="">
+        <span>LeanMark</span>
+      </a>
+      <nav class="primary-nav" aria-label="Primary navigation">
+        <a href="../#features">Features</a>
+        <a href="../#performance">Measurements</a>
+        <a href="../#install">Install</a>
+        <a href="../#faq">FAQ</a>
+        <a href="https://github.com/abooodbah/leanmark">Source</a>
+      </nav>
+      <a class="button button-small button-primary header-download"
+         href="https://github.com/abooodbah/leanmark/releases/latest">
+        Releases
+      </a>
+    </div>
+  </header>
+
+  <main id="main-content">
+    <section class="hero" id="top">
+      <div class="container">
+        <div class="hero-copy">
+          <p class="eyebrow">Guide</p>
+          <h1>How to view Mermaid diagrams offline</h1>
+          <p class="hero-lead">
+            A Mermaid diagram is plain text in a Markdown code block that
+            starts with <code>```mermaid</code>. To see it as a drawing, you
+            need a program that includes the Mermaid renderer. These are the
+            common desktop options and how they differ.
+          </p>
+          <div class="hero-actions">
+            <a class="button button-large button-primary"
+               href="https://github.com/abooodbah/leanmark/releases/latest">
+              Get LeanMark
+            </a>
+            <a class="button button-large button-secondary" href="../">
+              About LeanMark
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-muted" aria-labelledby="compare-heading">
+      <div class="container">
+        <div class="section-copy faq-intro">
+          <p class="eyebrow">Your options</p>
+          <h2 id="compare-heading">Programs that draw Mermaid diagrams</h2>
+          <p class="section-lead">
+            Four of these are editors. LeanMark is the one that only reads.
+          </p>
+        </div>
+        <table class="compare-table">
+          <caption>As each program's own site describes it, checked on 14 November 2026.</caption>
+          <thead>
+            <tr>
+              <th scope="col">Program</th>
+              <th scope="col">What it is</th>
+              <th scope="col">Price</th>
+              <th scope="col">Draws Mermaid</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">LeanMark</th>
+              <td>Read-only viewer</td>
+              <td>Free, MIT licensed</td>
+              <td>Yes, with the Mermaid library included in the app</td>
+            </tr>
+            <tr>
+              <th scope="row">VS Code</th>
+              <td>Code editor with a Markdown preview</td>
+              <td>Free</td>
+              <td>Yes, in the built-in preview (<a href="https://code.visualstudio.com/docs/languages/markdown">docs</a>)</td>
+            </tr>
+            <tr>
+              <th scope="row">Typora</th>
+              <td>Markdown editor</td>
+              <td>$14.99 per license, 15-day trial (<a href="https://typora.io/">site</a>)</td>
+              <td>Yes, once diagrams are turned on in its preferences (<a href="https://support.typora.io/Draw-Diagrams-With-Markdown/">docs</a>)</td>
+            </tr>
+            <tr>
+              <th scope="row">Obsidian</th>
+              <td>Notes app and editor</td>
+              <td>Free; a commercial license is optional (<a href="https://obsidian.md/pricing">pricing</a>)</td>
+              <td>Yes (<a href="https://obsidian.md/help/advanced-syntax">docs</a>)</td>
+            </tr>
+            <tr>
+              <th scope="row">Notepad</th>
+              <td>Text editor with a formatted Markdown view</td>
+              <td>Included with Windows 11</td>
+              <td>Not listed (<a href="https://blogs.windows.com/windows-insider/2025/05/30/text-formatting-in-notepad-begin-rolling-out-to-windows-insiders/">announcement</a>)</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="compare-note">
+          Microsoft's Notepad announcement lists bold, italic, links, lists,
+          and headings, and does not mention diagrams. This table does not test
+          how the other programs behave without an internet connection.
+        </p>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="leanmark-heading">
+      <div class="container split-section">
+        <div class="section-copy">
+          <p class="eyebrow">In LeanMark</p>
+          <h2 id="leanmark-heading">Open the file and read the diagram</h2>
+          <p class="section-lead">
+            LeanMark draws each <code>mermaid</code> code block as a diagram
+            on your computer. The Mermaid library ships with the app and is
+            loaded only when the document contains a Mermaid block.
+          </p>
+          <ul class="check-list">
+            <li>No internet connection needed to draw a diagram</li>
+            <li>Mermaid runs in its strict security mode</li>
+            <li>The page reloads when the file changes on disk</li>
+          </ul>
+        </div>
+        <div class="markdown-sample" role="group" aria-label="A Mermaid block in a Markdown file">
+          <div class="sample-bar">
+            <span class="sample-name">plan.md</span>
+            <span class="sample-label">local file</span>
+          </div>
+          <pre><code><span class="token-heading"># Release plan</span>
+
+<span class="token-code">&#96;&#96;&#96;mermaid</span>
+flowchart LR
+  Draft --> Review --> Ship
+<span class="token-code">&#96;&#96;&#96;</span></code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section class="section section-muted" aria-labelledby="large-heading">
+      <div class="container">
+        <div class="section-copy faq-intro">
+          <p class="eyebrow">Large diagrams</p>
+          <h2 id="large-heading">Make a diagram as large as it needs to be</h2>
+        </div>
+        <div class="faq-list">
+          <div class="faq-item">
+            <h3>Expand to the full window</h3>
+            <p>A button in the corner of every Mermaid diagram opens it across the whole window, fitted to it. Escape returns to the same place in the document.</p>
+          </div>
+          <div class="faq-item">
+            <h3>Zoom and pan</h3>
+            <p>Zoom from 10% to 800% with + and -, or Ctrl+wheel at the pointer. 0 fits the window, 1 shows actual size, and arrow keys or dragging pan.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="install-heading">
+      <div class="container">
+        <div class="section-copy faq-intro">
+          <p class="eyebrow">Install</p>
+          <h2 id="install-heading">Get LeanMark</h2>
+        </div>
+        <div class="install-command">
+          <span>On Windows, with winget</span>
+          <code>winget install abooodbah.LeanMark</code>
+        </div>
+        <div class="install-command">
+          <span>From the Microsoft Store, with winget</span>
+          <code>winget install --id 9MSS4WKJ22ZV --source msstore</code>
+        </div>
+        <div class="install-command">
+          <span>On macOS, with Homebrew</span>
+          <code>brew install --cask abooodbah/tap/leanmark</code>
+        </div>
+        <p class="store-note">
+          LeanMark is free and MIT licensed. Builds for Windows, Linux, and
+          macOS are on the
+          <a href="https://github.com/abooodbah/leanmark/releases/latest">releases page</a>.
+          For other ways to read Markdown on Windows, see
+          <a href="../open-md-files-on-windows/">how to open .md files on Windows</a>.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-row">
+      <a class="brand" href="../">
+        <img src="../assets/leanmark-icon.png" width="32" height="32" alt="">
+        <span>LeanMark</span>
+      </a>
+      <p>MIT-licensed open source software for Windows, Linux, and macOS.</p>
+      <nav aria-label="Footer navigation">
+        <a href="https://github.com/abooodbah/leanmark">GitHub</a>
+        <a href="https://github.com/abooodbah/leanmark/releases">Releases</a>
+        <a href="../#privacy">Privacy policy</a>
+        <a href="https://abooodbah.github.io/">All Lean apps</a>
+        <a href="https://abooodbah.github.io/leandoc/">LeanDoc, a Word document viewer</a>
+        <a href="https://abooodbah.github.io/leanrows/">LeanRows, a large CSV viewer</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>

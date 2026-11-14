@@ -1,6 +1,6 @@
 # LeanMark Microsoft Store listing
 
-Paste each field into Partner Center > your app > Submission > Store listings > English (United States). Every value below was checked against the README and the app on 2026-10-24.
+Paste each field into Partner Center > your app > Submission > Store listings > English (United States). Every value below was checked against the README and the app on 2026-10-24; the short description, the opening of the description, and the first feature were updated on 2026-11-14.
 
 ## Product
 
@@ -12,17 +12,19 @@ Paste each field into Partner Center > your app > Submission > Store listings > 
 
 ## Short description
 
-Read Markdown files and Mermaid diagrams offline, without opening an editor.
+Read Markdown files without opening an editor, including the .md files your AI tools write.
 
-(76 characters.)
+(91 characters.)
 
 ## Description
 
-LeanMark is a viewer for Markdown files. It is for reading, not writing: open a README, a report, or notes and read them as formatted pages.
+LeanMark is a viewer for Markdown files, including the .md files that AI tools and coding agents write. It is for reading, not writing: open a README, a plan, a report, or notes and read them as formatted pages.
 
-It renders GitHub-flavored Markdown, including tables, task lists, local images, and Mermaid diagrams. Everything is drawn on your PC. LeanMark does not load remote images, does not run raw HTML from the document, and its own code makes no network requests. Links leave the app only when you click them, and then open in your browser.
+The page reloads when the file changes on disk and keeps your place, so you can watch a file update as it is written. Raw HTML is off and remote content is blocked, so a file cannot run its own scripts or load anything from the internet.
 
-Every file you open joins one window as a tab. The page refreshes when the file is saved by another program, and keeps your place. An outline of the headings, find, print, zoom, and light and dark themes are built in. Each Mermaid diagram and image has an expand button that opens it full-window with its own zoom and panning.
+It renders GitHub-flavored Markdown, including tables, task lists, local images, and Mermaid diagrams. Everything is drawn on your PC, and LeanMark's own code makes no network requests. Links leave the app only when you click them, and then open in your browser.
+
+Every file you open joins one window as a tab. An outline of the headings, find, print, zoom, and light and dark themes are built in. Each Mermaid diagram and image has an expand button that opens it full-window with its own zoom and panning.
 
 LeanMark draws pages with the Microsoft Edge WebView2 runtime that Windows already provides, so the app itself stays small. It does not edit files.
 
@@ -30,6 +32,7 @@ LeanMark is free and open source under the MIT License. The source code, release
 
 ## Product features
 
+- Read the .md files your AI tools and coding agents write
 - GitHub-flavored Markdown: tables, task lists, strikethrough, autolinks
 - Mermaid diagrams rendered offline
 - Expand any diagram or image to full window, with zoom and panning

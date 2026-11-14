@@ -552,12 +552,52 @@ a:hover {
   color: var(--text-secondary);
 }
 
+.hero-slogan code,
 .hero-lead code,
 .faq-item code,
 .family-list code {
   font-family: var(--font-mono);
   font-size: 0.9em;
   overflow-wrap: anywhere;
+}
+
+.compare-table {
+  width: 100%;
+  margin: var(--space-8) 0 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+}
+
+.compare-table caption {
+  margin-bottom: var(--space-2);
+  color: var(--text-secondary);
+  text-align: left;
+}
+
+.compare-table th,
+.compare-table td {
+  padding: var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.compare-table thead th {
+  font-weight: 600;
+  border-bottom-width: 2px;
+}
+
+.compare-table td {
+  color: var(--text-secondary);
+}
+
+.compare-note {
+  margin: var(--space-4) 0 0;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
 }
 
 .family-list {
@@ -1128,6 +1168,19 @@ a:hover {
 
   .hero-lead {
     font-size: 1.125rem;
+  }
+
+  .hero-slogan {
+    font-size: 1.25rem;
+  }
+
+  .compare-table {
+    font-size: 0.8125rem;
+  }
+
+  .compare-table th,
+  .compare-table td {
+    padding: var(--space-2) var(--space-1);
   }
 
   .hero-actions {
