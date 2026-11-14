@@ -129,6 +129,8 @@ Assert-Match $html '<link\s+rel="alternate"\s+type="application/atom\+xml"\s+tit
 Assert-Match $html '<code>scoop install lean/leanmark</code>' 'The install section must give the Scoop command.'
 Assert-Match $html '<code>brew install --cask abooodbah/tap/leanmark</code>' 'The install section must give the Homebrew command.'
 Assert-Match $html 'href="open-md-files-on-windows/"' 'The landing page must link the task page.'
+Assert-Match $html 'href="view-mermaid-diagrams-offline/"' 'The landing page must link the Mermaid page.'
+Assert-NotMatch $html '(?i)\bnative hosts\b' 'LeanMark uses the system web view; the hero must not call it native.'
 Write-TestPass 'semantic metadata, release CTA, and script-free markup'
 
 # The task page: one plain-HTML page that answers "how do I open .md files on
@@ -155,6 +157,36 @@ Assert-NotMatch $taskHtml '(?i)javascript\s*:' 'The task page must not contain j
 Assert-NotMatch $taskHtml '(?i)aggregateRating' 'The task page must not carry ratings.'
 Write-TestPass 'task page metadata, landmarks, and sourced numbers'
 
+# The Mermaid page: a fair, sourced comparison of programs that draw Mermaid.
+$mermaidRelative = 'view-mermaid-diagrams-offline/index.html'
+$mermaidPath = Join-Path $resolvedSite $mermaidRelative
+Assert-True (Test-Path -LiteralPath $mermaidPath -PathType Leaf) "Mermaid page is missing: $mermaidRelative"
+$mermaidHtml = Read-TextFile $mermaidPath
+Assert-Match $mermaidHtml '<html\s+lang="en">' 'The Mermaid page language must be explicit.'
+Assert-Equal ([regex]::Matches($mermaidHtml, '(?is)<h1(?:\s|>)').Count) 1 'The Mermaid page must have exactly one H1.'
+Assert-Match $mermaidHtml '<title>[^<]*Mermaid diagrams offline[^<]*</title>' 'The Mermaid page title must name the task.'
+Assert-Match $mermaidHtml '<meta\s+name="description"\s+content="[^"]{50,}"' 'The Mermaid page needs its own description.'
+Assert-Match $mermaidHtml '<link\s+rel="canonical"\s+href="https://abooodbah\.github\.io/leanmark/view-mermaid-diagrams-offline/"' 'The Mermaid page canonical URL is missing or inconsistent.'
+Assert-Match $mermaidHtml '<link\s+rel="stylesheet"\s+href="\.\./styles\.css">' 'The Mermaid page must use the site stylesheet.'
+Assert-Match $mermaidHtml '<a\s+class="skip-link"\s+href="#main-content">' 'The Mermaid page needs the skip link.'
+Assert-Match $mermaidHtml '<main\s+id="main-content">' 'The Mermaid page needs a main landmark.'
+Assert-Match $mermaidHtml 'href="\.\./"' 'The Mermaid page must link back to the LeanMark page.'
+Assert-Match $mermaidHtml 'href="https://abooodbah\.github\.io/"' 'The Mermaid page must link the Lean Apps hub.'
+# Every competitor row cites the page its facts came from.
+foreach ($source in @(
+        'https://code\.visualstudio\.com/docs/languages/markdown',
+        'https://support\.typora\.io/Draw-Diagrams-With-Markdown/',
+        'https://obsidian\.md/help/advanced-syntax',
+        'https://blogs\.windows\.com/windows-insider/2025/05/30/')) {
+    Assert-Match $mermaidHtml $source "The Mermaid comparison must cite $source"
+}
+Assert-Match $mermaidHtml '<table\s+class="compare-table">' 'The Mermaid page must keep its comparison table.'
+Assert-NotMatch $mermaidHtml '(?i)\bnative\b' 'LeanMark uses the system web view; the Mermaid page must not call it native.'
+Assert-NotMatch $mermaidHtml '(?is)<script[^>]+\bsrc\s*=' 'The Mermaid page must not execute external or bundled JavaScript.'
+Assert-NotMatch $mermaidHtml '(?i)javascript\s*:' 'The Mermaid page must not contain javascript: URLs.'
+Assert-NotMatch $mermaidHtml '(?i)aggregateRating' 'The Mermaid page must not carry ratings.'
+Write-TestPass 'Mermaid page metadata, landmarks, and cited comparison'
+
 Assert-Match $css ':focus-visible' 'Visible keyboard focus styling is required.'
 Assert-Match $css '@media\s*\(prefers-reduced-motion:\s*reduce\)' 'Reduced-motion support is required.'
 Assert-Match $css '@media\s*\(prefers-color-scheme:\s*dark\)' 'Dark color-scheme support is required.'
@@ -169,7 +201,8 @@ $sitePrefix = $resolvedSite.TrimEnd([char[]]@('\', '/')) +
     [System.IO.Path]::DirectorySeparatorChar
 foreach ($page in @(
         @{ Html = $html; Directory = $resolvedSite },
-        @{ Html = $taskHtml; Directory = (Split-Path -Parent $taskPath) })) {
+        @{ Html = $taskHtml; Directory = (Split-Path -Parent $taskPath) },
+        @{ Html = $mermaidHtml; Directory = (Split-Path -Parent $mermaidPath) })) {
     $references = [regex]::Matches($page.Html, '(?is)(?:href|src)\s*=\s*"([^"]+)"')
     foreach ($reference in $references) {
         $value = $reference.Groups[1].Value
@@ -220,7 +253,8 @@ foreach ($entry in $sitemapUrls) {
 $sitemapLocs = @($sitemapUrls | ForEach-Object { [string]$_.loc })
 foreach ($loc in @(
         'https://abooodbah.github.io/leanmark/',
-        'https://abooodbah.github.io/leanmark/open-md-files-on-windows/')) {
+        'https://abooodbah.github.io/leanmark/open-md-files-on-windows/',
+        'https://abooodbah.github.io/leanmark/view-mermaid-diagrams-offline/')) {
     Assert-True ($sitemapLocs -contains $loc) "sitemap.xml must list $loc"
 }
 $manifest = Get-Content -LiteralPath (Join-Path $resolvedSite 'site.webmanifest') -Raw |

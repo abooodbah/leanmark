@@ -541,7 +541,8 @@ async function main() {
     // stylesheet, so the same audit applies to both.
     const pages = [
       { name: "", path: "" },
-      { name: "task page ", path: "open-md-files-on-windows/" },
+      { name: "task page ", path: "open-md-files-on-windows/", capture: "task-" },
+      { name: "mermaid page ", path: "view-mermaid-diagrams-offline/", capture: "mermaid-" },
     ];
 
     for (const page of pages) {
@@ -575,7 +576,7 @@ async function main() {
           await fs.writeFile(
             join(
               captureRoot,
-              "site-" + (page.path ? "task-" : "") + viewport.name + ".png",
+              "site-" + (page.capture || "") + viewport.name + ".png",
             ),
             Buffer.from(screenshot.data, "base64"),
           );

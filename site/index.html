@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#faf9f7" media="(prefers-color-scheme: light)">
   <meta name="theme-color" content="#0e0d0b" media="(prefers-color-scheme: dark)">
   <title>LeanMark: free Markdown viewer for Windows, Linux and macOS</title>
-  <meta name="description" content="Read .md files and Mermaid diagrams offline. LeanMark is an MIT-licensed Markdown viewer for Windows, Linux and macOS: about 74 ms to a window, no Electron.">
+  <meta name="description" content="Read Markdown files without opening an editor, including the .md files your AI tools write. A free, MIT-licensed viewer for Windows, Linux and macOS.">
   <link rel="canonical" href="https://abooodbah.github.io/leanmark/">
   <link rel="icon" href="assets/leanmark-icon.png" sizes="256x256">
   <link rel="manifest" href="site.webmanifest">
@@ -16,7 +16,7 @@
   <link rel="alternate" type="application/atom+xml" title="LeanMark releases" href="https://github.com/abooodbah/leanmark/releases.atom">
   <meta property="og:type" content="website">
   <meta property="og:title" content="LeanMark: free Markdown viewer for Windows, Linux and macOS">
-  <meta property="og:description" content="Read .md files and Mermaid diagrams offline. LeanMark is an MIT-licensed Markdown viewer for Windows, Linux and macOS: about 74 ms to a window, no Electron.">
+  <meta property="og:description" content="Read Markdown files without opening an editor, including the .md files your AI tools write. A free, MIT-licensed viewer for Windows, Linux and macOS.">
   <meta property="og:url" content="https://abooodbah.github.io/leanmark/">
   <meta property="og:image" content="https://abooodbah.github.io/leanmark/assets/social-preview.png">
   <meta property="og:image:width" content="1280">
@@ -86,10 +86,16 @@
         <div class="hero-copy">
           <p class="eyebrow">A read-only .md file viewer</p>
           <h1>A free Markdown viewer for Windows, Linux and macOS</h1>
-          <p class="hero-slogan">Open the README, not the IDE.</p>
+          <p class="hero-slogan">Read Markdown files without opening an editor, including the <code>.md</code> files your AI tools write.</p>
           <p class="hero-lead">
-            Read <code>.md</code> files, GitHub-flavored Markdown, and Mermaid
-            diagrams offline in thin native hosts for Windows, Linux, and macOS.
+            LeanMark reloads the page when the file changes on disk, so you can
+            watch a file update as it is written. Raw HTML is off and remote
+            content is blocked, so a file cannot run its own scripts or load
+            anything from the internet.
+          </p>
+          <p class="hero-lead">
+            Tables, task lists, and Mermaid diagrams render offline. LeanMark
+            uses the system web view, with no bundled browser.
           </p>
           <div class="hero-actions">
             <a class="button button-large button-primary"
@@ -131,7 +137,7 @@
         <dl class="proof-list">
           <div>
             <dt>3</dt>
-            <dd>Native desktop platforms</dd>
+            <dd>Desktop platforms</dd>
           </div>
           <div>
             <dt>~74 ms</dt>
@@ -420,7 +426,7 @@ flowchart LR
           </div>
           <div class="faq-item">
             <h3>Does it support Mermaid diagrams?</h3>
-            <p>Yes, rendered offline by the bundled Mermaid library. Any diagram or image can be expanded to the full window, with zoom from 10% to 800% and panning.</p>
+            <p>Yes, rendered offline by the bundled Mermaid library. Any diagram or image can be expanded to the full window, with zoom from 10% to 800% and panning. <a href="view-mermaid-diagrams-offline/">How to view Mermaid diagrams offline</a> compares LeanMark with VS Code, Typora, Obsidian, and Notepad.</p>
           </div>
           <div class="faq-item">
             <h3>Is LeanMark free?</h3>
