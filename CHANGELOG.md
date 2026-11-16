@@ -3,6 +3,18 @@
 All notable LeanMark changes are recorded here. The project follows semantic
 versioning.
 
+## [Unreleased]
+
+### Added
+
+- Simplified Chinese interface. Windows shows it when the display language
+  is Simplified Chinese (zh-CN, zh-SG, zh-Hans), and the settings panel has a
+  Language choice: System, English, or 简体中文, saved like the theme. The
+  toolbar, settings panel, shortcut list, start page, diagram and image
+  messages, the host's status and error messages, the file dialog, and the
+  start-up error boxes are translated. English stays the fallback for any
+  string without a translation. The README has a short 简体中文 section.
+
 ## [0.7.1] - 2026-11-06
 
 ### Fixed

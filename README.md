@@ -6,7 +6,7 @@ LeanMark reloads the page when the file changes on disk and keeps your place, so
 
 Mermaid diagrams render offline too. LeanMark uses the system web view, with no bundled browser, no Electron, and no telemetry. About 74 ms to a visible window and 97 MiB peak private memory on Windows 11 (measured with 0.3.0).
 
-[Website](https://abooodbah.github.io/leanmark/) · [Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) · `winget install abooodbah.LeanMark` · `choco install leanmark` · [All Lean apps](https://abooodbah.github.io/)
+[简体中文](#简体中文) · [Website](https://abooodbah.github.io/leanmark/) · [Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) · `winget install abooodbah.LeanMark` · `choco install leanmark` · [All Lean apps](https://abooodbah.github.io/)
 
 [![winget version](https://img.shields.io/winget/v/abooodbah.LeanMark?label=winget)](https://github.com/microsoft/winget-pkgs/tree/master/manifests/a/abooodbah/LeanMark) [![Microsoft Store](https://img.shields.io/badge/Microsoft%20Store-9MSS4WKJ22ZV-0078d4)](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) [![License: MIT](https://img.shields.io/github/license/abooodbah/leanmark)](LICENSE) [![GitHub release downloads](https://img.shields.io/github/downloads/abooodbah/leanmark/total)](https://github.com/abooodbah/leanmark/releases)
 
@@ -28,6 +28,38 @@ offline, using the system web runtime rather than a bundled Chromium. Raw HTML i
 disabled, a strict CSP is enforced, and remote images and navigation are blocked,
 which makes it usable in environments where outbound network calls are not
 permitted.
+
+## 简体中文
+
+LeanMark 是一款免费的 Markdown 阅读器，支持 Windows、Linux 和 macOS。无需打开编辑器即可阅读 Markdown 文件，包括 AI 工具生成的 .md 文件。
+
+- **实时刷新**：文件在磁盘上被修改时，LeanMark 会重新加载页面，并保持当前的阅读位置。可以把计划或报告一直开着，看着它边写边更新。
+- **安全**：原始 HTML 处于关闭状态，远程内容会被阻止，因此文件无法运行自己的脚本，也无法从互联网加载任何内容。
+- **Mermaid 离线渲染**：Mermaid 图表在本机渲染，不需要联网。
+- **轻量**：使用系统自带的 Web 视图（Windows 上是 WebView2），不捆绑浏览器，不使用 Electron，没有遥测。
+
+从包含此功能的下一个版本起，Windows 版的界面支持简体中文：系统显示语言为简体中文时自动使用中文，也可以在“设置”的“语言”中选择“跟随系统”、English 或“简体中文”。
+
+在 Windows 上安装：
+
+```powershell
+winget install abooodbah.LeanMark
+```
+
+也可以从 [Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) 安装，或使用 Scoop：
+
+```powershell
+scoop bucket add lean https://github.com/abooodbah/scoop-bucket
+scoop install lean/leanmark
+```
+
+或在管理员 PowerShell 中使用 Chocolatey：
+
+```powershell
+choco install leanmark -y
+```
+
+Linux（.deb）和 macOS 版本见 [Releases](https://github.com/abooodbah/leanmark/releases) 页面。其余说明见下方的英文文档。
 
 ## Install
 

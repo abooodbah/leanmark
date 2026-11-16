@@ -513,6 +513,88 @@ TextWidth NextTextWidth(TextWidth width) {
     }
 }
 
+namespace {
+
+bool EqualsIgnoringAsciiCase(std::string_view left, std::string_view right) {
+    const auto lower = [](char value) {
+        return value >= 'A' && value <= 'Z' ? static_cast<char>(value - 'A' + 'a')
+                                            : value;
+    };
+    return left.size() == right.size() &&
+           std::equal(left.begin(), left.end(), right.begin(),
+                      [&lower](char a, char b) { return lower(a) == lower(b); });
+}
+
+}  // namespace
+
+LanguageSetting ParseLanguageSetting(std::string_view name) {
+    constexpr LanguageSetting kSettings[] = {
+        LanguageSetting::System, LanguageSetting::English,
+        LanguageSetting::ChineseSimplified};
+    for (const LanguageSetting setting : kSettings) {
+        if (EqualsIgnoringAsciiCase(name, LanguageSettingName(setting))) {
+            return setting;
+        }
+    }
+    return LanguageSetting::System;
+}
+
+const char* LanguageSettingName(LanguageSetting setting) {
+    switch (setting) {
+        case LanguageSetting::English:
+            return "en";
+        case LanguageSetting::ChineseSimplified:
+            return "zh-CN";
+        default:
+            return "system";
+    }
+}
+
+const char* SystemInterfaceLanguage(std::string_view tag) {
+    // zh_CN.UTF-8 and zh_CN@euro carry an encoding or modifier after the tag.
+    const std::size_t extra = tag.find_first_of(".@");
+    if (extra != std::string_view::npos) {
+        tag = tag.substr(0, extra);
+    }
+    std::string lower;
+    lower.reserve(tag.size());
+    for (const char value : tag) {
+        lower.push_back(value == '_' ? '-'
+                        : value >= 'A' && value <= 'Z'
+                            ? static_cast<char>(value - 'A' + 'a')
+                            : value);
+    }
+    if (lower != "zh" && lower.rfind("zh-", 0) != 0) {
+        return "en";
+    }
+    // Subtags after "zh", for example {"hans", "cn"}.
+    const std::string rest = "-" + lower.substr(2) + "-";
+    if (rest.find("-hant-") != std::string::npos) {
+        return "en";
+    }
+    if (rest.find("-hans-") != std::string::npos) {
+        return "zh-CN";
+    }
+    if (rest.find("-tw-") != std::string::npos ||
+        rest.find("-hk-") != std::string::npos ||
+        rest.find("-mo-") != std::string::npos) {
+        return "en";
+    }
+    return "zh-CN";
+}
+
+const char* ResolveInterfaceLanguage(
+    LanguageSetting setting, std::string_view systemTag) {
+    switch (setting) {
+        case LanguageSetting::English:
+            return "en";
+        case LanguageSetting::ChineseSimplified:
+            return "zh-CN";
+        default:
+            return SystemInterfaceLanguage(systemTag);
+    }
+}
+
 bool IsDarkTheme(Theme theme, bool systemDark) {
     switch (theme) {
         case Theme::Light:

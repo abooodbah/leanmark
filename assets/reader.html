@@ -15,21 +15,22 @@
   <body>
     <header class="chrome">
       <div class="topbar">
-        <div class="identity" role="group" aria-label="Current document">
+        <div class="identity" role="group" aria-label="Current document" data-i18n-aria-label="app.currentDocument">
           <span class="wordmark" aria-hidden="true">LM</span>
           <span class="file-copy">
             <strong id="fileName">LeanMark</strong>
-            <span id="fileMeta">Lightweight Markdown reader</span>
+            <span id="fileMeta" data-i18n="app.tagline">Lightweight Markdown reader</span>
           </span>
         </div>
 
-        <div class="toolbar" aria-label="Reader controls">
+        <div class="toolbar" aria-label="Reader controls" data-i18n-aria-label="toolbar.label">
           <label class="search-field" for="findInput">
-            <span class="visually-hidden">Find in document</span>
+            <span class="visually-hidden" data-i18n="find.label">Find in document</span>
             <input
               id="findInput"
               type="search"
               placeholder="Find"
+              data-i18n-placeholder="find.placeholder"
               autocomplete="off"
               spellcheck="false"
             />
@@ -40,20 +41,24 @@
             class="button button-ghost"
             type="button"
             title="Copy the whole document (Ctrl+Shift+C)"
+            data-i18n-title="copy.documentTitle"
+            data-i18n="copy.button"
             disabled
           >
             Copy
           </button>
-          <button id="themeButton" class="button button-ghost theme-button" type="button"><span id="themeSwatch" class="theme-swatch" data-swatch="system" aria-hidden="true"></span><span id="themeLabel">System</span></button>
+          <button id="themeButton" class="button button-ghost theme-button" type="button"><span id="themeSwatch" class="theme-swatch" data-swatch="system" aria-hidden="true"></span><span id="themeLabel" data-i18n="theme.system">System</span></button>
           <button
             id="settingsButton"
             class="button button-ghost button-icon"
             type="button"
             aria-label="Settings and keyboard shortcuts"
+            data-i18n-aria-label="settings.buttonLabel"
             aria-haspopup="dialog"
             aria-expanded="false"
             aria-controls="settingsPanel"
             title="Settings and shortcuts (Ctrl+/)"
+            data-i18n-title="settings.buttonTitle"
           >
             <svg viewBox="0 0 16 16" aria-hidden="true">
               <path d="M2 4h6M11 4h3M2 8h2M7 8h7M2 12h7M12 12h2" />
@@ -62,7 +67,7 @@
               <circle cx="10.5" cy="12" r="1.5" />
             </svg>
           </button>
-          <button id="openButton" class="button button-secondary" type="button">
+          <button id="openButton" class="button button-secondary" type="button" data-i18n="open.button">
             Open
           </button>
         </div>
@@ -73,6 +78,7 @@
         class="tab-strip"
         role="tablist"
         aria-label="Open documents"
+        data-i18n-aria-label="tabs.label"
         hidden
       ></div>
 
@@ -81,6 +87,7 @@
         class="reading-progress"
         role="progressbar"
         aria-label="Reading progress"
+        data-i18n-aria-label="progress.label"
         aria-valuemin="0"
         aria-valuemax="100"
         aria-valuenow="0"
@@ -88,8 +95,8 @@
     </header>
 
     <div id="readerPane" class="content-grid" hidden>
-      <nav id="outline" class="outline" aria-label="Document outline" hidden>
-        <span class="outline-label">On this page</span>
+      <nav id="outline" class="outline" aria-label="Document outline" data-i18n-aria-label="outline.label" hidden>
+        <span class="outline-label" data-i18n="outline.title">On this page</span>
         <ol id="outlineList"></ol>
       </nav>
       <main id="mainContent" class="main-content">
@@ -101,12 +108,12 @@
     <main id="statePane" class="state-pane">
       <div class="state-content">
         <p class="state-eyebrow">LeanMark</p>
-        <h1 id="stateTitle">Read Markdown without opening an editor.</h1>
-        <p id="stateMessage">
+        <h1 id="stateTitle" data-i18n="state.emptyTitle">Read Markdown without opening an editor.</h1>
+        <p id="stateMessage" data-i18n="state.emptyMessage">
           Open a local Markdown file to begin. Diagrams render privately on this
           computer.
         </p>
-        <button id="stateOpenButton" class="button button-primary" type="button">
+        <button id="stateOpenButton" class="button button-primary" type="button" data-i18n="open.markdownFile">
           Open a Markdown file
         </button>
       </div>
@@ -121,14 +128,16 @@
       hidden
     >
       <div class="viewer-toolbar">
-        <span id="viewerTitle" class="viewer-title">Diagram</span>
-        <div class="viewer-controls" role="group" aria-label="Zoom">
+        <span id="viewerTitle" class="viewer-title" data-i18n="viewer.diagram">Diagram</span>
+        <div class="viewer-controls" role="group" aria-label="Zoom" data-i18n-aria-label="zoom.label">
           <button
             class="viewer-button"
             type="button"
             data-action="out"
             aria-label="Zoom out"
+            data-i18n-aria-label="zoom.out"
             title="Zoom out (−)"
+            data-i18n-title="viewer.zoomOutTitle"
           >
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" /></svg>
           </button>
@@ -138,7 +147,9 @@
             type="button"
             data-action="in"
             aria-label="Zoom in"
+            data-i18n-aria-label="zoom.in"
             title="Zoom in (+)"
+            data-i18n-title="viewer.zoomInTitle"
           >
             <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M8 3v10" /></svg>
           </button>
@@ -147,6 +158,8 @@
             type="button"
             data-action="fit"
             title="Fit to window (0)"
+            data-i18n-title="viewer.fitTitle"
+            data-i18n="viewer.fit"
           >
             Fit
           </button>
@@ -155,6 +168,7 @@
             type="button"
             data-action="actual"
             title="Actual size (1)"
+            data-i18n-title="viewer.actualTitle"
           >
             1:1
           </button>
@@ -164,7 +178,9 @@
           type="button"
           data-action="close"
           aria-label="Close"
+          data-i18n-aria-label="close.label"
           title="Close (Esc)"
+          data-i18n-title="close.escTitle"
         >
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
         </button>
@@ -174,6 +190,7 @@
         class="viewer-stage"
         tabindex="0"
         aria-label="Use the arrow keys to pan, plus and minus to zoom, and Escape to close."
+        data-i18n-aria-label="viewer.stageLabel"
       >
         <div id="viewerCanvas" class="viewer-canvas"></div>
       </div>
@@ -188,47 +205,58 @@
       hidden
     >
       <div class="settings-header">
-        <h2 id="settingsTitle">Settings</h2>
+        <h2 id="settingsTitle" data-i18n="settings.title">Settings</h2>
         <button
           id="settingsClose"
           class="viewer-button"
           type="button"
           aria-label="Close settings"
+          data-i18n-aria-label="settings.close"
           title="Close (Esc)"
+          data-i18n-title="close.escTitle"
         >
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" /></svg>
         </button>
       </div>
 
       <fieldset class="settings-group">
-        <legend>Theme</legend>
-        <label class="settings-choice"><input type="radio" name="settings-theme" value="system" /><span class="theme-swatch" data-swatch="system" aria-hidden="true"></span>System</label>
-        <label class="settings-choice"><input type="radio" name="settings-theme" value="light" /><span class="theme-swatch" data-swatch="light" aria-hidden="true"></span>Light</label>
-        <label class="settings-choice"><input type="radio" name="settings-theme" value="dark" /><span class="theme-swatch" data-swatch="dark" aria-hidden="true"></span>Dark</label>
-        <label class="settings-choice"><input type="radio" name="settings-theme" value="dim" /><span class="theme-swatch" data-swatch="dim" aria-hidden="true"></span>Dim</label>
-        <label class="settings-choice"><input type="radio" name="settings-theme" value="dusk" /><span class="theme-swatch" data-swatch="dusk" aria-hidden="true"></span>Dusk</label>
+        <legend data-i18n="settings.theme">Theme</legend>
+        <label class="settings-choice"><input type="radio" name="settings-theme" value="system" /><span class="theme-swatch" data-swatch="system" aria-hidden="true"></span><span data-i18n="theme.system">System</span></label>
+        <label class="settings-choice"><input type="radio" name="settings-theme" value="light" /><span class="theme-swatch" data-swatch="light" aria-hidden="true"></span><span data-i18n="theme.light">Light</span></label>
+        <label class="settings-choice"><input type="radio" name="settings-theme" value="dark" /><span class="theme-swatch" data-swatch="dark" aria-hidden="true"></span><span data-i18n="theme.dark">Dark</span></label>
+        <label class="settings-choice"><input type="radio" name="settings-theme" value="dim" /><span class="theme-swatch" data-swatch="dim" aria-hidden="true"></span><span data-i18n="theme.dim">Dim</span></label>
+        <label class="settings-choice"><input type="radio" name="settings-theme" value="dusk" /><span class="theme-swatch" data-swatch="dusk" aria-hidden="true"></span><span data-i18n="theme.dusk">Dusk</span></label>
       </fieldset>
 
       <fieldset class="settings-group">
-        <legend>Text width</legend>
-        <label class="settings-choice"><input type="radio" name="settings-width" value="narrow" />Narrow</label>
-        <label class="settings-choice"><input type="radio" name="settings-width" value="wide" />Wide</label>
-        <label class="settings-choice"><input type="radio" name="settings-width" value="full" />Full window</label>
+        <legend data-i18n="settings.textWidth">Text width</legend>
+        <label class="settings-choice"><input type="radio" name="settings-width" value="narrow" /><span data-i18n="width.narrow">Narrow</span></label>
+        <label class="settings-choice"><input type="radio" name="settings-width" value="wide" /><span data-i18n="width.wide">Wide</span></label>
+        <label class="settings-choice"><input type="radio" name="settings-width" value="full" /><span data-i18n="width.fullWindow">Full window</span></label>
       </fieldset>
 
       <div class="settings-group settings-zoom" role="group" aria-labelledby="settingsZoomLabel">
-        <span id="settingsZoomLabel" class="settings-label">Zoom</span>
-        <button id="settingsZoomOut" class="viewer-button" type="button" aria-label="Zoom out">
+        <span id="settingsZoomLabel" class="settings-label" data-i18n="zoom.label">Zoom</span>
+        <button id="settingsZoomOut" class="viewer-button" type="button" aria-label="Zoom out" data-i18n-aria-label="zoom.out">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10" /></svg>
         </button>
         <output id="settingsZoomValue" class="settings-zoom-value" aria-live="polite">100%</output>
-        <button id="settingsZoomIn" class="viewer-button" type="button" aria-label="Zoom in">
+        <button id="settingsZoomIn" class="viewer-button" type="button" aria-label="Zoom in" data-i18n-aria-label="zoom.in">
           <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8h10M8 3v10" /></svg>
         </button>
-        <button id="settingsZoomReset" class="button button-ghost" type="button">Reset</button>
+        <button id="settingsZoomReset" class="button button-ghost" type="button" data-i18n="zoom.reset">Reset</button>
       </div>
 
-      <h3 class="settings-label">Keyboard shortcuts</h3>
+      <!-- Shown when the host saves a language; the language names stay in
+           their own language so each can always be found. -->
+      <fieldset id="languageGroup" class="settings-group" hidden>
+        <legend data-i18n="settings.language">Language</legend>
+        <label class="settings-choice"><input type="radio" name="settings-language" value="system" /><span data-i18n="language.system">System</span></label>
+        <label class="settings-choice" lang="en"><input type="radio" name="settings-language" value="en" />English</label>
+        <label class="settings-choice" lang="zh-CN"><input type="radio" name="settings-language" value="zh-CN" />简体中文</label>
+      </fieldset>
+
+      <h3 class="settings-label" data-i18n="settings.shortcuts">Keyboard shortcuts</h3>
       <div id="shortcutList" class="shortcut-list"></div>
     </aside>
 

@@ -334,6 +334,46 @@ bool WriteClipboardText(HWND owner, const std::wstring& text) {
     return stored;
 }
 
+// The few strings the host shows itself, before the page exists or outside
+// it. Everything else is in the page's tables in reader.js; status and error
+// messages go to the page in English and the page translates them.
+constexpr NativeText kTextCouldNotStart = {
+    L"LeanMark could not start",
+    L"LeanMark 无法启动"};
+constexpr NativeText kTextNeedsWebView2 = {
+    L"LeanMark needs the Microsoft Edge WebView2 Runtime. "
+    L"Install or repair WebView2, then try again.",
+    L"LeanMark 需要 Microsoft Edge WebView2 运行时。"
+    L"请安装或修复 WebView2，然后重试。"};
+constexpr NativeText kTextNoReaderSurface = {
+    L"Windows could not create LeanMark's reader surface.",
+    L"Windows 无法创建 LeanMark 的阅读界面。"};
+constexpr NativeText kTextWebView2Failed = {
+    L"LeanMark could not initialize the WebView2 Runtime.",
+    L"LeanMark 无法初始化 WebView2 运行时。"};
+constexpr NativeText kTextOpenDialogTitle = {
+    L"Open Markdown files",
+    L"打开 Markdown 文件"};
+constexpr NativeText kTextMarkdownFiles = {
+    L"Markdown files",
+    L"Markdown 文件"};
+constexpr NativeText kTextAllFiles = {
+    L"All files",
+    L"所有文件"};
+
+// The Windows display language, such as zh-CN or en-US.
+std::string SystemLanguageTag() {
+    wchar_t name[LOCALE_NAME_MAX_LENGTH] = {};
+    if (LCIDToLocaleName(
+            MAKELCID(GetUserDefaultUILanguage(), SORT_DEFAULT),
+            name,
+            LOCALE_NAME_MAX_LENGTH,
+            0) <= 0) {
+        return {};
+    }
+    return leanmark::WideToUtf8(name);
+}
+
 }  // namespace
 
 LeanMarkApp::LeanMarkApp(std::vector<std::wstring> initialPaths)
@@ -603,9 +643,8 @@ void LeanMarkApp::InitializeWebView() {
                 if (FAILED(result) || environment == nullptr) {
                     MessageBoxW(
                         window_,
-                        L"LeanMark needs the Microsoft Edge WebView2 Runtime. "
-                        L"Install or repair WebView2, then try again.",
-                        L"LeanMark could not start",
+                        Text(kTextNeedsWebView2),
+                        Text(kTextCouldNotStart),
                         MB_OK | MB_ICONERROR);
                     return result;
                 }
@@ -621,9 +660,8 @@ void LeanMarkApp::InitializeWebView() {
                             if (FAILED(controllerResult) || controller == nullptr) {
                                 MessageBoxW(
                                     window_,
-                                    L"Windows could not create LeanMark's reader "
-                                    L"surface.",
-                                    L"LeanMark could not start",
+                                    Text(kTextNoReaderSurface),
+                                    Text(kTextCouldNotStart),
                                     MB_OK | MB_ICONERROR);
                                 return controllerResult;
                             }
@@ -644,8 +682,8 @@ void LeanMarkApp::InitializeWebView() {
     if (FAILED(startResult)) {
         MessageBoxW(
             window_,
-            L"LeanMark could not initialize the WebView2 Runtime.",
-            L"LeanMark could not start",
+            Text(kTextWebView2Failed),
+            Text(kTextCouldNotStart),
             MB_OK | MB_ICONERROR);
     }
 }
@@ -806,7 +844,12 @@ void LeanMarkApp::NavigateToReader() {
         return;
     }
     readerReady_ = false;
-    webView_->Navigate(kReaderUrl);
+    // The page starts in this language, so its first paint needs no host
+    // message. reader.js accepts only the names it has tables for.
+    std::wstring url = kReaderUrl;
+    url += L"?lang=";
+    url += leanmark::Utf8ToWide(InterfaceLanguage());
+    webView_->Navigate(url.c_str());
 }
 
 void LeanMarkApp::HandleProcessFailed(COREWEBVIEW2_PROCESS_FAILED_KIND kind) {
@@ -1226,11 +1269,11 @@ void LeanMarkApp::OpenDocumentDialog() {
     }
 
     const COMDLG_FILTERSPEC filters[] = {
-        {L"Markdown files", L"*.md;*.markdown;*.mdown;*.mkd"},
-        {L"All files", L"*.*"}};
+        {Text(kTextMarkdownFiles), L"*.md;*.markdown;*.mdown;*.mkd"},
+        {Text(kTextAllFiles), L"*.*"}};
     dialog->SetFileTypes(static_cast<UINT>(std::size(filters)), filters);
     dialog->SetDefaultExtension(L"md");
-    dialog->SetTitle(L"Open Markdown files");
+    dialog->SetTitle(Text(kTextOpenDialogTitle));
 
     DWORD options = 0;
     dialog->GetOptions(&options);
@@ -1443,6 +1486,10 @@ void LeanMarkApp::HandleWebMessage(
         host += std::to_string(std::lround(zoom_ * 100.0));
         host += ",\"width\":\"";
         host += leanmark::core::TextWidthName(width_);
+        host += "\",\"language\":\"";
+        host += leanmark::core::LanguageSettingName(language_);
+        host += "\",\"systemLanguage\":\"";
+        leanmark::core::AppendJsonString(host, systemLanguage_);
         host += "\"}";
         PostJson(std::move(host));
         SendTabs();
@@ -1504,6 +1551,14 @@ void LeanMarkApp::HandleWebMessage(
     if (StartsWithInsensitive(message, L"width|")) {
         width_ = leanmark::core::ParseTextWidth(
             leanmark::WideToUtf8(std::wstring_view(message).substr(6)));
+        SaveSettings();
+        return;
+    }
+    if (StartsWithInsensitive(message, L"language|")) {
+        // The page has already switched; the host's own strings follow from
+        // the next dialog on.
+        language_ = leanmark::core::ParseLanguageSetting(
+            leanmark::WideToUtf8(std::wstring_view(message).substr(9)));
         SaveSettings();
     }
 }
@@ -1686,6 +1741,22 @@ void LeanMarkApp::LoadSettings() {
             &widthBytes) == ERROR_SUCCESS) {
         width_ = leanmark::core::ParseTextWidth(leanmark::WideToUtf8(width));
     }
+
+    // Settings from 0.7.1 have no language, which follows the system.
+    language_ = leanmark::core::LanguageSetting::System;
+    wchar_t language[16] = {};
+    DWORD languageBytes = sizeof(language);
+    if (RegGetValueW(
+            HKEY_CURRENT_USER,
+            kSettingsKey,
+            L"Language",
+            RRF_RT_REG_SZ,
+            nullptr,
+            language,
+            &languageBytes) == ERROR_SUCCESS) {
+        language_ = leanmark::core::ParseLanguageSetting(leanmark::WideToUtf8(language));
+    }
+    systemLanguage_ = SystemLanguageTag();
 }
 
 void LeanMarkApp::SaveSettings() {
@@ -1727,6 +1798,15 @@ void LeanMarkApp::SaveSettings() {
         REG_SZ,
         reinterpret_cast<const BYTE*>(width.c_str()),
         static_cast<DWORD>((width.size() + 1) * sizeof(wchar_t)));
+    const std::wstring language =
+        leanmark::Utf8ToWide(leanmark::core::LanguageSettingName(language_));
+    RegSetValueExW(
+        key,
+        L"Language",
+        0,
+        REG_SZ,
+        reinterpret_cast<const BYTE*>(language.c_str()),
+        static_cast<DWORD>((language.size() + 1) * sizeof(wchar_t)));
     RegCloseKey(key);
 }
 
@@ -1763,6 +1843,15 @@ bool LeanMarkApp::EffectiveDarkTheme() const {
 
 leanmark::core::ThemeColor LeanMarkApp::CanvasColor() const {
     return leanmark::core::ThemeCanvas(theme_, SystemUsesDarkApps());
+}
+
+const char* LeanMarkApp::InterfaceLanguage() const {
+    return leanmark::core::ResolveInterfaceLanguage(language_, systemLanguage_);
+}
+
+const wchar_t* LeanMarkApp::Text(const NativeText& text) const {
+    return std::strcmp(InterfaceLanguage(), "zh-CN") == 0 ? text.chinese
+                                                          : text.english;
 }
 
 const char* LeanMarkApp::ThemeName() const {
