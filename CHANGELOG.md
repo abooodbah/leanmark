@@ -3,7 +3,7 @@
 All notable LeanMark changes are recorded here. The project follows semantic
 versioning.
 
-## [Unreleased]
+## [0.8.0] - 2026-11-16
 
 ### Added
 
@@ -14,6 +14,10 @@ versioning.
   messages, the host's status and error messages, the file dialog, and the
   start-up error boxes are translated. English stays the fallback for any
   string without a translation. The README has a short 简体中文 section.
+
+### Changed
+
+- The Microsoft Store now lists the app as LeanMark Markdown Viewer.
 
 ## [0.7.1] - 2026-11-06
 
@@ -282,6 +286,7 @@ versioning.
 - WebView2 keeps the package small but uses a browser-process memory footprint.
 - LeanMark reads Markdown; it does not edit or manage a document vault.
 
+[0.8.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.8.0
 [0.7.1]: https://github.com/abooodbah/leanmark/releases/tag/v0.7.1
 [0.7.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.7.0
 [0.6.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.6.0
