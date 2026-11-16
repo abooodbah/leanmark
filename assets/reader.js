@@ -1,6 +1,377 @@
 (function () {
   "use strict";
 
+  // BEGIN interface strings
+  // The interface in English and Simplified Chinese. English is the fallback
+  // for any key the other table lacks. reader.html starts in English and marks
+  // each string with data-i18n (text) or data-i18n-<attribute>. Keys stay
+  // ASCII; {name} placeholders are filled by text(). tests/Test-Localization.mjs
+  // runs this block on its own, so it uses nothing from the page.
+  var interfaceStrings = (function () {
+    var tables = {
+      en: {
+        "app.currentDocument": "Current document",
+        "app.tagline": "Lightweight Markdown reader",
+        "app.couldNotOpen": "Could not open this document",
+        "toolbar.label": "Reader controls",
+        "find.label": "Find in document",
+        "find.placeholder": "Find",
+        "find.pressEnter": "Enter",
+        "copy.button": "Copy",
+        "copy.copied": "Copied",
+        "copy.documentTitle": "Copy the whole document (Ctrl+Shift+C)",
+        "copy.documentKeys": "Copy the whole document ({keys})",
+        "copy.documentMarkdownKeys": "Copy the whole document as Markdown ({keys})",
+        "copy.section": "Copy this section",
+        "copy.sectionMarkdown": "Copy this section as Markdown",
+        "copy.sectionLabel": "Copy section: {text}",
+        "copy.documentAsMarkdown": "Document copied as Markdown.",
+        "copy.sectionAsMarkdown": "Section copied as Markdown.",
+        "copy.documentAsText": "Document copied as text.",
+        "copy.sectionAsText": "Section copied as text.",
+        "copy.failed": "LeanMark could not copy to the clipboard.",
+        "settings.buttonLabel": "Settings and keyboard shortcuts",
+        "settings.buttonTitle": "Settings and shortcuts (Ctrl+/)",
+        "settings.buttonKeys": "Settings and shortcuts ({keys})",
+        "settings.title": "Settings",
+        "settings.close": "Close settings",
+        "settings.theme": "Theme",
+        "settings.textWidth": "Text width",
+        "settings.language": "Language",
+        "settings.shortcuts": "Keyboard shortcuts",
+        "language.system": "System",
+        "theme.system": "System",
+        "theme.light": "Light",
+        "theme.dark": "Dark",
+        "theme.dim": "Dim",
+        "theme.dusk": "Dusk",
+        "theme.systemShown": "System ({theme})",
+        "theme.buttonLabel": "Theme: {theme}. Activate to change theme.",
+        "theme.buttonTitle": "Theme: {theme} ({keys})",
+        "width.narrow": "Narrow",
+        "width.wide": "Wide",
+        "width.full": "Full",
+        "width.fullWindow": "Full window",
+        "width.indicator": "Text width: {width}",
+        "open.button": "Open",
+        "open.markdownFile": "Open a Markdown file",
+        "tabs.label": "Open documents",
+        "tabs.close": "Close (Ctrl+W)",
+        "tabs.closeName": "Close {name}",
+        "progress.label": "Reading progress",
+        "outline.label": "Document outline",
+        "outline.title": "On this page",
+        "state.emptyTitle": "Read Markdown without opening an editor.",
+        "state.emptyMessage": "Open a local Markdown file to begin. Diagrams render privately on this computer.",
+        "state.emptyMessageShort": "Open a local Markdown file to begin.",
+        "state.errorTitle": "This document could not be opened.",
+        "state.errorMessage": "Check the file and try again.",
+        "doc.untitled": "Untitled",
+        "doc.watching": "{size} · Watching for changes",
+        "image.alt": "Image",
+        "image.unavailable": "Image unavailable — {alt}",
+        "image.remoteBlocked": "Remote image blocked — {alt}",
+        "image.invalidPath": "Image path is invalid — {alt}",
+        "figure.expand": "Expand",
+        "figure.expandImage": "Expand image",
+        "figure.expandDiagram": "Expand diagram",
+        "table.scrollable": "Scrollable table",
+        "diagram.label": "Mermaid diagram",
+        "diagram.limitTitle": "Diagram limit reached",
+        "diagram.limitDetail": "LeanMark renders at most 50 diagrams in one document.",
+        "diagram.tooLargeTitle": "Diagram is too large",
+        "diagram.tooLargeDetail": "The Mermaid source exceeds LeanMark's 100 KB diagram limit.",
+        "diagram.failedTitle": "Diagram could not be rendered",
+        "diagram.failedDetail": "Check the Mermaid syntax in this fenced code block.",
+        "diagram.unavailableTitle": "Diagrams are unavailable",
+        "diagram.unavailableDetail": "LeanMark could not load its local Mermaid renderer.",
+        "viewer.diagram": "Diagram",
+        "viewer.zoomOutTitle": "Zoom out (−)",
+        "viewer.zoomInTitle": "Zoom in (+)",
+        "viewer.fit": "Fit",
+        "viewer.fitTitle": "Fit to window (0)",
+        "viewer.actualTitle": "Actual size (1)",
+        "viewer.stageLabel": "Use the arrow keys to pan, plus and minus to zoom, and Escape to close.",
+        "viewer.fitted": "Fit to window",
+        "viewer.actual": "Actual size",
+        "zoom.label": "Zoom",
+        "zoom.in": "Zoom in",
+        "zoom.out": "Zoom out",
+        "zoom.reset": "Reset",
+        "zoom.level": "Zoom {level}",
+        "close.label": "Close",
+        "close.escTitle": "Close (Esc)",
+        "group.reader": "Reader",
+        "group.settings": "Settings panel",
+        "group.tabs": "Tabs",
+        "group.find": "Find box",
+        "group.tabStrip": "Tab strip",
+        "group.figure": "Expanded figure",
+        "group.menu": "Menu",
+        "shortcut.find": "Find in the document",
+        "shortcut.nextMatch": "Next match",
+        "shortcut.previousMatch": "Previous match",
+        "shortcut.reload": "Reload the document",
+        "shortcut.theme": "Change the theme",
+        "shortcut.width": "Change the text width",
+        "shortcut.copy": "Copy the whole document",
+        "shortcut.settings": "Settings and shortcuts",
+        "shortcut.closeSettings": "Close the settings panel",
+        "shortcut.nextTab": "Next tab",
+        "shortcut.previousTab": "Previous tab",
+        "shortcut.closeTab": "Close the tab",
+        "shortcut.tabByPosition": "Go to a tab by position",
+        "shortcut.lastTab": "Go to the last tab",
+        "shortcut.clearSearch": "Clear the search",
+        "shortcut.firstTab": "First tab",
+        "shortcut.finalTab": "Last tab",
+        "shortcut.closeFigure": "Close the figure",
+        "shortcut.fitWindow": "Fit to the window",
+        "shortcut.pan": "Pan, faster with Shift",
+        "shortcut.moveControls": "Move between its controls",
+        "key.rightArrow": "Right arrow",
+        "key.leftArrow": "Left arrow",
+        "key.arrows": "Arrow keys",
+        "key.tabNumbers": "Ctrl+1 to Ctrl+8"
+      },
+      "zh-CN": {
+        "app.currentDocument": "当前文档",
+        "app.tagline": "轻量的 Markdown 阅读器",
+        "app.couldNotOpen": "无法打开此文档",
+        "toolbar.label": "阅读器工具栏",
+        "find.label": "在文档中查找",
+        "find.placeholder": "查找",
+        "find.pressEnter": "按 Enter",
+        "copy.button": "复制",
+        "copy.copied": "已复制",
+        "copy.documentTitle": "复制整个文档 (Ctrl+Shift+C)",
+        "copy.documentKeys": "复制整个文档 ({keys})",
+        "copy.documentMarkdownKeys": "以 Markdown 格式复制整个文档 ({keys})",
+        "copy.section": "复制此章节",
+        "copy.sectionMarkdown": "以 Markdown 格式复制此章节",
+        "copy.sectionLabel": "复制章节：{text}",
+        "copy.documentAsMarkdown": "已将文档复制为 Markdown。",
+        "copy.sectionAsMarkdown": "已将章节复制为 Markdown。",
+        "copy.documentAsText": "已将文档复制为纯文本。",
+        "copy.sectionAsText": "已将章节复制为纯文本。",
+        "copy.failed": "LeanMark 无法复制到剪贴板。",
+        "settings.buttonLabel": "设置和键盘快捷键",
+        "settings.buttonTitle": "设置和快捷键 (Ctrl+/)",
+        "settings.buttonKeys": "设置和快捷键 ({keys})",
+        "settings.title": "设置",
+        "settings.close": "关闭设置",
+        "settings.theme": "主题",
+        "settings.textWidth": "文本宽度",
+        "settings.language": "语言",
+        "settings.shortcuts": "键盘快捷键",
+        "language.system": "跟随系统",
+        "theme.system": "跟随系统",
+        "theme.light": "浅色",
+        "theme.dark": "深色",
+        "theme.dim": "暗淡",
+        "theme.dusk": "暮色",
+        "theme.systemShown": "跟随系统（{theme}）",
+        "theme.buttonLabel": "主题：{theme}。按下可切换主题。",
+        "theme.buttonTitle": "主题：{theme} ({keys})",
+        "width.narrow": "窄",
+        "width.wide": "宽",
+        "width.full": "铺满",
+        "width.fullWindow": "铺满窗口",
+        "width.indicator": "文本宽度：{width}",
+        "open.button": "打开",
+        "open.markdownFile": "打开 Markdown 文件",
+        "tabs.label": "已打开的文档",
+        "tabs.close": "关闭 (Ctrl+W)",
+        "tabs.closeName": "关闭 {name}",
+        "progress.label": "阅读进度",
+        "outline.label": "文档大纲",
+        "outline.title": "本页内容",
+        "state.emptyTitle": "无需打开编辑器即可阅读 Markdown。",
+        "state.emptyMessage": "打开一个本地 Markdown 文件即可开始。图表只在这台电脑上渲染。",
+        "state.emptyMessageShort": "打开一个本地 Markdown 文件即可开始。",
+        "state.errorTitle": "无法打开此文档。",
+        "state.errorMessage": "请检查文件后重试。",
+        "doc.untitled": "未命名",
+        "doc.watching": "{size} · 正在监视更改",
+        "image.alt": "图片",
+        "image.unavailable": "图片不可用：{alt}",
+        "image.remoteBlocked": "已阻止远程图片：{alt}",
+        "image.invalidPath": "图片路径无效：{alt}",
+        "figure.expand": "展开",
+        "figure.expandImage": "展开图片",
+        "figure.expandDiagram": "展开图表",
+        "table.scrollable": "可滚动的表格",
+        "diagram.label": "Mermaid 图表",
+        "diagram.limitTitle": "已达到图表数量上限",
+        "diagram.limitDetail": "LeanMark 在一个文档中最多渲染 50 个图表。",
+        "diagram.tooLargeTitle": "图表过大",
+        "diagram.tooLargeDetail": "Mermaid 源代码超出了 LeanMark 的 100 KB 图表上限。",
+        "diagram.failedTitle": "无法渲染图表",
+        "diagram.failedDetail": "请检查此代码块中的 Mermaid 语法。",
+        "diagram.unavailableTitle": "图表不可用",
+        "diagram.unavailableDetail": "LeanMark 无法加载本地的 Mermaid 渲染器。",
+        "viewer.diagram": "图表",
+        "viewer.zoomOutTitle": "缩小 (−)",
+        "viewer.zoomInTitle": "放大 (+)",
+        "viewer.fit": "适应",
+        "viewer.fitTitle": "适应窗口 (0)",
+        "viewer.actualTitle": "实际大小 (1)",
+        "viewer.stageLabel": "使用方向键平移，加号和减号缩放，Esc 键关闭。",
+        "viewer.fitted": "适应窗口",
+        "viewer.actual": "实际大小",
+        "zoom.label": "缩放",
+        "zoom.in": "放大",
+        "zoom.out": "缩小",
+        "zoom.reset": "重置",
+        "zoom.level": "缩放 {level}",
+        "close.label": "关闭",
+        "close.escTitle": "关闭 (Esc)",
+        "group.reader": "阅读器",
+        "group.settings": "设置面板",
+        "group.tabs": "标签页",
+        "group.find": "查找框",
+        "group.tabStrip": "标签栏",
+        "group.figure": "放大查看",
+        "group.menu": "菜单",
+        "shortcut.find": "在文档中查找",
+        "shortcut.nextMatch": "下一个匹配项",
+        "shortcut.previousMatch": "上一个匹配项",
+        "shortcut.reload": "重新加载文档",
+        "shortcut.theme": "切换主题",
+        "shortcut.width": "切换文本宽度",
+        "shortcut.copy": "复制整个文档",
+        "shortcut.settings": "设置和快捷键",
+        "shortcut.closeSettings": "关闭设置面板",
+        "shortcut.nextTab": "下一个标签页",
+        "shortcut.previousTab": "上一个标签页",
+        "shortcut.closeTab": "关闭标签页",
+        "shortcut.tabByPosition": "按位置切换标签页",
+        "shortcut.lastTab": "切换到最后一个标签页",
+        "shortcut.clearSearch": "清除查找",
+        "shortcut.firstTab": "第一个标签页",
+        "shortcut.finalTab": "最后一个标签页",
+        "shortcut.closeFigure": "关闭放大查看",
+        "shortcut.fitWindow": "适应窗口",
+        "shortcut.pan": "平移，按住 Shift 可加快",
+        "shortcut.moveControls": "在各个控件之间移动",
+        "key.rightArrow": "右方向键",
+        "key.leftArrow": "左方向键",
+        "key.arrows": "方向键",
+        "key.tabNumbers": "Ctrl+1 至 Ctrl+8"
+      }
+    };
+
+    // Status and error messages the hosts send in English, keyed by that
+    // English. A message that starts with a key and a space is that sentence
+    // followed by Windows' own error text, which Windows has already put in
+    // the user's language.
+    var hostMessages = {
+      "zh-CN": {
+        "LeanMark only reloads Markdown files.": "LeanMark 只会重新加载 Markdown 文件。",
+        "LeanMark opens .md, .markdown, .mdown, and .mkd files.": "LeanMark 可以打开 .md、.markdown、.mdown 和 .mkd 文件。",
+        "The file is still changing or cannot be read. Keeping the last complete view and trying again.": "文件仍在更改或无法读取。将保留上一次的完整内容并重试。",
+        "Windows could not open the file picker.": "Windows 无法打开文件选择器。",
+        "The file was moved or deleted. The last complete view is still shown.": "文件已被移动或删除。仍显示上一次的完整内容。",
+        "Windows could not open that link.": "Windows 无法打开该链接。",
+        "That local link is not a valid UTF-8 path.": "该本地链接不是有效的 UTF-8 路径。",
+        "Absolute local links are blocked for safety.": "为安全起见，已阻止绝对路径的本地链接。",
+        "LeanMark opens local Markdown links only. Images still display inside the document.": "LeanMark 只打开指向本地 Markdown 文件的链接。图片仍会显示在文档中。",
+        "That linked Markdown file could not be found.": "找不到链接的 Markdown 文件。",
+        "Open a document before copying.": "请先打开文档再复制。",
+        "The file was moved or deleted, so there is nothing to copy.": "文件已被移动或删除，没有可复制的内容。",
+        "The file changed on disk, so LeanMark reloaded it. Copy again to get the current text.": "文件已在磁盘上更改，LeanMark 已重新加载。请再次复制以获取最新内容。",
+        "Windows could not open the clipboard. Try again in a moment.": "Windows 无法打开剪贴板。请稍后重试。",
+        "Windows could not describe the error.": "Windows 无法描述此错误。",
+        "LeanMark could not find this file.": "LeanMark 找不到此文件。",
+        "That path is a folder, not a Markdown file.": "该路径是文件夹，不是 Markdown 文件。",
+        "LeanMark can only read regular Markdown files.": "LeanMark 只能读取普通的 Markdown 文件。",
+        "LeanMark could not read this file.": "LeanMark 无法读取此文件。",
+        "LeanMark could not measure this file.": "LeanMark 无法获取此文件的大小。",
+        "LeanMark could not finish reading this file.": "LeanMark 未能读完此文件。",
+        "This file is larger than LeanMark's 32 MB safety limit. Open it in an editor if you need to inspect the raw text.": "此文件超过了 LeanMark 的 32 MB 安全上限。如需查看原始文本，请在编辑器中打开。",
+        "This file is not valid UTF-8. Convert it to UTF-8, then open it again.": "此文件不是有效的 UTF-8 编码。请将其转换为 UTF-8 后再打开。",
+        "This file is not valid UTF-8.": "此文件不是有效的 UTF-8 编码。",
+        "LeanMark could not parse this Markdown document.": "LeanMark 无法解析此 Markdown 文档。",
+        "That section is no longer in the file.": "文件中已没有该章节。",
+        "That heading has no text to locate it by.": "该标题没有可用于定位的文字。",
+        "The end of that section could not be located.": "无法找到该章节的结尾。"
+      }
+    };
+
+    var languages = ["en", "zh-CN"];
+
+    function normalizeSetting(setting) {
+      return setting === "en" || setting === "zh-CN" ? setting : "system";
+    }
+
+    // The same rule as SystemInterfaceLanguage in src/core: Simplified
+    // Chinese tags pick Chinese; Traditional Chinese keeps English for now.
+    function systemLanguage(tag) {
+      var lower = String(tag || "").split(/[.@]/)[0].replace(/_/g, "-").toLowerCase();
+      if (lower !== "zh" && lower.indexOf("zh-") !== 0) {
+        return "en";
+      }
+      var rest = "-" + lower.slice(2) + "-";
+      if (rest.indexOf("-hant-") >= 0) {
+        return "en";
+      }
+      if (rest.indexOf("-hans-") >= 0) {
+        return "zh-CN";
+      }
+      if (/-(tw|hk|mo)-/.test(rest)) {
+        return "en";
+      }
+      return "zh-CN";
+    }
+
+    function resolve(setting, systemTag) {
+      var chosen = normalizeSetting(setting);
+      return chosen === "system" ? systemLanguage(systemTag) : chosen;
+    }
+
+    function text(language, key, values) {
+      var table = tables[language] || tables.en;
+      var value = Object.prototype.hasOwnProperty.call(table, key)
+        ? table[key]
+        : Object.prototype.hasOwnProperty.call(tables.en, key) ? tables.en[key] : key;
+      return values
+        ? value.replace(/\{([a-zA-Z]+)\}/g, function (whole, name) {
+          return Object.prototype.hasOwnProperty.call(values, name)
+            ? String(values[name])
+            : whole;
+        })
+        : value;
+    }
+
+    function hostText(language, message) {
+      var table = hostMessages[language];
+      message = String(message || "");
+      if (!table) {
+        return message;
+      }
+      if (Object.prototype.hasOwnProperty.call(table, message)) {
+        return table[message];
+      }
+      for (var english in table) {
+        if (Object.prototype.hasOwnProperty.call(table, english) &&
+            message.indexOf(english + " ") === 0) {
+          return table[english] + message.slice(english.length + 1);
+        }
+      }
+      return message;
+    }
+
+    return {
+      languages: languages,
+      tables: tables,
+      normalizeSetting: normalizeSetting,
+      resolve: resolve,
+      text: text,
+      hostText: hostText
+    };
+  }());
+  // END interface strings
+
   var webView2Bridge = window.chrome && window.chrome.webview;
   var webKitBridge = window.webkit &&
     window.webkit.messageHandlers &&
@@ -12,6 +383,7 @@
     chrome: document.querySelector(".chrome"),
     copyButton: document.getElementById("copyButton"),
     fileName: document.getElementById("fileName"),
+    languageGroup: document.getElementById("languageGroup"),
     fileMeta: document.getElementById("fileMeta"),
     findCount: document.getElementById("findCount"),
     findInput: document.getElementById("findInput"),
@@ -105,6 +477,37 @@
   var viewerLevels = [0.1, 0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 3, 4, 6, 8];
   var viewerPadding = 24;
   var viewerState = null;
+  // The interface language, "en" or "zh-CN". The Windows host names it in the
+  // page address so the first paint is already in it; other hosts leave it to
+  // the browser's language. A host that saves a choice reports it with the
+  // system language, which shows the Language group in the settings panel.
+  var language = initialLanguage();
+  var languageSetting = "system";
+  var hostSystemLanguage = "";
+  // What the state pane and the file line show, kept so a language change can
+  // write them again.
+  var stateView = { kind: "empty", message: "", fileName: "" };
+  var documentView = { fileName: "", sourceBytes: 0 };
+
+  function initialLanguage() {
+    var requested = "";
+    try {
+      requested = new URLSearchParams(window.location.search).get("lang") || "";
+    } catch (_error) {
+      requested = "";
+    }
+    return interfaceStrings.languages.indexOf(requested) >= 0
+      ? requested
+      : interfaceStrings.resolve("system", navigator.language);
+  }
+
+  function t(key, values) {
+    return interfaceStrings.text(language, key, values);
+  }
+
+  function systemLanguageTag() {
+    return hostSystemLanguage || navigator.language || "";
+  }
 
   function post(message) {
     if (webView2Bridge) {
@@ -179,10 +582,6 @@
     };
   }
 
-  function titleCase(name) {
-    return name.charAt(0).toUpperCase() + name.slice(1);
-  }
-
   // The theme whose colours are on screen: System shows Light or Dark.
   function shownTheme(theme) {
     return theme === "system" ? (systemTheme.matches ? "dark" : "light") : theme;
@@ -191,8 +590,8 @@
   // "Dusk", or "System (Dark)" so the name never depends on colour alone.
   function themeDisplayName(theme) {
     return theme === "system"
-      ? "System (" + titleCase(shownTheme(theme)) + ")"
-      : titleCase(theme);
+      ? t("theme.systemShown", { theme: t("theme." + shownTheme(theme)) })
+      : t("theme." + theme);
   }
 
   function applyTheme(theme, rerenderDiagrams) {
@@ -203,13 +602,13 @@
       document.documentElement.setAttribute("data-theme", currentTheme);
     }
     // The dot has one fixed colour per theme (see .theme-swatch in the CSS).
-    elements.themeLabel.textContent = titleCase(currentTheme);
+    elements.themeLabel.textContent = t("theme." + currentTheme);
     elements.themeSwatch.dataset.swatch = currentTheme;
     var name = themeDisplayName(currentTheme);
     elements.themeButton.setAttribute(
-      "aria-label", "Theme: " + name + ". Activate to change theme.");
+      "aria-label", t("theme.buttonLabel", { theme: name }));
     elements.themeButton.title =
-      "Theme: " + name + " (" + shortcutKeys("theme") + ")";
+      t("theme.buttonTitle", { theme: name, keys: shortcutKeys("theme") });
     updateSettingsPanel();
 
     if (rerenderDiagrams && elements.article.querySelector(".diagram") &&
@@ -242,7 +641,7 @@
   function chooseWidth(width) {
     applyWidth(width);
     post("width|" + currentWidth);
-    showIndicator("Text width: " + titleCase(currentWidth));
+    showIndicator(t("width.indicator", { width: t("width." + currentWidth) }));
   }
 
   function cycleWidth() {
@@ -335,7 +734,22 @@
     elements.copyButton.disabled = false;
   }
 
-  function showState(title, message, fileName) {
+  // kind is "empty", "emptyShort" (tests), or "error" with the host's message.
+  function renderStateText() {
+    var error = stateView.kind === "error";
+    elements.stateTitle.textContent = t(error ? "state.errorTitle" : "state.emptyTitle");
+    elements.stateMessage.textContent = error
+      ? (stateView.message
+        ? interfaceStrings.hostText(language, stateView.message)
+        : t("state.errorMessage"))
+      : t(stateView.kind === "emptyShort" ? "state.emptyMessageShort" : "state.emptyMessage");
+    elements.fileName.textContent = stateView.fileName || "LeanMark";
+    elements.fileMeta.textContent = stateView.fileName
+      ? t("app.couldNotOpen")
+      : t("app.tagline");
+  }
+
+  function showState(kind, message, fileName) {
     rememberScroll();
     closeViewer(false);
     clearSearch();
@@ -344,22 +758,23 @@
     elements.readerPane.hidden = true;
     elements.statePane.hidden = false;
     elements.copyButton.disabled = true;
-    elements.stateTitle.textContent = title;
-    elements.stateMessage.textContent = message;
-    elements.fileName.textContent = fileName || "LeanMark";
-    elements.fileMeta.textContent = fileName
-      ? "Could not open this document"
-      : "Lightweight Markdown reader";
+    stateView = { kind: kind, message: message || "", fileName: fileName || "" };
+    renderStateText();
     elements.progress.style.width = "0";
     elements.progress.setAttribute("aria-valuenow", "0");
     document.documentElement.dataset.renderState = "ready";
   }
 
-  function replaceImageWithMessage(image, message) {
+  function blockedImageText(note) {
+    return t(note.key, { alt: note.alt || t("image.alt") });
+  }
+
+  function replaceImageWithMessage(image, key, alt) {
     var replacement = document.createElement("span");
     replacement.className = "blocked-image";
     replacement.setAttribute("role", "note");
-    replacement.textContent = message;
+    replacement._leanmarkNote = { key: key, alt: alt };
+    replacement.textContent = blockedImageText(replacement._leanmarkNote);
     image.replaceWith(replacement);
   }
 
@@ -377,10 +792,10 @@
     var button = document.createElement("button");
     button.type = "button";
     button.className = "expand-figure";
-    button.title = "Expand";
+    button.title = t("figure.expand");
     button.setAttribute(
       "aria-label",
-      kind === "image" ? "Expand image" : "Expand diagram"
+      t(kind === "image" ? "figure.expandImage" : "figure.expandDiagram")
     );
     var icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     icon.setAttribute("viewBox", "0 0 16 16");
@@ -437,9 +852,9 @@
   function prepareImages() {
     elements.article.querySelectorAll("img").forEach(function (image) {
       var source = (image.getAttribute("src") || "").trim();
-      var alt = image.getAttribute("alt") || "Image";
+      var alt = image.getAttribute("alt") || "";
       if (!source) {
-        replaceImageWithMessage(image, "Image unavailable — " + alt);
+        replaceImageWithMessage(image, "image.unavailable", alt);
         return;
       }
 
@@ -448,11 +863,11 @@
         return;
       }
       if (/^[a-z][a-z0-9+.-]*:/i.test(source) || source.indexOf("//") === 0) {
-        replaceImageWithMessage(image, "Remote image blocked — " + alt);
+        replaceImageWithMessage(image, "image.remoteBlocked", alt);
         return;
       }
       if (!documentAssetBase) {
-        replaceImageWithMessage(image, "Image unavailable — " + alt);
+        replaceImageWithMessage(image, "image.unavailable", alt);
         return;
       }
 
@@ -463,12 +878,12 @@
         image.decoding = "async";
         image.addEventListener("error", function () {
           if (image.isConnected) {
-            replaceImageWithMessage(image, "Image unavailable — " + alt);
+            replaceImageWithMessage(image, "image.unavailable", alt);
           }
         }, { once: true });
         makeImageExpandable(image);
       } catch (_error) {
-        replaceImageWithMessage(image, "Image path is invalid — " + alt);
+        replaceImageWithMessage(image, "image.invalidPath", alt);
       }
     });
   }
@@ -539,7 +954,7 @@
       var wrapper = document.createElement("div");
       wrapper.className = "table-scroll";
       wrapper.setAttribute("role", "region");
-      wrapper.setAttribute("aria-label", "Scrollable table");
+      wrapper.setAttribute("aria-label", t("table.scrollable"));
       wrapper.tabIndex = 0;
       table.replaceWith(wrapper);
       wrapper.appendChild(table);
@@ -577,9 +992,7 @@
     var usedSlugs = new Set();
     var lastSuffix = new Map();
     var headings = elements.article.querySelectorAll(headingSelector);
-    var copyTitle = hostCopiesSource
-      ? "Copy this section as Markdown"
-      : "Copy this section";
+    var copyTitle = t(hostCopiesSource ? "copy.sectionMarkdown" : "copy.section");
     var outline = document.createDocumentFragment();
     outlineEntries = [];
     currentOutlineIndex = -1;
@@ -607,7 +1020,7 @@
         button.className = "copy-section";
         button.dataset.heading = String(index);
         button.title = copyTitle;
-        button.setAttribute("aria-label", "Copy section: " + text);
+        button.setAttribute("aria-label", t("copy.sectionLabel", { text: text }));
         heading.appendChild(button);
       }
     });
@@ -634,14 +1047,10 @@
       var pre = code.parentElement;
       var figure = document.createElement("figure");
       figure.className = "diagram";
-      figure.setAttribute("aria-label", "Mermaid diagram");
+      figure.setAttribute("aria-label", t("diagram.label"));
       if (index >= 50) {
         // No source is kept, so renderDiagrams leaves this message in place.
-        renderDiagramError(
-          figure,
-          "Diagram limit reached",
-          "LeanMark renders at most 50 diagrams in one document."
-        );
+        renderDiagramError(figure, "diagram.limitTitle", "diagram.limitDetail");
       } else {
         figure._leanmarkSource = code.textContent || "";
       }
@@ -687,14 +1096,16 @@
     return mermaidLoader;
   }
 
-  function renderDiagramError(figure, title, detail) {
+  // The keys stay on the figure so a language change can write it again.
+  function renderDiagramError(figure, titleKey, detailKey) {
     setExpandable(figure, false);
     figure.className = "diagram diagram-error";
     figure.replaceChildren();
+    figure._leanmarkError = [titleKey, detailKey];
     var heading = document.createElement("strong");
-    heading.textContent = title;
+    heading.textContent = t(titleKey);
     var message = document.createElement("span");
-    message.textContent = detail;
+    message.textContent = t(detailKey);
     figure.append(heading, message);
   }
 
@@ -734,11 +1145,7 @@
         var figure = figures[index];
         var source = figure._leanmarkSource;
         if (source.length > 100000) {
-          renderDiagramError(
-            figure,
-            "Diagram is too large",
-            "The Mermaid source exceeds LeanMark's 100 KB diagram limit."
-          );
+          renderDiagramError(figure, "diagram.tooLargeTitle", "diagram.tooLargeDetail");
           continue;
         }
         try {
@@ -750,11 +1157,12 @@
             return;
           }
           figure.className = "diagram";
+          figure._leanmarkError = null;
           figure.innerHTML = rendered.svg;
           var svg = figure.querySelector("svg");
           if (svg) {
             svg.setAttribute("role", "img");
-            svg.setAttribute("aria-label", "Mermaid diagram");
+            svg.setAttribute("aria-label", t("diagram.label"));
             svg.removeAttribute("height");
             setExpandable(figure, true);
           }
@@ -762,20 +1170,12 @@
             rendered.bindFunctions(figure);
           }
         } catch (_diagramError) {
-          renderDiagramError(
-            figure,
-            "Diagram could not be rendered",
-            "Check the Mermaid syntax in this fenced code block."
-          );
+          renderDiagramError(figure, "diagram.failedTitle", "diagram.failedDetail");
         }
       }
     } catch (_loadError) {
       figures.forEach(function (figure) {
-        renderDiagramError(
-          figure,
-          "Diagrams are unavailable",
-          "LeanMark could not load its local Mermaid renderer."
-        );
+        renderDiagramError(figure, "diagram.unavailableTitle", "diagram.unavailableDetail");
       });
     }
     if (generation === diagramGeneration) {
@@ -807,10 +1207,9 @@
     currentPath = data.path || "";
     documentAssetBase = selectDocumentAssetBase(data.documentBaseUrl);
     applyTheme(data.theme || currentTheme, false);
-    elements.fileName.textContent = data.fileName || "Untitled";
+    documentView = { fileName: data.fileName || "", sourceBytes: data.sourceBytes };
+    renderDocumentLine();
     elements.fileName.title = data.path || "";
-    elements.fileMeta.textContent =
-      formatBytes(data.sourceBytes) + " · Watching for changes";
     elements.article.innerHTML = data.html || "";
 
     prepareImages();
@@ -898,21 +1297,19 @@
   }
 
   function confirmCopy(button, index) {
-    var what = index < 0 ? "Document" : "Section";
-    announce(hostCopiesSource
-      ? what + " copied as Markdown."
-      : what + " copied as text.");
+    var what = index < 0 ? "copy.document" : "copy.section";
+    announce(t(what + (hostCopiesSource ? "AsMarkdown" : "AsText")));
     if (!button || !button.isConnected) {
       return;
     }
     button.dataset.copied = "true";
     if (button === elements.copyButton) {
-      button.textContent = "Copied";
+      button.textContent = t("copy.copied");
     }
     window.setTimeout(function () {
       button.removeAttribute("data-copied");
       if (button === elements.copyButton) {
-        button.textContent = "Copy";
+        button.textContent = t("copy.button");
       }
     }, 1500);
   }
@@ -931,7 +1328,7 @@
     writeClipboardText(renderedSectionText(index)).then(function () {
       confirmCopy(button, index);
     }, function () {
-      showStatus("LeanMark could not copy to the clipboard.", "error");
+      showStatus(t("copy.failed"), "error");
     });
   }
 
@@ -981,8 +1378,8 @@
       close.type = "button";
       close.className = "tab-close";
       close.tabIndex = -1;
-      close.title = "Close (Ctrl+W)";
-      close.setAttribute("aria-label", "Close " + tab.name);
+      close.title = t("tabs.close");
+      close.setAttribute("aria-label", t("tabs.closeName", { name: tab.name }));
       item.append(label, close);
       fragment.appendChild(item);
     });
@@ -1071,7 +1468,7 @@
       return;
     }
     if (!window.Highlight || !CSS.highlights) {
-      elements.findCount.textContent = "Enter";
+      elements.findCount.textContent = t("find.pressEnter");
       return;
     }
 
@@ -1298,7 +1695,7 @@
     if (!Number.isFinite(percent) || percent <= 0) {
       return;
     }
-    showIndicator("Zoom " + String(Math.round(percent)) + "%");
+    showIndicator(t("zoom.level", { level: String(Math.round(percent)) + "%" }));
   }
 
   function zoomPage(action) {
@@ -1410,7 +1807,7 @@
       }
     }
     setViewerScale(next, "zoom", focusX, focusY);
-    announce("Zoom " + elements.viewerLevel.textContent);
+    announce(t("zoom.level", { level: elements.viewerLevel.textContent }));
   }
 
   function viewerAction(action, focusX, focusY) {
@@ -1420,10 +1817,10 @@
       stepViewerZoom(-1, focusX, focusY);
     } else if (action === "fit" || action === "reset") {
       setViewerScale(viewerFitScale(), "fit");
-      announce("Fit to window");
+      announce(t("viewer.fitted"));
     } else if (action === "actual") {
       setViewerScale(1, "actual", focusX, focusY);
-      announce("Actual size");
+      announce(t("viewer.actual"));
     } else if (action === "close") {
       closeViewer(true);
     }
@@ -1467,8 +1864,8 @@
     content.style.height = "100%";
     content.style.margin = "0";
     elements.viewerTitle.textContent = isImage
-      ? (content.getAttribute("alt") || "Image")
-      : "Diagram";
+      ? (content.getAttribute("alt") || t("image.alt"))
+      : t("viewer.diagram");
     elements.viewer.hidden = false;
     setViewerScale(viewerFitScale(), "fit");
     elements.viewerStage.focus({ preventScroll: true });
@@ -1636,6 +2033,16 @@
         confirmCopy(request.button, request.index);
       }
     } else if (data.type === "host") {
+      // A host that saves a language reports it; the page may already show it
+      // from its address, and then nothing is translated again.
+      if (typeof data.language === "string") {
+        languageSetting = interfaceStrings.normalizeSetting(data.language);
+        hostSystemLanguage = typeof data.systemLanguage === "string"
+          ? data.systemLanguage.slice(0, 40)
+          : "";
+        elements.languageGroup.hidden = false;
+        applyLanguage(interfaceStrings.resolve(languageSetting, systemLanguageTag()));
+      }
       hostCopiesSource = data.copySource === true;
       hostHasTabs = data.tabs === true;
       hostIsMac = data.platform === "macos";
@@ -1647,11 +2054,7 @@
         .map(function (entry) {
           return { keys: entry.keys, label: entry.label };
         });
-      elements.copyButton.title = hostCopiesSource
-        ? "Copy the whole document as Markdown (" + shortcutKeys("copy") + ")"
-        : "Copy the whole document (" + shortcutKeys("copy") + ")";
-      elements.settingsButton.title =
-        "Settings and shortcuts (" + shortcutKeys("settings") + ")";
+      updateHostTitles();
       // The saved zoom and width arrive before the first document, so it is
       // laid out once at its final size.
       if (data.zoom !== undefined) {
@@ -1663,21 +2066,12 @@
       applyTheme(currentTheme, false);
     } else if (data.type === "empty") {
       applyTheme(data.theme || "system", false);
-      showState(
-        "Read Markdown without opening an editor.",
-        "Open a local Markdown file to begin. Diagrams render privately on " +
-          "this computer.",
-        ""
-      );
+      showState("empty", "", "");
     } else if (data.type === "error") {
       applyTheme(data.theme || currentTheme, false);
-      showState(
-        "This document could not be opened.",
-        data.message || "Check the file and try again.",
-        data.fileName || ""
-      );
+      showState("error", data.message || "", data.fileName || "");
     } else if (data.type === "status") {
-      showStatus(data.message || "", data.tone || "info");
+      showStatus(interfaceStrings.hostText(language, data.message || ""), data.tone || "info");
     } else if (data.type === "theme") {
       applyTheme(data.value || "system", true);
     } else if (data.type === "zoom") {
@@ -1731,6 +2125,8 @@
       chooseTheme(input.value);
     } else if (input.name === "settings-width") {
       chooseWidth(input.value);
+    } else if (input.name === "settings-language") {
+      chooseLanguage(input.value);
     }
   });
   elements.settingsZoomIn.addEventListener("click", function () {
@@ -1839,93 +2235,93 @@
   }
 
   var readerShortcuts = [
-    { id: "open", group: "Reader", keys: "Ctrl+O", label: "Open a Markdown file",
+    { id: "open", group: "group.reader", keys: "Ctrl+O", label: "open.markdownFile",
       match: plainControl("o"), run: function () { post("open-file"); } },
-    { id: "find", group: "Reader", keys: "Ctrl+F", label: "Find in the document",
+    { id: "find", group: "group.reader", keys: "Ctrl+F", label: "shortcut.find",
       match: plainControl("f"),
       run: function () {
         elements.findInput.focus();
         elements.findInput.select();
       } },
-    { id: "find-next", group: "Reader", keys: "F3", label: "Next match",
+    { id: "find-next", group: "group.reader", keys: "F3", label: "shortcut.nextMatch",
       match: function (event) { return event.key === "F3" && !event.shiftKey; },
       run: function () { moveSearch(1); } },
-    { id: "find-previous", group: "Reader", keys: "Shift+F3", label: "Previous match",
+    { id: "find-previous", group: "group.reader", keys: "Shift+F3", label: "shortcut.previousMatch",
       match: function (event) { return event.key === "F3" && event.shiftKey; },
       run: function () { moveSearch(-1); } },
-    { id: "reload", group: "Reader", keys: "Ctrl+R", label: "Reload the document",
+    { id: "reload", group: "group.reader", keys: "Ctrl+R", label: "shortcut.reload",
       match: plainControl("r"), run: function () { post("reload"); } },
-    { id: "theme", group: "Reader", keys: "Ctrl+Shift+T", label: "Change the theme",
+    { id: "theme", group: "group.reader", keys: "Ctrl+Shift+T", label: "shortcut.theme",
       match: function (event) {
         return isControl(event) && event.shiftKey && keyName(event) === "t";
       },
       run: cycleTheme },
-    { id: "width", group: "Reader", keys: "Ctrl+Shift+L",
-      label: "Change the text width",
+    { id: "width", group: "group.reader", keys: "Ctrl+Shift+L",
+      label: "shortcut.width",
       match: function (event) {
         return isControl(event) && event.shiftKey && !event.altKey && keyName(event) === "l";
       },
       run: cycleWidth },
-    { id: "copy", group: "Reader", keys: "Ctrl+Shift+C",
-      label: "Copy the whole document",
+    { id: "copy", group: "group.reader", keys: "Ctrl+Shift+C",
+      label: "shortcut.copy",
       match: function (event) {
         return isControl(event) && event.shiftKey && keyName(event) === "c";
       },
       run: function () { copySection(-1, elements.copyButton); } },
-    { id: "zoom-in", group: "Reader", keys: "Ctrl++", label: "Zoom in",
+    { id: "zoom-in", group: "group.reader", keys: "Ctrl++", label: "zoom.in",
       match: function (event) { return isControl(event) && !event.altKey && isZoomInKey(event); },
       run: function () { zoomPage("in"); } },
-    { id: "zoom-out", group: "Reader", keys: "Ctrl+-", label: "Zoom out",
+    { id: "zoom-out", group: "group.reader", keys: "Ctrl+-", label: "zoom.out",
       match: function (event) { return isControl(event) && !event.altKey && isZoomOutKey(event); },
       run: function () { zoomPage("out"); } },
-    { id: "zoom-reset", group: "Reader", keys: "Ctrl+0", label: "Actual size",
+    { id: "zoom-reset", group: "group.reader", keys: "Ctrl+0", label: "viewer.actual",
       match: function (event) { return isControl(event) && !event.altKey && event.key === "0"; },
       run: function () { zoomPage("reset"); } },
-    { id: "settings", group: "Reader", keys: "Ctrl+/", label: "Settings and shortcuts",
+    { id: "settings", group: "group.reader", keys: "Ctrl+/", label: "shortcut.settings",
       match: function (event) { return isControl(event) && !event.altKey && event.key === "/"; },
       run: function () { openSettings(false); } },
-    { id: "settings-help", group: "Reader", keys: "F1", label: "Settings and shortcuts",
+    { id: "settings-help", group: "group.reader", keys: "F1", label: "shortcut.settings",
       match: function (event) { return event.key === "F1" && !isControl(event) && !event.altKey; },
       run: function () { openSettings(false); } },
-    { id: "settings-close", group: "Settings panel", keys: "Esc",
-      label: "Close the settings panel",
+    { id: "settings-close", group: "group.settings", keys: "Esc",
+      label: "shortcut.closeSettings",
       match: function (event) {
         return event.key === "Escape" && !elements.settingsPanel.hidden;
       },
       run: function () { closeSettings(true); } },
-    { id: "tab-next", group: "Tabs", keys: "Ctrl+Tab", label: "Next tab",
+    { id: "tab-next", group: "group.tabs", keys: "Ctrl+Tab", label: "shortcut.nextTab",
       available: tabsAvailable,
       match: function (event) {
         return isControl(event) && !event.shiftKey && event.key === "Tab" && tabs.length > 1;
       },
       run: function () { cycleTab(1); } },
-    { id: "tab-previous", group: "Tabs", keys: "Ctrl+Shift+Tab", label: "Previous tab",
+    { id: "tab-previous", group: "group.tabs", keys: "Ctrl+Shift+Tab", label: "shortcut.previousTab",
       available: tabsAvailable,
       match: function (event) {
         return isControl(event) && event.shiftKey && event.key === "Tab" && tabs.length > 1;
       },
       run: function () { cycleTab(-1); } },
-    { id: "tab-page-down", group: "Tabs", keys: "Ctrl+Page Down", label: "Next tab",
+    { id: "tab-page-down", group: "group.tabs", keys: "Ctrl+Page Down", label: "shortcut.nextTab",
       available: tabsAvailable,
       match: function (event) {
         return isControl(event) && event.key === "PageDown" && tabs.length > 1;
       },
       run: function () { cycleTab(1); } },
-    { id: "tab-page-up", group: "Tabs", keys: "Ctrl+Page Up", label: "Previous tab",
+    { id: "tab-page-up", group: "group.tabs", keys: "Ctrl+Page Up", label: "shortcut.previousTab",
       available: tabsAvailable,
       match: function (event) {
         return isControl(event) && event.key === "PageUp" && tabs.length > 1;
       },
       run: function () { cycleTab(-1); } },
-    { id: "tab-close", group: "Tabs", keys: "Ctrl+W", label: "Close the tab",
+    { id: "tab-close", group: "group.tabs", keys: "Ctrl+W", label: "shortcut.closeTab",
       available: tabsAvailable,
       match: function (event) {
         return isControl(event) && !event.shiftKey && !event.altKey &&
           keyName(event) === "w" && activeTabId;
       },
       run: function () { closeTab(activeTabId); } },
-    { id: "tab-number", group: "Tabs", keys: "Ctrl+1 to Ctrl+8",
-      label: "Go to a tab by position", available: tabsAvailable,
+    { id: "tab-number", group: "group.tabs", keys: "Ctrl+1 to Ctrl+8",
+      label: "shortcut.tabByPosition", available: tabsAvailable,
       match: function (event) {
         return isControl(event) && !event.shiftKey && !event.altKey &&
           /^[1-8]$/.test(event.key) && tabs.length > 1;
@@ -1936,7 +2332,7 @@
           selectTab(target.id, false);
         }
       } },
-    { id: "tab-last", group: "Tabs", keys: "Ctrl+9", label: "Go to the last tab",
+    { id: "tab-last", group: "group.tabs", keys: "Ctrl+9", label: "shortcut.lastTab",
       available: tabsAvailable,
       match: function (event) {
         return isControl(event) && !event.shiftKey && !event.altKey &&
@@ -1946,13 +2342,13 @@
   ];
 
   var findShortcuts = [
-    { group: "Find box", keys: "Enter", label: "Next match",
+    { group: "group.find", keys: "Enter", label: "shortcut.nextMatch",
       match: function (event) { return event.key === "Enter" && !event.shiftKey; },
       run: function () { moveSearch(1); } },
-    { group: "Find box", keys: "Shift+Enter", label: "Previous match",
+    { group: "group.find", keys: "Shift+Enter", label: "shortcut.previousMatch",
       match: function (event) { return event.key === "Enter" && event.shiftKey; },
       run: function () { moveSearch(-1); } },
-    { group: "Find box", keys: "Esc", label: "Clear the search",
+    { group: "group.find", keys: "Esc", label: "shortcut.clearSearch",
       match: function (event) { return event.key === "Escape"; },
       run: function () {
         elements.findInput.value = "";
@@ -1962,45 +2358,45 @@
   ];
 
   var tabStripShortcuts = [
-    { group: "Tab strip", keys: "Right arrow", label: "Next tab", available: tabsAvailable,
+    { group: "group.tabStrip", keys: "Right arrow", label: "shortcut.nextTab", available: tabsAvailable,
       match: function (event) { return event.key === "ArrowRight"; },
       run: function (_event, _id, index) { selectTab(tabs[(index + 1) % tabs.length].id, true); } },
-    { group: "Tab strip", keys: "Left arrow", label: "Previous tab", available: tabsAvailable,
+    { group: "group.tabStrip", keys: "Left arrow", label: "shortcut.previousTab", available: tabsAvailable,
       match: function (event) { return event.key === "ArrowLeft"; },
       run: function (_event, _id, index) {
         selectTab(tabs[(index - 1 + tabs.length) % tabs.length].id, true);
       } },
-    { group: "Tab strip", keys: "Home", label: "First tab", available: tabsAvailable,
+    { group: "group.tabStrip", keys: "Home", label: "shortcut.firstTab", available: tabsAvailable,
       match: function (event) { return event.key === "Home"; },
       run: function () { selectTab(tabs[0].id, true); } },
-    { group: "Tab strip", keys: "End", label: "Last tab", available: tabsAvailable,
+    { group: "group.tabStrip", keys: "End", label: "shortcut.finalTab", available: tabsAvailable,
       match: function (event) { return event.key === "End"; },
       run: function () { selectTab(tabs[tabs.length - 1].id, true); } },
-    { group: "Tab strip", keys: "Delete", label: "Close the tab", available: tabsAvailable,
+    { group: "group.tabStrip", keys: "Delete", label: "shortcut.closeTab", available: tabsAvailable,
       match: function (event) { return event.key === "Delete"; },
       run: function (_event, id) { closeTab(id); } }
   ];
 
   var viewerShortcuts = [
-    { group: "Expanded figure", keys: "Esc", label: "Close the figure",
+    { group: "group.figure", keys: "Esc", label: "shortcut.closeFigure",
       match: function (event) { return event.key === "Escape"; },
       run: function () { closeViewer(true); } },
-    { group: "Expanded figure", keys: "+", label: "Zoom in", match: isZoomInKey,
+    { group: "group.figure", keys: "+", label: "zoom.in", match: isZoomInKey,
       run: function () { viewerAction("in"); } },
-    { group: "Expanded figure", keys: "-", label: "Zoom out", match: isZoomOutKey,
+    { group: "group.figure", keys: "-", label: "zoom.out", match: isZoomOutKey,
       run: function () { viewerAction("out"); } },
-    { group: "Expanded figure", keys: "0", label: "Fit to the window",
+    { group: "group.figure", keys: "0", label: "shortcut.fitWindow",
       match: function (event) { return event.key === "0"; },
       run: function () { viewerAction("fit"); } },
-    { group: "Expanded figure", keys: "1", label: "Actual size",
+    { group: "group.figure", keys: "1", label: "viewer.actual",
       match: function (event) { return event.key === "1" && !isControl(event); },
       run: function () { viewerAction("actual"); } },
-    { group: "Expanded figure", keys: "Arrow keys", label: "Pan, faster with Shift",
+    { group: "group.figure", keys: "Arrow keys", label: "shortcut.pan",
       match: function (event) {
         return /^Arrow(Left|Right|Up|Down)$/.test(event.key);
       },
       run: panViewer },
-    { group: "Expanded figure", keys: "Tab", label: "Move between its controls",
+    { group: "group.figure", keys: "Tab", label: "shortcut.moveControls",
       match: function (event) { return event.key === "Tab"; },
       run: function (event) {
         // Keep focus inside the dialog.
@@ -2021,8 +2417,17 @@
     return null;
   }
 
+  // Keys named in words are translated; the rest are printed on the keys.
+  var keyNames = {
+    "Right arrow": "key.rightArrow",
+    "Left arrow": "key.leftArrow",
+    "Arrow keys": "key.arrows",
+    "Ctrl+1 to Ctrl+8": "key.tabNumbers"
+  };
+
   function formatKeys(keys) {
-    return hostIsMac ? keys.replace(/\bCtrl\+/g, "Cmd+") : keys;
+    var text = keyNames[keys] ? t(keyNames[keys]) : keys;
+    return hostIsMac ? text.replace(/\bCtrl\+/g, "Cmd+") : text;
   }
 
   function shortcutKeys(id) {
@@ -2042,9 +2447,9 @@
         table.forEach(function (entry) {
           if (!entry.available || entry.available()) {
             listed.push({
-              group: entry.group,
+              group: t(entry.group),
               keys: formatKeys(entry.keys),
-              label: entry.label
+              label: t(entry.label)
             });
           }
         });
@@ -2053,7 +2458,7 @@
     hostShortcuts.forEach(function (entry) {
       if (!seen.has(entry.keys)) {
         seen.add(entry.keys);
-        listed.push({ group: "Menu", keys: entry.keys, label: entry.label });
+        listed.push({ group: t("group.menu"), keys: entry.keys, label: entry.label });
       }
     });
     return listed;
@@ -2101,7 +2506,105 @@
       .forEach(function (input) {
         input.checked = input.value === currentWidth;
       });
+    elements.settingsPanel.querySelectorAll('input[name="settings-language"]')
+      .forEach(function (input) {
+        input.checked = input.value === languageSetting;
+      });
     elements.settingsZoomValue.textContent = Math.round(zoomLevel * 100) + "%";
+  }
+
+  function updateHostTitles() {
+    elements.copyButton.title = t(
+      hostCopiesSource ? "copy.documentMarkdownKeys" : "copy.documentKeys",
+      { keys: shortcutKeys("copy") });
+    elements.settingsButton.title =
+      t("settings.buttonKeys", { keys: shortcutKeys("settings") });
+  }
+
+  function renderDocumentLine() {
+    elements.fileName.textContent = documentView.fileName || t("doc.untitled");
+    elements.fileMeta.textContent =
+      t("doc.watching", { size: formatBytes(documentView.sourceBytes) });
+  }
+
+  function chooseLanguage(setting) {
+    languageSetting = interfaceStrings.normalizeSetting(setting);
+    applyLanguage(interfaceStrings.resolve(languageSetting, systemLanguageTag()));
+    post("language|" + languageSetting);
+  }
+
+  function applyLanguage(next) {
+    next = interfaceStrings.languages.indexOf(next) >= 0 ? next : "en";
+    if (next !== language) {
+      language = next;
+      translatePage();
+    }
+    updateSettingsPanel();
+  }
+
+  // Writes every string on the page in the current language. It runs only
+  // when the language is not the English reader.html starts with, or changes.
+  function translatePage() {
+    document.documentElement.lang = language;
+    document.querySelectorAll("[data-i18n]").forEach(function (node) {
+      node.textContent = t(node.getAttribute("data-i18n"));
+    });
+    ["title", "aria-label", "placeholder"].forEach(function (name) {
+      document.querySelectorAll("[data-i18n-" + name + "]").forEach(function (node) {
+        node.setAttribute(name, t(node.getAttribute("data-i18n-" + name)));
+      });
+    });
+    updateHostTitles();
+    applyTheme(currentTheme, false);
+    if (elements.readerPane.hidden) {
+      renderStateText();
+    } else {
+      renderDocumentLine();
+      relabelDocument();
+    }
+    if (tabs.length) {
+      renderTabs();
+    }
+    if (!elements.settingsPanel.hidden) {
+      renderShortcutList();
+    }
+  }
+
+  // The labels the page added to the document on screen.
+  function relabelDocument() {
+    var article = elements.article;
+    var copyTitle = t(hostCopiesSource ? "copy.sectionMarkdown" : "copy.section");
+    article.querySelectorAll(".copy-section").forEach(function (button) {
+      button.title = copyTitle;
+      button.setAttribute("aria-label", t("copy.sectionLabel", {
+        text: (button.parentElement.textContent || "").trim()
+      }));
+    });
+    article.querySelectorAll(".expand-figure").forEach(function (button) {
+      var image = button.parentElement.classList.contains("figure-frame-image");
+      button.title = t("figure.expand");
+      button.setAttribute("aria-label",
+        t(image ? "figure.expandImage" : "figure.expandDiagram"));
+    });
+    article.querySelectorAll(".table-scroll").forEach(function (wrapper) {
+      wrapper.setAttribute("aria-label", t("table.scrollable"));
+    });
+    article.querySelectorAll(".blocked-image").forEach(function (note) {
+      if (note._leanmarkNote) {
+        note.textContent = blockedImageText(note._leanmarkNote);
+      }
+    });
+    article.querySelectorAll("figure.diagram").forEach(function (figure) {
+      figure.setAttribute("aria-label", t("diagram.label"));
+      var svg = figure.querySelector("svg[role=img]");
+      if (svg) {
+        svg.setAttribute("aria-label", t("diagram.label"));
+      }
+      if (figure._leanmarkError) {
+        figure.querySelector("strong").textContent = t(figure._leanmarkError[0]);
+        figure.querySelector("span").textContent = t(figure._leanmarkError[1]);
+      }
+    });
   }
 
   function openSettings(fromButton) {
@@ -2209,11 +2712,7 @@
       applyTheme(theme, true);
     },
     showEmpty: function () {
-      showState(
-        "Read Markdown without opening an editor.",
-        "Open a local Markdown file to begin.",
-        ""
-      );
+      showState("emptyShort", "", "");
     },
     sectionText: renderedSectionText,
     shortcuts: listedShortcuts,
@@ -2231,6 +2730,9 @@
     }
   });
 
+  if (language !== "en") {
+    translatePage();
+  }
   applyZoom(100);
   applyWidth("narrow");
   applyTheme("system", false);

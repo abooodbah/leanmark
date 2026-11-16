@@ -13,6 +13,13 @@
 #include "Markdown.h"
 #include "core/MarkdownCore.h"
 
+// A string the host shows itself, such as a start-up error or the file
+// dialog's title, in English and Simplified Chinese.
+struct NativeText {
+    const wchar_t* english;
+    const wchar_t* chinese;
+};
+
 class LeanMarkApp {
 public:
     // Shared with main.cpp, which hands a second launch's documents to the
@@ -115,6 +122,9 @@ private:
     bool EffectiveDarkTheme() const;
     leanmark::core::ThemeColor CanvasColor() const;
     const char* ThemeName() const;
+    // "en" or "zh-CN": the saved choice, or the Windows display language.
+    const char* InterfaceLanguage() const;
+    const wchar_t* Text(const NativeText& text) const;
 
     HINSTANCE instance_ = nullptr;
     HWND window_ = nullptr;
@@ -140,4 +150,6 @@ private:
     leanmark::core::Theme theme_ = leanmark::core::Theme::System;
     double zoom_ = 1.0;
     leanmark::core::TextWidth width_ = leanmark::core::kDefaultTextWidth;
+    leanmark::core::LanguageSetting language_ = leanmark::core::LanguageSetting::System;
+    std::string systemLanguage_;
 };

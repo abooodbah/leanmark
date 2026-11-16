@@ -503,6 +503,59 @@ void TestFilesAndPaths() {
 
 }  // namespace
 
+void TestInterfaceLanguages() {
+    using leanmark::core::LanguageSetting;
+    using leanmark::core::LanguageSettingName;
+    using leanmark::core::ParseLanguageSetting;
+    using leanmark::core::ResolveInterfaceLanguage;
+    using leanmark::core::SystemInterfaceLanguage;
+
+    Expect(ParseLanguageSetting("system") == LanguageSetting::System &&
+               ParseLanguageSetting("en") == LanguageSetting::English &&
+               ParseLanguageSetting("zh-CN") == LanguageSetting::ChineseSimplified,
+           "each saved language name should parse to its setting");
+    Expect(ParseLanguageSetting("ZH-cn") == LanguageSetting::ChineseSimplified &&
+               ParseLanguageSetting("EN") == LanguageSetting::English,
+           "language names should parse without regard to ASCII case");
+    // Settings from 0.7.1 have no language; a later version may save one this
+    // version does not have. Both follow the system.
+    Expect(ParseLanguageSetting("") == LanguageSetting::System &&
+               ParseLanguageSetting("fr") == LanguageSetting::System &&
+               ParseLanguageSetting("zh") == LanguageSetting::System &&
+               ParseLanguageSetting("en ") == LanguageSetting::System,
+           "an unknown or missing language should follow the system");
+    for (const LanguageSetting setting :
+         {LanguageSetting::System, LanguageSetting::English,
+          LanguageSetting::ChineseSimplified}) {
+        Expect(ParseLanguageSetting(LanguageSettingName(setting)) == setting,
+               "a saved language name should read back as the same setting");
+    }
+
+    // Windows reports zh-CN; Linux reports zh_CN.UTF-8; script tags are
+    // possible on both. Traditional Chinese keeps English until it has its
+    // own table.
+    for (const char* tag :
+         {"zh-CN", "zh-cn", "zh", "zh-SG", "zh-Hans", "zh-Hans-CN",
+          "zh-Hans-HK", "zh_CN.UTF-8", "zh_CN", "zh_SG.GB2312"}) {
+        Expect(std::string(SystemInterfaceLanguage(tag)) == "zh-CN",
+               "a Simplified Chinese system language should pick Chinese");
+    }
+    for (const char* tag :
+         {"en-US", "en", "", "de-DE", "ja-JP", "zh-TW", "zh-HK", "zh-MO",
+          "zh-Hant", "zh-Hant-TW", "zh_TW.UTF-8", "zhx", "C", "POSIX"}) {
+        Expect(std::string(SystemInterfaceLanguage(tag)) == "en",
+               "any other system language should pick English");
+    }
+
+    Expect(std::string(ResolveInterfaceLanguage(LanguageSetting::System, "zh-CN")) == "zh-CN" &&
+               std::string(ResolveInterfaceLanguage(LanguageSetting::System, "en-US")) == "en",
+           "the System setting should follow the system language");
+    Expect(std::string(ResolveInterfaceLanguage(LanguageSetting::English, "zh-CN")) == "en" &&
+               std::string(ResolveInterfaceLanguage(
+                   LanguageSetting::ChineseSimplified, "en-US")) == "zh-CN",
+           "a chosen language should override the system language");
+}
+
 int main() {
     TestRenderer();
     TestSections();
@@ -511,6 +564,7 @@ int main() {
     TestZoomLevels();
     TestThemes();
     TestTextWidths();
+    TestInterfaceLanguages();
     TestFilesAndPaths();
     if (failures != 0) {
         std::cerr << failures << " portable core assertion(s) failed.\n";

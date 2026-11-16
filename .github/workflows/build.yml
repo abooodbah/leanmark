@@ -56,6 +56,10 @@ jobs:
         shell: pwsh
         run: node ./tests/Invoke-ReaderBrowserSmoke.mjs --assets ./dist/assets
 
+      - name: Check the interface translations
+        shell: pwsh
+        run: node ./tests/Test-Localization.mjs
+
       - name: Verify launch site
         shell: pwsh
         run: ./tests/Test-Site.ps1 -SitePath ./site
