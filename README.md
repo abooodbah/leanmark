@@ -4,15 +4,15 @@ Read Markdown files without opening an editor, including the .md files your AI t
 
 LeanMark reloads the page when the file changes on disk and keeps your place, so you can leave a plan or report open and watch it update as it is written. Raw HTML is off and remote content is blocked, so a file cannot run its own scripts or load anything from the internet.
 
-![LeanMark reloading a plan file as another program ticks off its steps](docs/images/leanmark-live-update.gif)
-
-*A script rewrites agent-plan.md about every 1.5 seconds and LeanMark reloads it in place.*
-
 Mermaid diagrams render offline too. LeanMark uses the system web view, with no bundled browser, no Electron, and no telemetry. About 74 ms to a visible window and 97 MiB peak private memory on Windows 11 (measured with 0.3.0).
 
 [简体中文](#简体中文) · [Website](https://abooodbah.github.io/leanmark/) · [Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) · `winget install abooodbah.LeanMark` · `choco install leanmark` · [All Lean apps](https://abooodbah.github.io/)
 
 [![winget version](https://img.shields.io/winget/v/abooodbah.LeanMark?label=winget)](https://github.com/microsoft/winget-pkgs/tree/master/manifests/a/abooodbah/LeanMark) [![Microsoft Store](https://img.shields.io/badge/Microsoft%20Store-9MSS4WKJ22ZV-0078d4)](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) [![License: MIT](https://img.shields.io/github/license/abooodbah/leanmark)](LICENSE) [![GitHub release downloads](https://img.shields.io/github/downloads/abooodbah/leanmark/total)](https://github.com/abooodbah/leanmark/releases)
+
+![LeanMark reloading a plan file as another program ticks off its steps](docs/images/leanmark-live-update.gif)
+
+*A script rewrites agent-plan.md about every second and LeanMark reloads it in place.*
 
 ![LeanMark showing a Mermaid flowchart and a table, with two documents open as tabs](docs/images/leanmark-mermaid.png)
 
@@ -39,7 +39,7 @@ LeanMark 是一款免费的 Markdown 阅读器，支持 Windows、Linux 和 macO
 
 ![LeanMark 在另一个程序勾选计划步骤时自动刷新](docs/images/leanmark-live-update.gif)
 
-*一个脚本大约每 1.5 秒改写一次 agent-plan.md，LeanMark 在原处重新加载。*
+*一个脚本大约每秒改写一次 agent-plan.md，LeanMark 在原处重新加载。*
 
 - **实时刷新**：文件在磁盘上被修改时，LeanMark 会重新加载页面，并保持当前的阅读位置。可以把计划或报告一直开着，看着它边写边更新。
 - **安全**：原始 HTML 处于关闭状态，远程内容会被阻止，因此文件无法运行自己的脚本，也无法从互联网加载任何内容。
