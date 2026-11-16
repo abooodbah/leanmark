@@ -54,6 +54,11 @@ if ($Publisher -notmatch '^CN=' -or $Publisher.Length -gt 8192) {
     throw ('MSIX publisher must be a distinguished name starting with CN=: {0}' -f $Publisher)
 }
 if ($PublisherDisplayName.Length -gt 256) { throw 'Publisher display name is too long.' }
+# The schema allows 1 to 256 characters for both DisplayName attributes.
+$DisplayName = [string]$Config.StoreDisplayName
+if ([string]::IsNullOrWhiteSpace($DisplayName) -or $DisplayName.Length -gt 256) {
+    throw ('StoreDisplayName in app.psd1 is not valid: {0}' -f $DisplayName)
+}
 
 $Version = $Version.Trim().TrimStart('v')
 if ($Version -notmatch '^(\d+)\.(\d+)\.(\d+)$') {
@@ -142,6 +147,7 @@ $Manifest = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'AppxManifest.temp
 $Manifest = $Manifest.Replace('{{IDENTITY_NAME}}', (ConvertTo-XmlText $IdentityName))
 $Manifest = $Manifest.Replace('{{PUBLISHER}}', (ConvertTo-XmlText $Publisher))
 $Manifest = $Manifest.Replace('{{PUBLISHER_DISPLAY_NAME}}', (ConvertTo-XmlText $PublisherDisplayName))
+$Manifest = $Manifest.Replace('{{DISPLAY_NAME}}', (ConvertTo-XmlText $DisplayName))
 $Manifest = $Manifest.Replace('{{VERSION}}', $PackageVersion)
 if ($Manifest -match '\{\{[A-Z_]+\}\}') { throw ('Unfilled manifest token: {0}' -f $Matches[0]) }
 $ManifestPath = Join-Path $Layout 'AppxManifest.xml'
@@ -169,6 +175,16 @@ foreach ($Required in 'AppxManifest.xml', 'AppxBlockMap.xml', 'resources.pri', $
 }
 [xml]$Packed = Get-Content -LiteralPath (Join-Path $Unpacked 'AppxManifest.xml') -Raw
 if ($Packed.Package.Identity.Version -ne $PackageVersion) { throw 'Packed version does not match.' }
+if ($Packed.Package.Identity.Name -ne $IdentityName) { throw 'Packed identity name does not match.' }
+# The Store shows Properties/DisplayName and Windows shows the VisualElements
+# one in Start; both must be the reserved name, and the exe stays the same.
+$PackedApp = $Packed.Package.Applications.Application
+foreach ($Shown in @($Packed.Package.Properties.DisplayName, $PackedApp.VisualElements.DisplayName)) {
+    if ($Shown -cne $DisplayName) {
+        throw ('Packed display name is "{0}", not "{1}".' -f $Shown, $DisplayName)
+    }
+}
+if ($PackedApp.Executable -ne $Config.Executable) { throw 'Packed executable does not match.' }
 
 $Hash = (Get-FileHash -LiteralPath $PackagePath -Algorithm SHA256).Hash.ToLowerInvariant()
 [IO.File]::WriteAllText($PackagePath + '.sha256', ('{0}  {1}{2}' -f $Hash, $PackageName, [char]10),
@@ -178,6 +194,7 @@ $Result = [ordered]@{
     Package = $PackagePath
     Version = $PackageVersion
     IdentityName = $IdentityName
+    DisplayName = $DisplayName
     Publisher = $Publisher
     PublisherDisplayName = $PublisherDisplayName
     UsesPlaceholders = $UsesPlaceholders

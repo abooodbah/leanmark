@@ -1,6 +1,10 @@
 @{
     # Read by New-StorePackage.ps1, New-StoreImages.ps1 and Test-StorePackage.ps1.
     AppId = 'LeanMark'
+    # The name Windows and the Store show for the package (Properties and
+    # VisualElements DisplayName). It must be a name reserved in Partner Center.
+    # The exe, window title, Identity Name and package ids stay LeanMark.
+    StoreDisplayName = 'LeanMark Markdown Viewer'
     Executable = 'LeanMark.exe'
     # The command alias; the ZIP installer registers the same name under App Paths.
     Alias = 'leanmark.exe'

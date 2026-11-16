@@ -4,7 +4,7 @@ Paste each field into Partner Center > your app > Submission > Store listings > 
 
 ## Product
 
-- Product name (reserve this exact name): LeanMark
+- Product name (reserved in Partner Center; the package display name from 0.8.0): LeanMark Markdown Viewer. The exe, window title, Identity Name and package ids stay LeanMark.
 - Publisher display name: Lean Apps Studio
 - Short title (50 characters or fewer): LeanMark: Markdown viewer
 - Version in this pack: 0.7.1 (package version 0.7.1.0)
