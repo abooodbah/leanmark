@@ -54,6 +54,16 @@ Linux:
 node .\tests\Invoke-ReaderBrowserSmoke.mjs --assets .\dist\assets
 ```
 
+Check the interface translations without a browser: both string tables have
+the same keys and placeholders, the Simplified Chinese table has no English left
+apart from product and key names, a missing key falls back to English, the
+language follows the system unless the reader chose one, and every visible
+string in `reader.html` and every message the Windows host sends is covered:
+
+```powershell
+node .\tests\Test-Localization.mjs
+```
+
 On Linux and macOS the WebKit smoke tests (`ctest`) also open the showcase
 fixture, expand a figure, and check that closing the viewer puts it back.
 

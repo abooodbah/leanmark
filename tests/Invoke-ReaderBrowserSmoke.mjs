@@ -1988,6 +1988,119 @@ async function run() {
       /Diagram limit reached/.test(capped.lastText),
       "the 51st diagram is not queued for rendering");
 
+    // Interface language. A host without a language setting gets no picker;
+    // the Windows host reports its saved setting and the system language.
+    check(await client.evaluate('document.getElementById("languageGroup").hidden'),
+      "the language choice stays hidden until the host reports a language setting");
+    await deliver({ type: "host", copySource: true, tabs: true,
+      language: "system", systemLanguage: "zh-CN" });
+    await deliver({
+      type: "document", tabId: 1, theme: "light", fileName: "viewer.md",
+      path: "/fixtures/viewer.md", documentBaseUrl: "https://d1.doc.leanmark.invalid/",
+      sourceBytes: 1014, hasMermaid: true, html: DOCUMENT_HTML,
+    });
+    await waitFor(client, 'document.documentElement.dataset.renderState === "ready"',
+      "the document to render in Chinese");
+    const READ_LANGUAGE = `(function () {
+      var checked = document.querySelector('input[name="settings-language"]:checked');
+      return {
+        lang: document.documentElement.lang,
+        settings: document.getElementById("settingsTitle").textContent,
+        open: document.getElementById("openButton").textContent.trim(),
+        find: document.getElementById("findInput").placeholder,
+        meta: document.getElementById("fileMeta").textContent,
+        theme: document.getElementById("themeLabel").textContent,
+        copyTitle: document.getElementById("copyButton").title,
+        section: (document.querySelector("#article .copy-section") || {}).title,
+        groupHidden: document.getElementById("languageGroup").hidden,
+        checked: checked ? checked.value : ""
+      };
+    }())`;
+    let language = await client.evaluate(READ_LANGUAGE);
+    check(language.lang === "zh-CN" && language.settings === "设置" &&
+      language.open === "打开" && language.find === "查找" &&
+      /正在监视更改/.test(language.meta) && language.theme === "浅色" &&
+      /复制整个文档/.test(language.copyTitle) && /复制此章节/.test(language.section),
+      "a zh-CN system shows the interface in Simplified Chinese " + JSON.stringify(language));
+    check(!language.groupHidden && language.checked === "system",
+      "the language choice shows System when the host follows the system");
+
+    await deliver({ type: "status", tone: "warning",
+      message: "Absolute local links are blocked for safety." });
+    check(await client.evaluate('document.getElementById("statusToast").textContent') ===
+      "为安全起见，已阻止绝对路径的本地链接。",
+      "a status message from the host is shown in Chinese");
+
+    await clickSelector(client, "#settingsButton");
+    if (captureDirectory) {
+      await fs.mkdir(resolve(captureDirectory), { recursive: true });
+      const shot = await client.send("Page.captureScreenshot", { format: "png" });
+      await fs.writeFile(join(resolve(captureDirectory), "zh-CN-settings.png"),
+        Buffer.from(shot.data, "base64"));
+    }
+    check(await client.evaluate(
+      'Array.from(document.querySelectorAll("#shortcutList h4")).map(function (h) { return h.textContent; }).indexOf("阅读器") >= 0'),
+      "the shortcut list is in Chinese");
+
+    await clearPosted();
+    await clickSelector(client, '#settingsPanel input[name="settings-language"][value="en"]');
+    language = await client.evaluate(READ_LANGUAGE);
+    check(JSON.stringify(await posted()) === JSON.stringify(["language|en"]),
+      "choosing English asks the host to save it");
+    check(language.lang === "en" && language.settings === "Settings" &&
+      language.open === "Open" && language.theme === "Light" &&
+      /Watching for changes/.test(language.meta) &&
+      language.section === "Copy this section as Markdown",
+      "choosing English switches a Chinese system back to English at once " +
+      JSON.stringify(language));
+    check(await client.evaluate(
+      'Array.from(document.querySelectorAll("#shortcutList h4")).map(function (h) { return h.textContent; }).indexOf("Reader") >= 0'),
+      "the open shortcut list follows the language change");
+
+    await clearPosted();
+    await clickSelector(client, '#settingsPanel input[name="settings-language"][value="zh-CN"]');
+    language = await client.evaluate(READ_LANGUAGE);
+    check(JSON.stringify(await posted()) === JSON.stringify(["language|zh-CN"]) &&
+      language.settings === "设置" && language.checked === "zh-CN",
+      "choosing 简体中文 switches to Chinese and asks the host to save it");
+    await press(client, "Escape");
+
+    // A saved choice wins over the system language.
+    await deliver({ type: "host", copySource: true, tabs: true,
+      language: "en", systemLanguage: "zh-CN" });
+    language = await client.evaluate(READ_LANGUAGE);
+    check(language.lang === "en" && language.settings === "Settings" && language.checked === "en",
+      "a saved English setting overrides a zh-CN system");
+    await deliver({ type: "host", copySource: true, tabs: true,
+      language: "zh-CN", systemLanguage: "en-US" });
+    language = await client.evaluate(READ_LANGUAGE);
+    check(language.lang === "zh-CN" && language.settings === "设置",
+      "a saved Chinese setting overrides an English system");
+    if (captureDirectory) {
+      const shot = await client.send("Page.captureScreenshot", { format: "png" });
+      await fs.writeFile(join(resolve(captureDirectory), "zh-CN-document.png"),
+        Buffer.from(shot.data, "base64"));
+    }
+
+    // The Windows host names the language in the page address, so the first
+    // paint is already in that language, before any host message.
+    await client.send("Page.navigate", { url: origin + "/reader.html?lang=zh-CN" });
+    await waitFor(client, 'window.__posted && window.__posted.indexOf("ready") >= 0',
+      "the reader to report ready in Chinese");
+    const firstPaint = await client.evaluate(`({
+      lang: document.documentElement.lang,
+      title: document.getElementById("stateTitle").textContent,
+      button: document.getElementById("stateOpenButton").textContent.trim()
+    })`);
+    check(firstPaint.lang === "zh-CN" && firstPaint.title === "无需打开编辑器即可阅读 Markdown。" &&
+      firstPaint.button === "打开 Markdown 文件",
+      "reader.html?lang=zh-CN starts in Chinese " + JSON.stringify(firstPaint));
+    if (captureDirectory) {
+      const shot = await client.send("Page.captureScreenshot", { format: "png" });
+      await fs.writeFile(join(resolve(captureDirectory), "zh-CN-start.png"),
+        Buffer.from(shot.data, "base64"));
+    }
+
     check(consoleErrors.length === 0,
       "the page threw no exceptions" +
       (consoleErrors.length ? ": " + consoleErrors.join("; ") : ""));

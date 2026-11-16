@@ -120,6 +120,11 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
       COMMAND "${LEANMARK_NODE_EXECUTABLE}"
               "${CMAKE_CURRENT_SOURCE_DIR}/tests/linux/Test-LinuxSource.mjs")
 
+    add_test(
+      NAME leanmark-localization
+      COMMAND "${LEANMARK_NODE_EXECUTABLE}"
+              "${CMAKE_CURRENT_SOURCE_DIR}/tests/Test-Localization.mjs")
+
     option(
       LEANMARK_ENABLE_GUI_TESTS
       "Run the real GTK/WebKit reader smoke test under Xvfb"
