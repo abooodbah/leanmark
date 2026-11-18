@@ -189,6 +189,17 @@ of this release.
 > this repository's GitHub Releases. The published checksum proves byte
 > identity with the release asset; it does not replace platform code signing.
 
+Releases after 0.8.0 also carry a build provenance attestation: a record,
+signed through GitHub, that the file was built by this repository's release
+workflow from the tagged source. To check one with the GitHub CLI:
+
+```sh
+gh attestation verify <downloaded file> --repo abooodbah/leanmark
+```
+
+This shows where a file was built. It is not code signing and does not change
+the SmartScreen or Gatekeeper prompt.
+
 ## Package use
 
 ### Windows x64
