@@ -339,27 +339,35 @@ bool WriteClipboardText(HWND owner, const std::wstring& text) {
 // messages go to the page in English and the page translates them.
 constexpr NativeText kTextCouldNotStart = {
     L"LeanMark could not start",
-    L"LeanMark 无法启动"};
+    L"LeanMark 无法启动",
+    L"LeanMark を起動できませんでした"};
 constexpr NativeText kTextNeedsWebView2 = {
     L"LeanMark needs the Microsoft Edge WebView2 Runtime. "
     L"Install or repair WebView2, then try again.",
     L"LeanMark 需要 Microsoft Edge WebView2 运行时。"
-    L"请安装或修复 WebView2，然后重试。"};
+    L"请安装或修复 WebView2，然后重试。",
+    L"LeanMark には Microsoft Edge WebView2 ランタイムが必要です。"
+    L"WebView2 をインストールまたは修復してから、もう一度お試しください。"};
 constexpr NativeText kTextNoReaderSurface = {
     L"Windows could not create LeanMark's reader surface.",
-    L"Windows 无法创建 LeanMark 的阅读界面。"};
+    L"Windows 无法创建 LeanMark 的阅读界面。",
+    L"Windows は LeanMark の表示領域を作成できませんでした。"};
 constexpr NativeText kTextWebView2Failed = {
     L"LeanMark could not initialize the WebView2 Runtime.",
-    L"LeanMark 无法初始化 WebView2 运行时。"};
+    L"LeanMark 无法初始化 WebView2 运行时。",
+    L"LeanMark は WebView2 ランタイムを初期化できませんでした。"};
 constexpr NativeText kTextOpenDialogTitle = {
     L"Open Markdown files",
-    L"打开 Markdown 文件"};
+    L"打开 Markdown 文件",
+    L"Markdown ファイルを開く"};
 constexpr NativeText kTextMarkdownFiles = {
     L"Markdown files",
-    L"Markdown 文件"};
+    L"Markdown 文件",
+    L"Markdown ファイル"};
 constexpr NativeText kTextAllFiles = {
     L"All files",
-    L"所有文件"};
+    L"所有文件",
+    L"すべてのファイル"};
 
 // The Windows display language, such as zh-CN or en-US.
 std::string SystemLanguageTag() {
@@ -1850,8 +1858,11 @@ const char* LeanMarkApp::InterfaceLanguage() const {
 }
 
 const wchar_t* LeanMarkApp::Text(const NativeText& text) const {
-    return std::strcmp(InterfaceLanguage(), "zh-CN") == 0 ? text.chinese
-                                                          : text.english;
+    const char* language = InterfaceLanguage();
+    if (std::strcmp(language, "ja") == 0) {
+        return text.japanese;
+    }
+    return std::strcmp(language, "zh-CN") == 0 ? text.chinese : text.english;
 }
 
 const char* LeanMarkApp::ThemeName() const {

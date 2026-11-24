@@ -14,10 +14,11 @@
 #include "core/MarkdownCore.h"
 
 // A string the host shows itself, such as a start-up error or the file
-// dialog's title, in English and Simplified Chinese.
+// dialog's title, in English, Simplified Chinese and Japanese.
 struct NativeText {
     const wchar_t* english;
     const wchar_t* chinese;
+    const wchar_t* japanese;
 };
 
 class LeanMarkApp {
@@ -122,7 +123,7 @@ private:
     bool EffectiveDarkTheme() const;
     leanmark::core::ThemeColor CanvasColor() const;
     const char* ThemeName() const;
-    // "en" or "zh-CN": the saved choice, or the Windows display language.
+    // "en", "zh-CN" or "ja": the saved choice, or the Windows display language.
     const char* InterfaceLanguage() const;
     const wchar_t* Text(const NativeText& text) const;
 

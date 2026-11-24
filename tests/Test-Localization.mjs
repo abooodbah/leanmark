@@ -45,6 +45,11 @@ function leftoverEnglish(text) {
 }
 
 const hasChinese = (text) => /[一-鿿]/.test(text);
+// Japanese labels can be kanji only (設定, 言語), so a string passes with kana
+// or kanji; the table as a whole must still be mostly kana, which Chinese
+// never has.
+const hasJapanese = (text) => /[\u3040-\u30ff一-鿿]/.test(text);
+const hasKana = (text) => /[\u3040-\u30ff]/.test(text);
 const placeholders = (text) =>
   (String(text).match(/\{[a-zA-Z]+\}/g) || []).sort().join(" ");
 
@@ -94,6 +99,41 @@ check(untranslated.length === 0,
     ? " (" + untranslated.map((key) => key + ": " + chinese[key]).join("; ") + ")"
     : ""));
 
+// 2b. The Japanese table: the same keys and placeholders, nothing left in
+// English, and Japanese rather than Chinese text.
+const japanese = strings.tables.ja;
+check(!!japanese, "there is a Japanese table");
+const missingInJapanese = Object.keys(english).filter((key) => !japanese || !(key in japanese));
+const extraInJapanese = japanese ? Object.keys(japanese).filter((key) => !(key in english)) : [];
+check(missingInJapanese.length === 0 && extraInJapanese.length === 0,
+  "the Japanese table has exactly the English keys" +
+  (missingInJapanese.length ? " (missing: " + missingInJapanese.join(", ") + ")" : "") +
+  (extraInJapanese.length ? " (extra: " + extraInJapanese.join(", ") + ")" : ""));
+const japaneseDrift = Object.keys(english).filter((key) =>
+  japanese && key in japanese && placeholders(english[key]) !== placeholders(japanese[key]));
+check(japaneseDrift.length === 0,
+  "each Japanese string keeps the placeholders of its English one" +
+  (japaneseDrift.length ? " (" + japaneseDrift.join(", ") + ")" : ""));
+const untranslatedJapanese = japanese ? Object.keys(japanese).filter((key) =>
+  leftoverEnglish(japanese[key]) !== "" || !hasJapanese(japanese[key]) ||
+  japanese[key] === english[key]) : ["(no table)"];
+check(untranslatedJapanese.length === 0,
+  "no Japanese string is left in English, apart from product and key names" +
+  (untranslatedJapanese.length
+    ? " (" + untranslatedJapanese.map((key) => key + ": " + (japanese || {})[key]).join("; ") + ")"
+    : ""));
+const kanaShare = japanese
+  ? Object.values(japanese).filter(hasKana).length / Object.keys(japanese).length : 0;
+check(kanaShare > 0.6,
+  "the Japanese table is written in Japanese, not Chinese (" +
+  Math.round(kanaShare * 100) + "% of strings have kana)");
+check(strings.text("ja", anyKeyFor()) === (japanese || {})[anyKeyFor()],
+  "a key gives the Japanese string when Japanese is chosen");
+
+function anyKeyFor() {
+  return Object.keys(english).find((key) => placeholders(english[key]) === "");
+}
+
 // 3. Lookup: placeholders filled, a missing key falls back to English, and
 // an unknown language uses English.
 const anyKey = Object.keys(english).find((key) => placeholders(english[key]) === "");
@@ -123,7 +163,7 @@ const resolve = strings.resolve;
   check(resolve("system", tag) === "zh-CN",
     "a " + tag + " system language picks Simplified Chinese");
 });
-["en-US", "en", "", "de-DE", "ja-JP", "zh-TW", "zh-HK", "zh-MO", "zh-Hant",
+["en-US", "en", "", "de-DE", "jax", "jv-ID", "zh-TW", "zh-HK", "zh-MO", "zh-Hant",
   "zh-Hant-TW", "zh_TW.UTF-8", "zhx"].forEach((tag) => {
   check(resolve("system", tag) === "en",
     "a '" + tag + "' system language picks English");
@@ -131,6 +171,13 @@ const resolve = strings.resolve;
 check(resolve("en", "zh-CN") === "en", "choosing English overrides a Chinese system");
 check(resolve("zh-CN", "en-US") === "zh-CN",
   "choosing Simplified Chinese overrides an English system");
+["ja", "ja-JP", "JA-jp", "ja_JP.UTF-8", "ja_JP"].forEach((tag) => {
+  check(resolve("system", tag) === "ja",
+    "a " + tag + " system language picks Japanese");
+});
+check(resolve("ja", "en-US") === "ja" && resolve("en", "ja-JP") === "en",
+  "choosing Japanese or English overrides the system");
+check(strings.languages.indexOf("ja") >= 0, "Japanese is one of the interface languages");
 check(resolve("fr", "zh-CN") === "zh-CN" && resolve(undefined, "en-US") === "en",
   "an unknown or missing setting follows the system");
 
@@ -139,7 +186,7 @@ check(resolve("fr", "zh-CN") === "zh-CN" && resolve(undefined, "en-US") === "en"
 const html = read("assets/reader.html");
 const body = html.slice(html.indexOf("<body"));
 const withoutSvg = body.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<!--[\s\S]*?-->/g, "");
-const SAME_IN_EVERY_LANGUAGE = new Set(["LeanMark", "LM", "100%", "1:1", "English", "简体中文"]);
+const SAME_IN_EVERY_LANGUAGE = new Set(["LeanMark", "LM", "100%", "1:1", "English", "简体中文", "日本語"]);
 const collapse = (text) => text.replace(/\s+/g, " ").trim();
 const tagPattern = /<([a-z0-9]+)((?:\s+[a-z0-9-]+(?:="[^"]*")?)*)\s*(\/?)>|<\/([a-z0-9]+)>|([^<]+)/gi;
 const stack = [];
@@ -236,6 +283,16 @@ const untranslatedHost = hostMessages.filter((message) => {
 check(untranslatedHost.length === 0,
   "every message the Windows host sends has a Chinese translation" +
   (untranslatedHost.length ? " (" + untranslatedHost.join("; ") + ")" : ""));
+const untranslatedJapaneseHost = hostMessages.filter((message) => {
+  const sample = message.endsWith(" ") ? message + WINDOWS_DETAIL : message;
+  const translated = strings.hostText("ja", sample);
+  const own = message.endsWith(" ") ? translated.slice(0, -WINDOWS_DETAIL.length) : translated;
+  return translated === sample || !hasKana(own) || leftoverEnglish(own) !== "" ||
+    (message.endsWith(" ") && !translated.endsWith(WINDOWS_DETAIL));
+});
+check(untranslatedJapaneseHost.length === 0,
+  "every message the Windows host sends has a Japanese translation" +
+  (untranslatedJapaneseHost.length ? " (" + untranslatedJapaneseHost.join("; ") + ")" : ""));
 check(hostMessages.every((message) => strings.hostText("en", message) === message),
   "host messages are shown unchanged in English");
 check(strings.hostText("zh-CN", "A message from a newer host.") === "A message from a newer host.",
@@ -244,22 +301,30 @@ check(strings.hostText("zh-CN", "A message from a newer host.") === "A message f
 // 7. The host's own strings (start-up errors, the file dialog) come in
 // English and Chinese pairs, and no dialog takes a bare English literal.
 const nativePairs = [...app.matchAll(new RegExp(
-  "constexpr NativeText k[A-Za-z0-9]+\\s*=\\s*\\{" + literalRun + "\\s*," + literalRun + "\\s*\\}",
+  "constexpr NativeText k[A-Za-z0-9]+\\s*=\\s*\\{" + literalRun + "\\s*," + literalRun +
+  "\\s*," + literalRun + "\\s*\\}",
   "g"))].map((pair) => [literals(pair[1], new RegExp(literalRun, "g")).join(""),
-  literals(pair[2], new RegExp(literalRun, "g")).join("")]);
+  literals(pair[2], new RegExp(literalRun, "g")).join(""),
+  literals(pair[3], new RegExp(literalRun, "g")).join("")]);
 check(nativePairs.length >= 6,
-  "the Windows host has English and Chinese pairs for its own strings (" +
+  "the Windows host has English, Chinese and Japanese strings for its own text (" +
   nativePairs.length + ")");
-const badPairs = nativePairs.filter(([en, zh]) =>
-  !en || !hasChinese(zh) || leftoverEnglish(zh) !== "");
+const badPairs = nativePairs.filter(([en, zh, ja]) =>
+  !en || !hasChinese(zh) || leftoverEnglish(zh) !== "" ||
+  !hasKana(ja) || leftoverEnglish(ja) !== "");
 check(badPairs.length === 0,
-  "each native Chinese string is translated" +
+  "each native Chinese and Japanese string is translated" +
   (badPairs.length ? " (" + badPairs.map((pair) => pair[1]).join("; ") + ")" : ""));
 const bareDialogText = [
   ...app.matchAll(/MessageBoxW\(([^;]*?)\);/g)].filter((call) => /L"/.test(call[1]));
 check(bareDialogText.length === 0 && !/SetTitle\(L"/.test(app) &&
   !/\{L"Markdown files"/.test(app),
   "message boxes and the file dialog take their text from the native table");
+const textBody = (app.match(
+  /LeanMarkApp::Text\(const NativeText& text\) const \{([\s\S]*?)\r?\n\}/) || [])[1] || "";
+check(/"ja"\) == 0\)\s*\{\s*return text\.japanese;/.test(textBody) &&
+  /"zh-CN"\) == 0 \? text\.chinese : text\.english;/.test(textBody),
+  "the Windows host picks the Japanese and Chinese native strings by interface language");
 
 if (failures) {
   console.error(failures + " localization check(s) failed.");
