@@ -320,6 +320,11 @@ const bareDialogText = [
 check(bareDialogText.length === 0 && !/SetTitle\(L"/.test(app) &&
   !/\{L"Markdown files"/.test(app),
   "message boxes and the file dialog take their text from the native table");
+const textBody = (app.match(
+  /LeanMarkApp::Text\(const NativeText& text\) const \{([\s\S]*?)\r?\n\}/) || [])[1] || "";
+check(/"ja"\) == 0\)\s*\{\s*return text\.japanese;/.test(textBody) &&
+  /"zh-CN"\) == 0 \? text\.chinese : text\.english;/.test(textBody),
+  "the Windows host picks the Japanese and Chinese native strings by interface language");
 
 if (failures) {
   console.error(failures + " localization check(s) failed.");

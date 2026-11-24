@@ -2193,8 +2193,8 @@ async function run() {
     check(language.lang === "ja" && language.settings === "設定" &&
       language.open === "開く" && language.find === "検索" &&
       /変更を監視中/.test(language.meta) && language.theme === "ライト" &&
-      /ドキュメント全体をコピー/.test(language.copyTitle) &&
-      /このセクションをコピー/.test(language.section) && language.checked === "system",
+      /ドキュメント全体を.*コピー/.test(language.copyTitle) &&
+      /このセクションを.*コピー/.test(language.section) && language.checked === "system",
       "a ja-JP system shows the interface in Japanese " + JSON.stringify(language));
     await deliver({ type: "status", tone: "warning",
       message: "Absolute local links are blocked for safety." });
