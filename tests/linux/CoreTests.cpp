@@ -67,6 +67,49 @@ void TestRenderer() {
         bom.ok && bom.html.find("<h1>BOM</h1>") != std::string::npos,
         "an optional UTF-8 BOM should be accepted");
 
+    const auto math = leanmark::core::RenderMarkdownUtf8(
+        "Inline $x^2$ here.\n\n$$\\frac{a}{b}$$\n\n"
+        "From $5 to $10.\n\nA `$y$` code span.\n");
+    Expect(
+        math.html.find("<x-equation>x^2</x-equation>") != std::string::npos,
+        "$...$ should become an inline equation");
+    Expect(
+        math.html.find("<x-equation type=\"display\">\\frac{a}{b}</x-equation>") !=
+            std::string::npos,
+        "$$...$$ should become a display equation");
+    Expect(
+        math.html.find("From $5 to $10.") != std::string::npos,
+        "prices with a space after the opening $ should stay text");
+    Expect(
+        math.html.find("<code>$y$</code>") != std::string::npos,
+        "a $ inside a code span should stay code");
+    std::size_t equations = 0;
+    for (auto at = math.html.find("<x-equation"); at != std::string::npos;
+         at = math.html.find("<x-equation", at + 1)) {
+        ++equations;
+    }
+    Expect(equations == 2, "only the two marked formulas should become equations");
+
+    Expect(
+        leanmark::core::MathAssetPaths().size() == 22,
+        "KaTeX ships its script, its stylesheet and 20 woff2 fonts");
+    Expect(
+        std::string(leanmark::core::MathAssetContentType(
+            "vendor/katex/katex.min.js")) == "application/javascript" &&
+            std::string(leanmark::core::MathAssetContentType(
+                "vendor/katex/katex.min.css")) == "text/css" &&
+            std::string(leanmark::core::MathAssetContentType(
+                "vendor/katex/fonts/KaTeX_Main-Regular.woff2")) == "font/woff2",
+        "KaTeX files should be served with their content types");
+    Expect(
+        leanmark::core::MathAssetContentType("vendor/katex/../reader.js") ==
+                nullptr &&
+            leanmark::core::MathAssetContentType("vendor/katex/katex.js") ==
+                nullptr &&
+            leanmark::core::MathAssetContentType(
+                "vendor/katex/fonts/KaTeX_Main-Regular.ttf") == nullptr,
+        "only the listed KaTeX files should be served");
+
     const std::string malformed("\xF0\x28\x8C\x28", 4);
     const auto invalid = leanmark::core::RenderMarkdownUtf8(malformed);
     Expect(!invalid.ok, "malformed UTF-8 must fail closed");

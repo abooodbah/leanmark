@@ -454,6 +454,7 @@ async function run() {
   const assets = resolve(assetsArgument);
   await fs.access(join(assets, "reader.html"));
   await fs.access(join(assets, "vendor", "mermaid.min.js"));
+  await fs.access(join(assets, "vendor", "katex", "katex.min.js"));
   const captureDirectory = argument("--capture-dir");
 
   const { server, origin } = await startAssetServer(assets);
@@ -828,6 +829,70 @@ async function run() {
     await press(client, "Enter");
     check(await client.evaluate('document.getElementById("findCount").textContent') === "1/3",
       "Enter runs a pending search immediately");
+    await press(client, "Escape");
+
+    // Math: KaTeX loads only for a document that has math, as MD4C marks it
+    // with <x-equation>. Every document so far had none.
+    check(await client.evaluate(
+      '!window.katex && !document.querySelector(\'script[src*="katex"], link[href*="katex"]\')'),
+      "a document without math does not load KaTeX");
+    await deliver({
+      type: "document",
+      tabId: 1,
+      theme: "dark",
+      fileName: "math.md",
+      path: "/fixtures/math.md",
+      documentBaseUrl: "https://d1.doc.leanmark.invalid/",
+      sourceBytes: 200,
+      hasMermaid: false,
+      html: '<h1>Math</h1>' +
+        '<p>Inline <x-equation>\\frac{a}{b} + \\text{mathword}</x-equation> here.</p>' +
+        '<p><x-equation type="display">\\sum_{i=1}^{n} x_i^2</x-equation></p>' +
+        '<p>Broken <x-equation>\\frac{1}{</x-equation> stays readable.</p>' +
+        '<p>From $5 to $10.</p>',
+    });
+    await waitFor(client, 'document.documentElement.dataset.mathState === "ready"',
+      "the formulas to render");
+    const math = await client.evaluate(`(function () {
+      var article = document.getElementById("article");
+      var error = article.querySelector(".katex-error");
+      return {
+        rendered: article.querySelectorAll("x-equation > .katex, x-equation > .katex-display").length,
+        display: article.querySelectorAll("x-equation .katex-display").length,
+        fraction: !!article.querySelector("x-equation .mfrac"),
+        mathml: article.querySelectorAll("x-equation .katex-mathml math").length,
+        error: error ? error.textContent : null,
+        errorColor: error ? getComputedStyle(error).color : null,
+        danger: (function () {
+          var probe = document.createElement("span");
+          probe.style.color = "var(--danger-500)";
+          article.appendChild(probe);
+          var color = getComputedStyle(probe).color;
+          probe.remove();
+          return color;
+        })(),
+        money: Array.from(article.querySelectorAll("p")).some(function (p) {
+          return p.textContent === "From $5 to $10.";
+        })
+      };
+    })()`);
+    check(math.rendered === 2 && math.display === 1 && math.fraction && math.mathml === 2,
+      "inline and display formulas render with KaTeX and keep MathML for screen readers " +
+      JSON.stringify(math));
+    check(math.error === "\\frac{1}{" && math.errorColor === math.danger,
+      "a formula KaTeX cannot read keeps its source in the theme's danger colour " +
+      JSON.stringify(math));
+    check(math.money, "text outside the formulas is unchanged " + JSON.stringify(math));
+    check(await client.evaluate(
+      'Array.from(document.fonts).some(function (f) { return f.family.indexOf("KaTeX") >= 0; })'),
+      "KaTeX fonts come from the staged assets");
+    // MathML repeats each formula for screen readers; Find counts the visible copy only.
+    await client.evaluate(
+      'var input = document.getElementById("findInput"); input.focus(); ' +
+      'input.value = "mathword"; input.dispatchEvent(new Event("input")); true');
+    await press(client, "Enter");
+    check(await client.evaluate('document.getElementById("findCount").textContent') === "1/1",
+      "Find matches a word inside a formula once");
     await press(client, "Escape");
 
     // Themes. The theme button cycles through every theme, and each choice

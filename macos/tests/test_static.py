@@ -62,6 +62,8 @@ def main() -> int:
     scheme = (mac / "src" / "LMResourceSchemeHandler.mm").read_text("utf-8")
     contains_all(scheme, [
         "ApplicationResourceAllowlist",
+        # The app scheme serves KaTeX from the shared core list.
+        "leanmark::core::MathAssetPaths()",
         "DocumentImageExtensions",
         "DecodedRelativePath",
         "URLByResolvingSymlinksInPath",

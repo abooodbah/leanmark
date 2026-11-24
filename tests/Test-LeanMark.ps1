@@ -54,6 +54,7 @@ function Test-StaticInvariants {
     Assert-Match $markdownCore 'MD_DIALECT_GITHUB\s*\|\s*MD_FLAG_NOHTML' 'Markdown must use GFM with raw HTML disabled.'
     Assert-Match $markdownCoreHeader 'kMaximumDocumentBytes\s*=\s*32ull\s*\*\s*1024ull\s*\*\s*1024ull' 'The portable parser must retain its 32 MiB safety limit.'
     Assert-Match $markdownCore 'HasUtf8Bom' 'UTF-8 BOM handling must not regress.'
+    Assert-Match $markdownCore 'MD_FLAG_LATEXMATHSPANS' 'Math between $ signs must reach the reader as <x-equation> elements.'
     Write-TestPass 'GFM, raw-HTML, encoding, and document-size parser guards'
 
     try { [void]([xml]$manifestText) }
@@ -253,6 +254,7 @@ function Test-Distribution {
         'LeanMark.exe', 'WebView2Loader.dll',
         'assets\reader.html', 'assets\reader.css', 'assets\reader.js',
         'assets\vendor\mermaid.min.js',
+        'assets\vendor\katex\katex.min.js', 'assets\vendor\katex\katex.min.css',
         'assets\fonts\ibm-plex-sans-latin-400-normal.woff2',
         'assets\fonts\ibm-plex-sans-latin-500-normal.woff2',
         'assets\fonts\ibm-plex-sans-latin-600-normal.woff2',
@@ -265,6 +267,16 @@ function Test-Distribution {
         Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "Required distribution file is missing: $relative"
         Assert-True ((Get-Item -LiteralPath $path).Length -gt 0) "Distribution file is empty: $relative"
     }
+    # The KaTeX files staged here must be exactly the list the Linux and macOS
+    # hosts allow, or math would load on Windows and fail on those hosts.
+    $core = Read-TextFile (Join-Path $repoRoot 'src\core\MarkdownCore.cpp')
+    $allowed = @([regex]::Matches($core, '"(vendor/katex/[^"]+)"') | ForEach-Object { $_.Groups[1].Value } | Sort-Object)
+    $katexRoot = Join-Path $resolvedDist 'assets'
+    $staged = @(Get-ChildItem -LiteralPath (Join-Path $katexRoot 'vendor\katex') -Recurse -File | ForEach-Object {
+        $_.FullName.Substring($katexRoot.Length + 1).Replace('\', '/')
+    } | Sort-Object)
+    Assert-Equal $allowed.Count 22 'MarkdownCore.cpp should list the KaTeX script, stylesheet and 20 fonts.'
+    Assert-Equal ($staged -join ',') ($allowed -join ',') 'Staged KaTeX files must match MathAssetPaths() in MarkdownCore.cpp.'
     Assert-True (Test-PeHeader (Join-Path $resolvedDist 'LeanMark.exe')) 'LeanMark.exe does not have a PE MZ header.'
     Assert-True (Test-PeHeader (Join-Path $resolvedDist 'WebView2Loader.dll')) 'WebView2Loader.dll does not have a PE MZ header.'
 

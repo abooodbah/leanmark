@@ -37,6 +37,8 @@ for required in \
   './usr/share/leanmark/assets/reader.css' \
   './usr/share/leanmark/assets/reader.js' \
   './usr/share/leanmark/assets/vendor/mermaid.min.js' \
+  './usr/share/leanmark/assets/vendor/katex/katex.min.js' \
+  './usr/share/leanmark/assets/vendor/katex/fonts/KaTeX_Main-Regular.woff2' \
   './usr/share/applications/io.github.abooodbah.leanmark.desktop' \
   './usr/share/metainfo/io.github.abooodbah.leanmark.metainfo.xml' \
   './usr/share/icons/hicolor/256x256/apps/io.github.abooodbah.leanmark.png'
