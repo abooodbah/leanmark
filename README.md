@@ -6,7 +6,7 @@ LeanMark reloads the page when the file changes on disk and keeps your place, so
 
 Mermaid diagrams and math formulas render offline too. LeanMark uses the system web view, with no bundled browser, no Electron, and no telemetry. About 74 ms to a visible window and 97 MiB peak private memory on Windows 11 (measured with 0.3.0).
 
-[简体中文](#简体中文) · [Website](https://abooodbah.github.io/leanmark/) · [Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) · `winget install abooodbah.LeanMark` · `choco install leanmark` · [All Lean apps](https://abooodbah.github.io/)
+[简体中文](#简体中文) · [日本語](#日本語) · [Website](https://abooodbah.github.io/leanmark/) · [Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) · `winget install abooodbah.LeanMark` · `choco install leanmark` · [All Lean apps](https://abooodbah.github.io/)
 
 [![winget version](https://img.shields.io/winget/v/abooodbah.LeanMark?label=winget)](https://github.com/microsoft/winget-pkgs/tree/master/manifests/a/abooodbah/LeanMark) [![Microsoft Store](https://img.shields.io/badge/Microsoft%20Store-9MSS4WKJ22ZV-0078d4)](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) [![License: MIT](https://img.shields.io/github/license/abooodbah/leanmark)](LICENSE) [![GitHub release downloads](https://img.shields.io/github/downloads/abooodbah/leanmark/total)](https://github.com/abooodbah/leanmark/releases)
 
@@ -69,6 +69,42 @@ choco install leanmark -y
 ```
 
 Linux（.deb）和 macOS 版本见 [Releases](https://github.com/abooodbah/leanmark/releases) 页面。其余说明见下方的英文文档。
+
+## 日本語
+
+LeanMark は Windows、Linux、macOS 向けの無料の Markdown リーダーです。エディターを開かずに Markdown ファイルを読めます。AI ツールが書き出す .md ファイルも読めます。
+
+![別のプログラムが計画の手順にチェックを入れると、LeanMark が自動で再読み込みする様子](docs/images/leanmark-live-update.gif)
+
+*スクリプトが約 1 秒ごとに agent-plan.md を書き換え、LeanMark はその場で再読み込みします。*
+
+- **自動再読み込み**：ファイルがディスク上で変更されると、LeanMark はページを再読み込みし、読んでいた位置を保ちます。計画やレポートを開いたままにして、書き進められる様子を見ることができます。
+- **安全**：生の HTML は無効で、外部のコンテンツはブロックされます。そのため、ファイルが独自のスクリプトを実行したり、インターネットから何かを読み込んだりすることはできません。
+- **Mermaid をオフラインで描画**：Mermaid の図はこのコンピューター上で描画され、インターネット接続は必要ありません。
+- **軽量**：システムの Web ビュー（Windows では WebView2）を使います。ブラウザーは同梱せず、Electron も使わず、テレメトリもありません。
+
+0.9.0 から、Windows 版の画面は日本語に対応しています。Windows の表示言語が日本語のときは自動で日本語になります。「設定」の「言語」で、「システム」、English、简体中文、日本語から選ぶこともできます。
+
+Windows では次のコマンドでインストールできます。
+
+```powershell
+winget install abooodbah.LeanMark
+```
+
+[Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) からもインストールできます。Scoop を使う場合：
+
+```powershell
+scoop bucket add lean https://github.com/abooodbah/scoop-bucket
+scoop install lean/leanmark
+```
+
+管理者の PowerShell で Chocolatey を使う場合：
+
+```powershell
+choco install leanmark -y
+```
+
+Linux（.deb）版と macOS 版は [Releases](https://github.com/abooodbah/leanmark/releases) ページにあります。そのほかの説明は、下の英語のドキュメントをご覧ください。
 
 ## Install
 

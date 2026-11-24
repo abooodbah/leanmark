@@ -2,9 +2,9 @@
   "use strict";
 
   // BEGIN interface strings
-  // The interface in English and Simplified Chinese. English is the fallback
-  // for any key the other table lacks. reader.html starts in English and marks
-  // each string with data-i18n (text) or data-i18n-<attribute>. Keys stay
+  // The interface in English, Simplified Chinese and Japanese. English is the
+  // fallback for any key another table lacks. reader.html starts in English
+  // and marks each string with data-i18n (text) or data-i18n-<attribute>. Keys stay
   // ASCII; {name} placeholders are filled by text(). tests/Test-Localization.mjs
   // runs this block on its own, so it uses nothing from the page.
   var interfaceStrings = (function () {
@@ -258,6 +258,131 @@
         "key.leftArrow": "左方向键",
         "key.arrows": "方向键",
         "key.tabNumbers": "Ctrl+1 至 Ctrl+8"
+      },
+      ja: {
+        "app.currentDocument": "現在のドキュメント",
+        "app.tagline": "軽量な Markdown リーダー",
+        "app.couldNotOpen": "このドキュメントを開けませんでした",
+        "toolbar.label": "リーダーの操作",
+        "find.label": "ドキュメント内を検索",
+        "find.placeholder": "検索",
+        "find.pressEnter": "Enter で検索",
+        "copy.button": "コピー",
+        "copy.copied": "コピーしました",
+        "copy.documentTitle": "ドキュメント全体をコピー (Ctrl+Shift+C)",
+        "copy.documentKeys": "ドキュメント全体をコピー ({keys})",
+        "copy.documentMarkdownKeys": "ドキュメント全体を Markdown としてコピー ({keys})",
+        "copy.section": "このセクションをコピー",
+        "copy.sectionMarkdown": "このセクションを Markdown としてコピー",
+        "copy.sectionLabel": "セクションをコピー：{text}",
+        "copy.documentAsMarkdown": "ドキュメントを Markdown としてコピーしました。",
+        "copy.sectionAsMarkdown": "セクションを Markdown としてコピーしました。",
+        "copy.documentAsText": "ドキュメントをテキストとしてコピーしました。",
+        "copy.sectionAsText": "セクションをテキストとしてコピーしました。",
+        "copy.failed": "LeanMark はクリップボードにコピーできませんでした。",
+        "settings.buttonLabel": "設定とキーボード ショートカット",
+        "settings.buttonTitle": "設定とショートカット (Ctrl+/)",
+        "settings.buttonKeys": "設定とショートカット ({keys})",
+        "settings.title": "設定",
+        "settings.close": "設定を閉じる",
+        "settings.theme": "テーマ",
+        "settings.textWidth": "テキスト幅",
+        "settings.language": "言語",
+        "settings.shortcuts": "キーボード ショートカット",
+        "language.system": "システム",
+        "theme.system": "システム",
+        "theme.light": "ライト",
+        "theme.dark": "ダーク",
+        "theme.dim": "薄暗い",
+        "theme.dusk": "夕暮れ",
+        "theme.systemShown": "システム ({theme})",
+        "theme.buttonLabel": "テーマ：{theme}。押すとテーマを切り替えます。",
+        "theme.buttonTitle": "テーマ：{theme} ({keys})",
+        "width.narrow": "狭い",
+        "width.wide": "広い",
+        "width.full": "全幅",
+        "width.fullWindow": "ウィンドウ全体",
+        "width.indicator": "テキスト幅：{width}",
+        "open.button": "開く",
+        "open.markdownFile": "Markdown ファイルを開く",
+        "tabs.label": "開いているドキュメント",
+        "tabs.close": "閉じる (Ctrl+W)",
+        "tabs.closeName": "{name} を閉じる",
+        "progress.label": "読書の進捗",
+        "outline.label": "ドキュメントのアウトライン",
+        "outline.title": "このページの内容",
+        "state.emptyTitle": "エディターを開かずに Markdown を読めます。",
+        "state.emptyMessage": "ローカルの Markdown ファイルを開いて始めましょう。図はこのコンピューター上だけで描画されます。",
+        "state.emptyMessageShort": "ローカルの Markdown ファイルを開いて始めましょう。",
+        "state.errorTitle": "このドキュメントを開けませんでした。",
+        "state.errorMessage": "ファイルを確認して、もう一度お試しください。",
+        "doc.untitled": "無題",
+        "doc.watching": "{size} · 変更を監視中",
+        "image.alt": "画像",
+        "image.unavailable": "画像を表示できません：{alt}",
+        "image.remoteBlocked": "外部の画像はブロックされました：{alt}",
+        "image.invalidPath": "画像のパスが無効です：{alt}",
+        "figure.expand": "拡大表示",
+        "figure.expandImage": "画像を拡大",
+        "figure.expandDiagram": "図を拡大",
+        "table.scrollable": "スクロールできる表",
+        "diagram.label": "Mermaid の図",
+        "diagram.limitTitle": "図の上限に達しました",
+        "diagram.limitDetail": "LeanMark が 1 つのドキュメントで描画できる図は 50 個までです。",
+        "diagram.tooLargeTitle": "図が大きすぎます",
+        "diagram.tooLargeDetail": "Mermaid のソースが LeanMark の図の上限 100 KB を超えています。",
+        "diagram.failedTitle": "図を描画できませんでした",
+        "diagram.failedDetail": "このコード ブロック内の Mermaid の構文を確認してください。",
+        "diagram.unavailableTitle": "図を表示できません",
+        "diagram.unavailableDetail": "LeanMark は内蔵の Mermaid レンダラーを読み込めませんでした。",
+        "viewer.diagram": "図",
+        "viewer.zoomOutTitle": "縮小 (−)",
+        "viewer.zoomInTitle": "拡大 (+)",
+        "viewer.fit": "全体表示",
+        "viewer.fitTitle": "ウィンドウに合わせる (0)",
+        "viewer.actualTitle": "実際のサイズ (1)",
+        "viewer.stageLabel": "矢印キーで移動、プラスとマイナスで拡大と縮小、Esc で閉じます。",
+        "viewer.fitted": "ウィンドウに合わせる",
+        "viewer.actual": "実際のサイズ",
+        "zoom.label": "ズーム",
+        "zoom.in": "拡大",
+        "zoom.out": "縮小",
+        "zoom.reset": "リセット",
+        "zoom.level": "ズーム {level}",
+        "close.label": "閉じる",
+        "close.escTitle": "閉じる (Esc)",
+        "group.reader": "リーダー",
+        "group.settings": "設定パネル",
+        "group.tabs": "タブ",
+        "group.find": "検索ボックス",
+        "group.tabStrip": "タブ バー",
+        "group.figure": "拡大表示",
+        "group.menu": "メニュー",
+        "shortcut.find": "ドキュメント内を検索",
+        "shortcut.nextMatch": "次の一致",
+        "shortcut.previousMatch": "前の一致",
+        "shortcut.reload": "ドキュメントを再読み込み",
+        "shortcut.theme": "テーマを切り替える",
+        "shortcut.width": "テキスト幅を切り替える",
+        "shortcut.copy": "ドキュメント全体をコピー",
+        "shortcut.settings": "設定とショートカット",
+        "shortcut.closeSettings": "設定パネルを閉じる",
+        "shortcut.nextTab": "次のタブ",
+        "shortcut.previousTab": "前のタブ",
+        "shortcut.closeTab": "タブを閉じる",
+        "shortcut.tabByPosition": "指定した位置のタブへ移動",
+        "shortcut.lastTab": "最後のタブへ移動",
+        "shortcut.clearSearch": "検索をクリア",
+        "shortcut.firstTab": "最初のタブ",
+        "shortcut.finalTab": "最後のタブ",
+        "shortcut.closeFigure": "拡大表示を閉じる",
+        "shortcut.fitWindow": "ウィンドウに合わせる",
+        "shortcut.pan": "移動（Shift で速く）",
+        "shortcut.moveControls": "操作ボタン間を移動",
+        "key.rightArrow": "右矢印キー",
+        "key.leftArrow": "左矢印キー",
+        "key.arrows": "矢印キー",
+        "key.tabNumbers": "Ctrl+1 から Ctrl+8"
       }
     };
 
@@ -295,19 +420,53 @@
         "That section is no longer in the file.": "文件中已没有该章节。",
         "That heading has no text to locate it by.": "该标题没有可用于定位的文字。",
         "The end of that section could not be located.": "无法找到该章节的结尾。"
+      },
+      ja: {
+        "LeanMark only reloads Markdown files.": "LeanMark が再読み込みするのは Markdown ファイルだけです。",
+        "LeanMark opens .md, .markdown, .mdown, and .mkd files.": "LeanMark で開けるのは .md、.markdown、.mdown、.mkd ファイルです。",
+        "The file is still changing or cannot be read. Keeping the last complete view and trying again.": "ファイルが変更中か、読み取れません。前回の完全な表示のまま、読み込みを再試行します。",
+        "Windows could not open the file picker.": "Windows はファイルを選択する画面を開けませんでした。",
+        "The file was moved or deleted. The last complete view is still shown.": "ファイルが移動または削除されました。前回の完全な表示を表示しています。",
+        "Windows could not open that link.": "Windows はそのリンクを開けませんでした。",
+        "That local link is not a valid UTF-8 path.": "そのローカル リンクは有効な UTF-8 のパスではありません。",
+        "Absolute local links are blocked for safety.": "安全のため、絶対パスのローカル リンクはブロックされます。",
+        "LeanMark opens local Markdown links only. Images still display inside the document.": "LeanMark が開くのはローカルの Markdown へのリンクだけです。画像はドキュメント内に引き続き表示されます。",
+        "That linked Markdown file could not be found.": "リンク先の Markdown ファイルが見つかりませんでした。",
+        "Open a document before copying.": "コピーする前にドキュメントを開いてください。",
+        "The file was moved or deleted, so there is nothing to copy.": "ファイルが移動または削除されたため、コピーする内容がありません。",
+        "The file changed on disk, so LeanMark reloaded it. Copy again to get the current text.": "ファイルがディスク上で変更されたため、LeanMark が再読み込みしました。最新のテキストを取得するには、もう一度コピーしてください。",
+        "Windows could not open the clipboard. Try again in a moment.": "Windows はクリップボードを開けませんでした。しばらくしてからもう一度お試しください。",
+        "Windows could not describe the error.": "Windows はエラーの内容を取得できませんでした。",
+        "LeanMark could not find this file.": "LeanMark はこのファイルを見つけられませんでした。",
+        "That path is a folder, not a Markdown file.": "そのパスはフォルダーで、Markdown ファイルではありません。",
+        "LeanMark can only read regular Markdown files.": "LeanMark が読み取れるのは通常の Markdown ファイルだけです。",
+        "LeanMark could not read this file.": "LeanMark はこのファイルを読み取れませんでした。",
+        "LeanMark could not measure this file.": "LeanMark はこのファイルのサイズを取得できませんでした。",
+        "LeanMark could not finish reading this file.": "LeanMark はこのファイルを最後まで読み取れませんでした。",
+        "This file is larger than LeanMark's 32 MB safety limit. Open it in an editor if you need to inspect the raw text.": "このファイルは LeanMark の安全上限 32 MB を超えています。元のテキストを確認するには、エディターで開いてください。",
+        "This file is not valid UTF-8. Convert it to UTF-8, then open it again.": "このファイルは有効な UTF-8 ではありません。UTF-8 に変換してから、もう一度開いてください。",
+        "This file is not valid UTF-8.": "このファイルは有効な UTF-8 ではありません。",
+        "LeanMark could not parse this Markdown document.": "LeanMark はこの Markdown ドキュメントを解析できませんでした。",
+        "That section is no longer in the file.": "そのセクションはファイル内にもうありません。",
+        "That heading has no text to locate it by.": "その見出しには、位置を特定するためのテキストがありません。",
+        "The end of that section could not be located.": "そのセクションの終わりを特定できませんでした。"
       }
     };
 
-    var languages = ["en", "zh-CN"];
+    var languages = ["en", "zh-CN", "ja"];
 
     function normalizeSetting(setting) {
-      return setting === "en" || setting === "zh-CN" ? setting : "system";
+      return languages.indexOf(setting) >= 0 ? setting : "system";
     }
 
-    // The same rule as SystemInterfaceLanguage in src/core: Simplified
-    // Chinese tags pick Chinese; Traditional Chinese keeps English for now.
+    // The same rule as SystemInterfaceLanguage in src/core: Japanese tags
+    // pick Japanese, Simplified Chinese tags pick Chinese, and Traditional
+    // Chinese keeps English for now.
     function systemLanguage(tag) {
       var lower = String(tag || "").split(/[.@]/)[0].replace(/_/g, "-").toLowerCase();
+      if (lower === "ja" || lower.indexOf("ja-") === 0) {
+        return "ja";
+      }
       if (lower !== "zh" && lower.indexOf("zh-") !== 0) {
         return "en";
       }
@@ -477,7 +636,7 @@
   var viewerLevels = [0.1, 0.25, 0.33, 0.5, 0.67, 0.75, 1, 1.25, 1.5, 2, 3, 4, 6, 8];
   var viewerPadding = 24;
   var viewerState = null;
-  // The interface language, "en" or "zh-CN". The Windows host names it in the
+  // The interface language, "en", "zh-CN" or "ja". The Windows host names it in the
   // page address so the first paint is already in it; other hosts leave it to
   // the browser's language. A host that saves a choice reports it with the
   // system language, which shows the Language group in the settings panel.

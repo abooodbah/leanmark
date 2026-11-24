@@ -580,7 +580,7 @@ bool EqualsIgnoringAsciiCase(std::string_view left, std::string_view right) {
 LanguageSetting ParseLanguageSetting(std::string_view name) {
     constexpr LanguageSetting kSettings[] = {
         LanguageSetting::System, LanguageSetting::English,
-        LanguageSetting::ChineseSimplified};
+        LanguageSetting::ChineseSimplified, LanguageSetting::Japanese};
     for (const LanguageSetting setting : kSettings) {
         if (EqualsIgnoringAsciiCase(name, LanguageSettingName(setting))) {
             return setting;
@@ -595,6 +595,8 @@ const char* LanguageSettingName(LanguageSetting setting) {
             return "en";
         case LanguageSetting::ChineseSimplified:
             return "zh-CN";
+        case LanguageSetting::Japanese:
+            return "ja";
         default:
             return "system";
     }
@@ -613,6 +615,9 @@ const char* SystemInterfaceLanguage(std::string_view tag) {
                         : value >= 'A' && value <= 'Z'
                             ? static_cast<char>(value - 'A' + 'a')
                             : value);
+    }
+    if (lower == "ja" || lower.rfind("ja-", 0) == 0) {
+        return "ja";
     }
     if (lower != "zh" && lower.rfind("zh-", 0) != 0) {
         return "en";
@@ -640,6 +645,8 @@ const char* ResolveInterfaceLanguage(
             return "en";
         case LanguageSetting::ChineseSimplified:
             return "zh-CN";
+        case LanguageSetting::Japanese:
+            return "ja";
         default:
             return SystemInterfaceLanguage(systemTag);
     }

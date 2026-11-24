@@ -148,7 +148,7 @@ TextWidth NextTextWidth(TextWidth width);
 // Interface language. English is the fallback for every string; System
 // follows the platform's interface language. The names are what the Windows
 // host saves and what the reader page uses.
-enum class LanguageSetting { System, English, ChineseSimplified };
+enum class LanguageSetting { System, English, ChineseSimplified, Japanese };
 
 // Reads a saved or page-requested language name, ignoring ASCII case.
 // Anything else, including a missing value from 0.7.1 or a name from a later
@@ -156,9 +156,9 @@ enum class LanguageSetting { System, English, ChineseSimplified };
 LanguageSetting ParseLanguageSetting(std::string_view name);
 const char* LanguageSettingName(LanguageSetting setting);
 
-// "zh-CN" for a Simplified Chinese interface language tag (zh-CN, zh-SG,
-// zh-Hans-*, a bare zh, or a POSIX locale such as zh_CN.UTF-8), otherwise
-// "en". Traditional Chinese (zh-TW, zh-HK, zh-MO, zh-Hant-*) gives "en" until
+// "ja" for a Japanese interface language tag (ja, ja-JP, or a POSIX locale
+// such as ja_JP.UTF-8), "zh-CN" for a Simplified Chinese one (zh-CN, zh-SG,
+// zh-Hans-*, a bare zh, or zh_CN.UTF-8), otherwise "en". Traditional Chinese (zh-TW, zh-HK, zh-MO, zh-Hant-*) gives "en" until
 // it has its own table. reader.js applies the same rule.
 const char* SystemInterfaceLanguage(std::string_view tag);
 

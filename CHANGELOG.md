@@ -12,6 +12,12 @@ versioning.
   that has math, so other documents start and use memory as before. A price
   such as "$5 to $10" stays text, a formula KaTeX cannot read keeps its source
   in the theme's danger colour, and Find counts a word in a formula once.
+- Japanese interface. Windows shows it when the display language is
+  Japanese, and the Language choice in the settings panel now lists 日本語
+  next to System, English and 简体中文. Everything the Simplified Chinese
+  interface covers is translated, and the page marks itself as Japanese so
+  Windows draws the text with a Japanese font. The README has a short 日本語
+  section.
 
 ## [0.8.0] - 2026-11-16
 
