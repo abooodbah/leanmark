@@ -492,8 +492,9 @@ jobs:
           installers-regex: '-windows-x64\.zip$'
           token: ${{ secrets.WINGET_TOKEN }}
 
-  pages:
-    name: Deploy release website
+  # Upload and deploy are separate jobs for the reason given in pages.yml.
+  pages-build:
+    name: Build release website
     # A pushed tag, or the build that tag-release.yml dispatches on one.
     if: >-
       startsWith(github.ref, 'refs/tags/v') &&
@@ -504,11 +505,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      pages: read
 
     steps:
       - name: Check out released source
@@ -526,6 +523,24 @@ jobs:
         with:
           path: site
 
+  pages:
+    name: Deploy release website
+    # A pushed tag, or the build that tag-release.yml dispatches on one.
+    if: >-
+      startsWith(github.ref, 'refs/tags/v') &&
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+    needs:
+      - pages-build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
