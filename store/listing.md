@@ -7,7 +7,7 @@ Paste each field into Partner Center > your app > Submission > Store listings > 
 - Product name (reserved in Partner Center; the package display name from 0.8.0): LeanMark Markdown Viewer. The exe, window title, Identity Name and package ids stay LeanMark.
 - Publisher display name: Lean Apps Studio
 - Short title (50 characters or fewer): LeanMark: Markdown viewer
-- Version in this pack: 0.8.0 (package version 0.8.0.0)
+- Version in this pack: 0.9.0 (package version 0.9.0.0)
 - File types it opens: Markdown files (.md, .markdown, .mdown, .mkd)
 
 ## Short description
@@ -64,7 +64,7 @@ LeanMark is free and open source under the MIT License. The source code, release
 
 ## What's new in this version
 
-The interface is now available in Simplified Chinese. Choose it under Settings > Language, or LeanMark uses it when Windows is set to Simplified Chinese. The Store now lists the app as LeanMark Markdown Viewer.
+Math formulas written in TeX between dollar signs are now typeset, offline. The interface is now also available in Japanese. Choose it under Settings > Language, or LeanMark uses it when Windows is set to Japanese.
 
 ## Copyright and trademark info
 
