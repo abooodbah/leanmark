@@ -3,6 +3,16 @@
 All notable LeanMark changes are recorded here. The project follows semantic
 versioning.
 
+## [Unreleased]
+
+### Added
+
+- Math: TeX between `$...$` and `$$...$$` is typeset offline with bundled
+  KaTeX 0.19.1 on Windows, Linux and macOS. KaTeX loads only for a document
+  that has math, so other documents start and use memory as before. A price
+  such as "$5 to $10" stays text, a formula KaTeX cannot read keeps its source
+  in the theme's danger colour, and Find counts a word in a formula once.
+
 ## [0.8.0] - 2026-11-16
 
 ### Added
