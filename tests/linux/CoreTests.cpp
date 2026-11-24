@@ -555,10 +555,12 @@ void TestInterfaceLanguages() {
 
     Expect(ParseLanguageSetting("system") == LanguageSetting::System &&
                ParseLanguageSetting("en") == LanguageSetting::English &&
-               ParseLanguageSetting("zh-CN") == LanguageSetting::ChineseSimplified,
+               ParseLanguageSetting("zh-CN") == LanguageSetting::ChineseSimplified &&
+               ParseLanguageSetting("ja") == LanguageSetting::Japanese,
            "each saved language name should parse to its setting");
     Expect(ParseLanguageSetting("ZH-cn") == LanguageSetting::ChineseSimplified &&
-               ParseLanguageSetting("EN") == LanguageSetting::English,
+               ParseLanguageSetting("EN") == LanguageSetting::English &&
+               ParseLanguageSetting("JA") == LanguageSetting::Japanese,
            "language names should parse without regard to ASCII case");
     // Settings from 0.7.1 have no language; a later version may save one this
     // version does not have. Both follow the system.
@@ -569,7 +571,7 @@ void TestInterfaceLanguages() {
            "an unknown or missing language should follow the system");
     for (const LanguageSetting setting :
          {LanguageSetting::System, LanguageSetting::English,
-          LanguageSetting::ChineseSimplified}) {
+          LanguageSetting::ChineseSimplified, LanguageSetting::Japanese}) {
         Expect(ParseLanguageSetting(LanguageSettingName(setting)) == setting,
                "a saved language name should read back as the same setting");
     }
@@ -584,7 +586,12 @@ void TestInterfaceLanguages() {
                "a Simplified Chinese system language should pick Chinese");
     }
     for (const char* tag :
-         {"en-US", "en", "", "de-DE", "ja-JP", "zh-TW", "zh-HK", "zh-MO",
+         {"ja", "ja-JP", "JA-jp", "ja_JP.UTF-8", "ja_JP", "ja_JP.eucJP"}) {
+        Expect(std::string(SystemInterfaceLanguage(tag)) == "ja",
+               "a Japanese system language should pick Japanese");
+    }
+    for (const char* tag :
+         {"en-US", "en", "", "de-DE", "jax", "jv-ID", "zh-TW", "zh-HK", "zh-MO",
           "zh-Hant", "zh-Hant-TW", "zh_TW.UTF-8", "zhx", "C", "POSIX"}) {
         Expect(std::string(SystemInterfaceLanguage(tag)) == "en",
                "any other system language should pick English");
@@ -593,6 +600,10 @@ void TestInterfaceLanguages() {
     Expect(std::string(ResolveInterfaceLanguage(LanguageSetting::System, "zh-CN")) == "zh-CN" &&
                std::string(ResolveInterfaceLanguage(LanguageSetting::System, "en-US")) == "en",
            "the System setting should follow the system language");
+    Expect(std::string(ResolveInterfaceLanguage(LanguageSetting::System, "ja-JP")) == "ja" &&
+               std::string(ResolveInterfaceLanguage(LanguageSetting::Japanese, "en-US")) == "ja" &&
+               std::string(ResolveInterfaceLanguage(LanguageSetting::English, "ja-JP")) == "en",
+           "Japanese should follow the system or a choice like the other languages");
     Expect(std::string(ResolveInterfaceLanguage(LanguageSetting::English, "zh-CN")) == "en" &&
                std::string(ResolveInterfaceLanguage(
                    LanguageSetting::ChineseSimplified, "en-US")) == "zh-CN",

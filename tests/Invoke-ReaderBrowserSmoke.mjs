@@ -2166,6 +2166,72 @@ async function run() {
         Buffer.from(shot.data, "base64"));
     }
 
+    // Japanese: the first paint, the strings, and Japanese glyph forms. The
+    // page marks itself lang="ja", so the shared Han characters are drawn by a
+    // Japanese font rather than a Chinese one.
+    await client.send("Page.navigate", { url: origin + "/reader.html?lang=ja" });
+    await waitFor(client, 'window.__posted && window.__posted.indexOf("ready") >= 0',
+      "the reader to report ready in Japanese");
+    const japanese = await client.evaluate(`({
+      lang: document.documentElement.lang,
+      title: document.getElementById("stateTitle").textContent,
+      button: document.getElementById("stateOpenButton").textContent.trim()
+    })`);
+    check(japanese.lang === "ja" && japanese.title === "エディターを開かずに Markdown を読めます。" &&
+      japanese.button === "Markdown ファイルを開く",
+      "reader.html?lang=ja starts in Japanese " + JSON.stringify(japanese));
+    await deliver({ type: "host", copySource: true, tabs: true,
+      language: "system", systemLanguage: "ja-JP" });
+    await deliver({
+      type: "document", tabId: 1, theme: "light", fileName: "viewer.md",
+      path: "/fixtures/viewer.md", documentBaseUrl: "https://d1.doc.leanmark.invalid/",
+      sourceBytes: 1014, hasMermaid: true, html: DOCUMENT_HTML,
+    });
+    await waitFor(client, 'document.documentElement.dataset.renderState === "ready"',
+      "the document to render in Japanese");
+    language = await client.evaluate(READ_LANGUAGE);
+    check(language.lang === "ja" && language.settings === "設定" &&
+      language.open === "開く" && language.find === "検索" &&
+      /変更を監視中/.test(language.meta) && language.theme === "ライト" &&
+      /ドキュメント全体をコピー/.test(language.copyTitle) &&
+      /このセクションをコピー/.test(language.section) && language.checked === "system",
+      "a ja-JP system shows the interface in Japanese " + JSON.stringify(language));
+    await deliver({ type: "status", tone: "warning",
+      message: "Absolute local links are blocked for safety." });
+    check(await client.evaluate('document.getElementById("statusToast").textContent') ===
+      "安全のため、絶対パスのローカル リンクはブロックされます。",
+      "a host message is shown in Japanese");
+    await clickSelector(client, "#settingsButton");
+    await clearPosted();
+    await clickSelector(client, '#settingsPanel input[name="settings-language"][value="ja"]');
+    language = await client.evaluate(READ_LANGUAGE);
+    check(JSON.stringify(await posted()) === JSON.stringify(["language|ja"]) &&
+      language.settings === "設定" && language.checked === "ja",
+      "choosing 日本語 keeps Japanese and asks the host to save it");
+    check(await client.evaluate(
+      'Array.from(document.querySelectorAll("#shortcutList h4")).map(function (h) { return h.textContent; }).indexOf("リーダー") >= 0'),
+      "the shortcut list is in Japanese");
+    if (process.platform === "win32") {
+      // 設定 shares its characters with Chinese; Windows has Yu Gothic and
+      // Meiryo for Japanese and Microsoft YaHei for Simplified Chinese.
+      const { root } = await client.send("DOM.getDocument", { depth: 0 });
+      const { nodeId } = await client.send("DOM.querySelector",
+        { nodeId: root.nodeId, selector: "#settingsTitle" });
+      await client.send("DOM.enable");
+      await client.send("CSS.enable");
+      const { fonts } = await client.send("CSS.getPlatformFontsForNode", { nodeId });
+      const families = fonts.map((font) => font.familyName).join(", ");
+      check(/Yu Gothic|Meiryo|MS (P)?Gothic|Noto Sans JP|BIZ UD/i.test(families) &&
+        !/YaHei|SimSun|DengXian/i.test(families),
+        "Japanese text is drawn with a Japanese font (" + families + ")");
+    }
+    if (captureDirectory) {
+      const shot = await client.send("Page.captureScreenshot", { format: "png" });
+      await fs.writeFile(join(resolve(captureDirectory), "ja-settings.png"),
+        Buffer.from(shot.data, "base64"));
+    }
+    await press(client, "Escape");
+
     check(consoleErrors.length === 0,
       "the page threw no exceptions" +
       (consoleErrors.length ? ": " + consoleErrors.join("; ") : ""));
