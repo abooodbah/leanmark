@@ -4,7 +4,7 @@ Read Markdown files without opening an editor, including the .md files your AI t
 
 LeanMark reloads the page when the file changes on disk and keeps your place, so you can leave a plan or report open and watch it update as it is written. Raw HTML is off and remote content is blocked, so a file cannot run its own scripts or load anything from the internet.
 
-Mermaid diagrams render offline too. LeanMark uses the system web view, with no bundled browser, no Electron, and no telemetry. About 74 ms to a visible window and 97 MiB peak private memory on Windows 11 (measured with 0.3.0).
+Mermaid diagrams and math formulas render offline too. LeanMark uses the system web view, with no bundled browser, no Electron, and no telemetry. About 74 ms to a visible window and 97 MiB peak private memory on Windows 11 (measured with 0.3.0).
 
 [简体中文](#简体中文) · [Website](https://abooodbah.github.io/leanmark/) · [Microsoft Store](https://apps.microsoft.com/detail/9MSS4WKJ22ZV) · `winget install abooodbah.LeanMark` · `choco install leanmark` · [All Lean apps](https://abooodbah.github.io/)
 
@@ -44,6 +44,7 @@ LeanMark 是一款免费的 Markdown 阅读器，支持 Windows、Linux 和 macO
 - **实时刷新**：文件在磁盘上被修改时，LeanMark 会重新加载页面，并保持当前的阅读位置。可以把计划或报告一直开着，看着它边写边更新。
 - **安全**：原始 HTML 处于关闭状态，远程内容会被阻止，因此文件无法运行自己的脚本，也无法从互联网加载任何内容。
 - **Mermaid 离线渲染**：Mermaid 图表在本机渲染，不需要联网。
+- **数学公式**：`$...$` 和 `$$...$$` 之间的 TeX 公式用内置的 KaTeX 在本机排版。
 - **轻量**：使用系统自带的 Web 视图（Windows 上是 WebView2），不捆绑浏览器，不使用 Electron，没有遥测。
 
 从 0.8.0 版起，Windows 版的界面支持简体中文：系统显示语言为简体中文时自动使用中文，也可以在“设置”的“语言”中选择“跟随系统”、English 或“简体中文”。
@@ -266,7 +267,7 @@ not supported by this release.
 LeanMark is designed for:
 
 - opening a local README or generated report without loading an editor;
-- offline GFM tables, task lists, local images, and Mermaid diagrams;
+- offline GFM tables, task lists, local images, Mermaid diagrams, and math;
 - focused reading without vault, workspace, or authoring features; and
 - inspectable, MIT-licensed source with reproducible package checks.
 
@@ -277,6 +278,9 @@ browser-free renderer, or a claim to the lowest possible RAM use.
 
 - CommonMark plus GFM tables, task lists, autolinks, and strikethrough.
 - Lazy, offline Mermaid rendering with strict mode and bounded diagram input.
+- Math between `$...$` (inline) and `$$...$$` (display), typeset offline with
+  bundled KaTeX. KaTeX loads only when a document has math. A price such as
+  "$5 to $10" stays text, and a formula KaTeX cannot read keeps its source.
 - Relative local images and relative Markdown document links.
 - Automatic outline, find, reading progress, and printing.
 - The "On this page" outline marks the section you are reading and keeps

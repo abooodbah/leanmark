@@ -152,6 +152,18 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
           "LEANMARK_ASSETS_DIR=${LEANMARK_RUNTIME_ASSETS};WEBKIT_DISABLE_COMPOSITING_MODE=1"
         TIMEOUT 45)
 
+      # Math: the smoke probe checks that KaTeX loads through the app scheme
+      # and typesets every formula.
+      add_test(
+        NAME leanmark-linux-host-math
+        COMMAND "${LEANMARK_XVFB_RUN_EXECUTABLE}" -a
+                "$<TARGET_FILE:leanmark>" --smoke-test
+                "${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/math.md")
+      set_tests_properties(leanmark-linux-host-math PROPERTIES
+        ENVIRONMENT
+          "LEANMARK_ASSETS_DIR=${LEANMARK_RUNTIME_ASSETS};WEBKIT_DISABLE_COMPOSITING_MODE=1"
+        TIMEOUT 45)
+
       # Enough sections for the outline to scroll: the smoke probe checks the
       # current-section highlight and that it stays in view.
       add_test(

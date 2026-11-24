@@ -41,7 +41,9 @@ $requiredPayloadFiles = @(
   'assets\reader.html',
   'assets\reader.css',
   'assets\reader.js',
-  'assets\vendor\mermaid.min.js'
+  'assets\vendor\mermaid.min.js',
+  'assets\vendor\katex\katex.min.js',
+  'assets\vendor\katex\katex.min.css'
 )
 foreach ($relativePath in $requiredPayloadFiles) {
   $requiredPath = Join-Path $resolvedDist $relativePath

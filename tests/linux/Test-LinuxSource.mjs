@@ -19,6 +19,8 @@ const [host, header, cmake, reader, html, desktop, metainfo] =
   ]);
 
 for (const guard of [
+  // The app scheme serves KaTeX from the shared core list, or math fails here.
+  /AppAssetContentType[\s\S]*core::MathAssetContentType\(relativePath\)/,
   /webkit_network_session_new_ephemeral/,
   /webkit_web_context_set_cache_model[\s\S]*WEBKIT_CACHE_MODEL_DOCUMENT_VIEWER/,
   /webkit_web_context_register_uri_scheme/,
