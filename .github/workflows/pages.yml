@@ -24,16 +24,18 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
+  # Upload and deploy run as separate jobs, as in GitHub's Pages starter
+  # workflows. When deploy-pages ran in the same job, a moment after the
+  # upload, its artifact lookup sometimes came back empty
+  # (actions/deploy-pages#451). A separate job also lets "Re-run failed jobs"
+  # repeat only the deploy, which finds the one artifact already uploaded
+  # instead of a second copy.
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      pages: read
 
     steps:
       - name: Check out source
@@ -51,6 +53,18 @@ jobs:
         with:
           path: site
 
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
       - name: Deploy GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
