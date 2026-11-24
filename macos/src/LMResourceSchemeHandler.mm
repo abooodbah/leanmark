@@ -39,7 +39,7 @@ NSSet<NSString *> *ApplicationResourceAllowlist(void) {
     static NSSet<NSString *> *allowlist;
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-      allowlist = [NSSet setWithArray:@[
+      NSMutableArray<NSString *> *paths = [NSMutableArray arrayWithArray:@[
           @"reader.html",
           @"reader.css",
           @"reader.js",
@@ -50,6 +50,12 @@ NSSet<NSString *> *ApplicationResourceAllowlist(void) {
           @"fonts/ibm-plex-serif-latin-600-normal.woff2",
           @"fonts/ibm-plex-mono-latin-400-normal.woff2",
       ]];
+      for (const auto path : leanmark::core::MathAssetPaths()) {
+          [paths addObject:[[NSString alloc] initWithBytes:path.data()
+                                                    length:path.size()
+                                                  encoding:NSUTF8StringEncoding]];
+      }
+      allowlist = [NSSet setWithArray:paths];
     });
     return allowlist;
 }

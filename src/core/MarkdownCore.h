@@ -47,6 +47,14 @@ bool ReadDocumentFile(
 
 bool IsSupportedMarkdownPath(const std::filesystem::path& path);
 
+// The KaTeX files the reader loads when a document has math, relative to the
+// assets folder. The Linux and macOS hosts serve assets from an allowlist and
+// add these; a test checks the list against the files the build stages.
+const std::vector<std::string_view>& MathAssetPaths();
+
+// The content type for a path in MathAssetPaths(), otherwise nullptr.
+const char* MathAssetContentType(std::string_view relativePath);
+
 struct MarkdownHeading {
     unsigned level = 0;
     // Byte offset of the source line that holds the heading, or npos when the

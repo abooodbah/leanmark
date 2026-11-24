@@ -243,6 +243,9 @@ std::optional<const char*> AppAssetContentType(std::string_view relativePath) {
         kFontFiles.end()) {
         return "font/woff2";
     }
+    if (const char* mathType = core::MathAssetContentType(relativePath)) {
+        return mathType;
+    }
     return std::nullopt;
 }
 
@@ -1097,6 +1100,33 @@ void LinuxApp::StartSmokeProbe() {
       done((root.dataset.theme || "system") === shown);
     }, 600);
   }
+  // A document with math must reach KaTeX through the app scheme allowlist:
+  // the formulas render and a KaTeX font loads. Without math there is
+  // nothing to check.
+  function mathWorks(done) {
+    var equations = document.querySelectorAll("#article x-equation").length;
+    if (!equations) {
+      done(true, "none");
+      return;
+    }
+    var tries = 0;
+    (function next() {
+      var state = document.documentElement.dataset.mathState;
+      if (state !== "ready" && state !== "failed" && tries++ < 60) {
+        window.setTimeout(next, 100);
+        return;
+      }
+      var rendered = document.querySelectorAll(
+        "#article x-equation .katex").length;
+      document.fonts.ready.then(function () {
+        var fonts = Array.from(document.fonts).filter(function (font) {
+          return font.family.indexOf("KaTeX") >= 0 && font.status === "loaded";
+        }).length;
+        done(state === "ready" && rendered === equations && fonts > 0,
+          state + " " + rendered + "/" + equations + " fonts " + fonts);
+      });
+    }());
+  }
   function inspect() {
     attempts += 1;
     var ready = document.documentElement.dataset.renderState === "ready";
@@ -1111,8 +1141,15 @@ void LinuxApp::StartSmokeProbe() {
           return;
         }
         outlineWorks(function (outlineOk, state) {
-          window.webkit.messageHandlers.leanmark.postMessage(
-            outlineOk ? "smoke-ok" : "smoke-failed|Outline: " + state);
+          if (!outlineOk) {
+            window.webkit.messageHandlers.leanmark.postMessage(
+              "smoke-failed|Outline: " + state);
+            return;
+          }
+          mathWorks(function (mathOk, mathState) {
+            window.webkit.messageHandlers.leanmark.postMessage(
+              mathOk ? "smoke-ok" : "smoke-failed|Math: " + mathState);
+          });
         });
       });
       return;

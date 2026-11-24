@@ -15,7 +15,8 @@ namespace {
 
 // Shared by the renderer and the heading scanner. If the two passes parsed with
 // different flags, heading i in the source would stop being heading i on screen.
-constexpr unsigned kParserFlags = MD_DIALECT_GITHUB | MD_FLAG_NOHTML;
+constexpr unsigned kParserFlags =
+    MD_DIALECT_GITHUB | MD_FLAG_NOHTML | MD_FLAG_LATEXMATHSPANS;
 
 void AppendRenderedHtml(const MD_CHAR* text, MD_SIZE size, void* userData) {
     auto* output = static_cast<std::string*>(userData);
@@ -313,6 +314,55 @@ bool IsSupportedMarkdownPath(const std::filesystem::path& path) {
     const std::string extension = LowercaseAscii(path.extension().string());
     return extension == ".md" || extension == ".markdown" ||
            extension == ".mdown" || extension == ".mkd";
+}
+
+const std::vector<std::string_view>& MathAssetPaths() {
+    // KaTeX 0.19.1: its script, its stylesheet, and the woff2 fonts the
+    // stylesheet lists first. scripts/stage-runtime-assets.mjs copies them.
+    static const std::vector<std::string_view> paths = {
+        "vendor/katex/katex.min.js",
+        "vendor/katex/katex.min.css",
+        "vendor/katex/fonts/KaTeX_AMS-Regular.woff2",
+        "vendor/katex/fonts/KaTeX_Caligraphic-Bold.woff2",
+        "vendor/katex/fonts/KaTeX_Caligraphic-Regular.woff2",
+        "vendor/katex/fonts/KaTeX_Fraktur-Bold.woff2",
+        "vendor/katex/fonts/KaTeX_Fraktur-Regular.woff2",
+        "vendor/katex/fonts/KaTeX_Main-Bold.woff2",
+        "vendor/katex/fonts/KaTeX_Main-BoldItalic.woff2",
+        "vendor/katex/fonts/KaTeX_Main-Italic.woff2",
+        "vendor/katex/fonts/KaTeX_Main-Regular.woff2",
+        "vendor/katex/fonts/KaTeX_Math-BoldItalic.woff2",
+        "vendor/katex/fonts/KaTeX_Math-Italic.woff2",
+        "vendor/katex/fonts/KaTeX_SansSerif-Bold.woff2",
+        "vendor/katex/fonts/KaTeX_SansSerif-Italic.woff2",
+        "vendor/katex/fonts/KaTeX_SansSerif-Regular.woff2",
+        "vendor/katex/fonts/KaTeX_Script-Regular.woff2",
+        "vendor/katex/fonts/KaTeX_Size1-Regular.woff2",
+        "vendor/katex/fonts/KaTeX_Size2-Regular.woff2",
+        "vendor/katex/fonts/KaTeX_Size3-Regular.woff2",
+        "vendor/katex/fonts/KaTeX_Size4-Regular.woff2",
+        "vendor/katex/fonts/KaTeX_Typewriter-Regular.woff2",
+    };
+    return paths;
+}
+
+const char* MathAssetContentType(std::string_view relativePath) {
+    const auto& paths = MathAssetPaths();
+    if (std::find(paths.begin(), paths.end(), relativePath) == paths.end()) {
+        return nullptr;
+    }
+    const auto endsWith = [relativePath](std::string_view suffix) {
+        return relativePath.size() >= suffix.size() &&
+               relativePath.substr(relativePath.size() - suffix.size()) ==
+                   suffix;
+    };
+    if (endsWith(".js")) {
+        return "application/javascript";
+    }
+    if (endsWith(".css")) {
+        return "text/css";
+    }
+    return "font/woff2";
 }
 
 std::vector<MarkdownHeading> FindHeadings(std::string_view markdown) {

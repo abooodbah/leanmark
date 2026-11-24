@@ -1096,6 +1096,65 @@
     return mermaidLoader;
   }
 
+  var katexLoader = null;
+
+  // KaTeX is only fetched when the document has math, like Mermaid.
+  function loadKatex() {
+    if (window.katex) {
+      return Promise.resolve(window.katex);
+    }
+    if (katexLoader) {
+      return katexLoader;
+    }
+    katexLoader = new Promise(function (resolve, reject) {
+      var style = document.createElement("link");
+      style.rel = "stylesheet";
+      style.href = "/vendor/katex/katex.min.css";
+      document.head.appendChild(style);
+      var script = document.createElement("script");
+      script.src = "/vendor/katex/katex.min.js";
+      script.addEventListener("load", function () {
+        if (window.katex) {
+          resolve(window.katex);
+        } else {
+          reject(new Error("KaTeX did not initialize."));
+        }
+      }, { once: true });
+      script.addEventListener("error", function () {
+        reject(new Error("The local KaTeX bundle could not be loaded."));
+      }, { once: true });
+      document.head.appendChild(script);
+    });
+    return katexLoader;
+  }
+
+  async function renderMath() {
+    var equations = Array.from(elements.article.querySelectorAll("x-equation"));
+    if (!equations.length) {
+      return;
+    }
+    document.documentElement.dataset.mathState = "loading";
+    try {
+      var katex = await loadKatex();
+      equations.forEach(function (equation) {
+        var source = equation.textContent || "";
+        // A formula KaTeX cannot read keeps its source, in the theme's
+        // danger colour, and the rest of the page still renders.
+        katex.render(source, equation, {
+          displayMode: equation.getAttribute("type") === "display",
+          throwOnError: false,
+          errorColor: "var(--danger-500)",
+          trust: false,
+          maxExpand: 1000
+        });
+      });
+      document.documentElement.dataset.mathState = "ready";
+    } catch (error) {
+      // The raw TeX stays readable when the bundle cannot load.
+      document.documentElement.dataset.mathState = "failed";
+    }
+  }
+
   // The keys stay on the figure so a language change can write it again.
   function renderDiagramError(figure, titleKey, detailKey) {
     setExpandable(figure, false);
@@ -1217,6 +1276,7 @@
     wrapTables();
     prepareHeadings();
     prepareDiagrams();
+    renderMath();
     showReader();
     document.documentElement.dataset.renderState =
       data.hasMermaid ? "diagrams" : "ready";
@@ -1479,7 +1539,7 @@
         acceptNode: function (node) {
           var parent = node.parentElement;
           if (!parent || !node.nodeValue.trim() ||
-              parent.closest("svg, script, style, .diagram")) {
+              parent.closest("svg, script, style, .diagram, .katex-mathml")) {
             return NodeFilter.FILTER_REJECT;
           }
           return NodeFilter.FILTER_ACCEPT;

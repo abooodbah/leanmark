@@ -1,4 +1,4 @@
-import { copyFile, mkdir, stat } from "node:fs/promises";
+import { copyFile, mkdir, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -31,6 +31,17 @@ const files = [
   ["assets/reader.css", "reader.css"],
   ["assets/reader.js", "reader.js"],
   ["node_modules/mermaid/dist/mermaid.min.js", "vendor/mermaid.min.js"],
+  ["node_modules/katex/dist/katex.min.js", "vendor/katex/katex.min.js"],
+  ["node_modules/katex/dist/katex.min.css", "vendor/katex/katex.min.css"],
+  // WebView2 always takes the woff2 entry first in katex.min.css, so the
+  // woff and ttf copies are left out.
+  ...(await readdir(path.join(repositoryRoot, "node_modules/katex/dist/fonts")))
+    .filter((name) => name.endsWith(".woff2"))
+    .sort()
+    .map((name) => [
+      `node_modules/katex/dist/fonts/${name}`,
+      `vendor/katex/fonts/${name}`
+    ]),
   [
     "node_modules/@fontsource/ibm-plex-sans/files/" +
       "ibm-plex-sans-latin-400-normal.woff2",
