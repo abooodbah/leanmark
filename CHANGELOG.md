@@ -3,7 +3,7 @@
 All notable LeanMark changes are recorded here. The project follows semantic
 versioning.
 
-## [Unreleased]
+## [0.9.0] - 2026-11-24
 
 ### Added
 
@@ -302,6 +302,7 @@ versioning.
 - WebView2 keeps the package small but uses a browser-process memory footprint.
 - LeanMark reads Markdown; it does not edit or manage a document vault.
 
+[0.9.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.9.0
 [0.8.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.8.0
 [0.7.1]: https://github.com/abooodbah/leanmark/releases/tag/v0.7.1
 [0.7.0]: https://github.com/abooodbah/leanmark/releases/tag/v0.7.0
